@@ -1,6 +1,7 @@
 use crate::{
     modules::devices::application::{
-        ListDevicesError, RegisterDeviceError, RenameDeviceError, RevokeDeviceError,
+        AuthenticateDeviceError, IssueDeviceCredentialError, ListDevicesError, RegisterDeviceError,
+        RenameDeviceError, RevokeDeviceError, RotateDeviceCredentialError,
     },
     shared::api::ApiError,
 };
@@ -82,6 +83,70 @@ impl From<ListDevicesError> for ApiError {
                 ApiError::not_found("household_not_found", "The household was not found")
             }
             ListDevicesError::Internal(_) => ApiError::internal_error(),
+        }
+    }
+}
+
+impl From<AuthenticateDeviceError> for ApiError {
+    fn from(value: AuthenticateDeviceError) -> Self {
+        match value {
+            AuthenticateDeviceError::InvalidCredentials => ApiError::unauthorized(
+                "invalid_device_credentials",
+                "Device credentials are invalid",
+            ),
+            AuthenticateDeviceError::Internal(_) => ApiError::internal_error(),
+        }
+    }
+}
+
+impl From<IssueDeviceCredentialError> for ApiError {
+    fn from(value: IssueDeviceCredentialError) -> Self {
+        match value {
+            IssueDeviceCredentialError::Forbidden => ApiError::forbidden(
+                "household_access_forbidden",
+                "You do not have permissions to access this household",
+            ),
+            IssueDeviceCredentialError::HouseholdNotFound => {
+                ApiError::not_found("household_not_found", "The household was not found")
+            }
+            IssueDeviceCredentialError::DeviceNotFound => {
+                ApiError::not_found("device_not_found", "The device was not found")
+            }
+            IssueDeviceCredentialError::TokenGenerationFailed
+            | IssueDeviceCredentialError::Internal(_) => ApiError::internal_error(),
+            IssueDeviceCredentialError::DeviceRevoked => {
+                ApiError::conflict("device_revoked", "The device has been revoked")
+            }
+            IssueDeviceCredentialError::ActiveCredentialAlreadyExists => ApiError::conflict(
+                "device_credential_already_exists",
+                "The device already has an active credential",
+            ),
+        }
+    }
+}
+
+impl From<RotateDeviceCredentialError> for ApiError {
+    fn from(value: RotateDeviceCredentialError) -> Self {
+        match value {
+            RotateDeviceCredentialError::Forbidden => ApiError::forbidden(
+                "household_access_forbidden",
+                "You do not have permissions to access this household",
+            ),
+            RotateDeviceCredentialError::HouseholdNotFound => {
+                ApiError::not_found("household_not_found", "The household was not found")
+            }
+            RotateDeviceCredentialError::DeviceNotFound => {
+                ApiError::not_found("device_not_found", "The device was not found")
+            }
+            RotateDeviceCredentialError::TokenGenerationFailed
+            | RotateDeviceCredentialError::Internal(_) => ApiError::internal_error(),
+            RotateDeviceCredentialError::DeviceRevoked => {
+                ApiError::conflict("device_revoked", "The device has been revoked")
+            }
+            RotateDeviceCredentialError::CredentialNotFound => ApiError::conflict(
+                "device_has_no_active_credential",
+                "The device has no active credential to rotate",
+            ),
         }
     }
 }

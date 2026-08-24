@@ -50,7 +50,7 @@ impl RenameDeviceService {
 
         let mut device = self
             .device_repository
-            .find_by_id(&command.device_id, &command.household_id)
+            .find_by_id_for_household(&command.device_id, &command.household_id)
             .await
             .map_err(|error| {
                 tracing::error!(

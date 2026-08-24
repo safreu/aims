@@ -24,13 +24,13 @@ use crate::{
     },
 };
 
-pub struct IssueDeviceCredentialCommand {
+pub struct RotateDeviceCredentialCommand {
     pub requester_id: UserId,
     pub household_id: HouseholdId,
     pub device_id: DeviceId,
 }
 
-pub struct IssueDeviceCredentialService {
+pub struct RotateDeviceCredentialService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     device_repository: Arc<dyn DeviceRepository>,
     device_credential_repository: Arc<dyn DeviceCredentialRepository>,
@@ -38,7 +38,7 @@ pub struct IssueDeviceCredentialService {
     token_hasher: Arc<dyn TokenHasher<DeviceToken, DeviceTokenHash>>,
 }
 
-impl IssueDeviceCredentialService {
+impl RotateDeviceCredentialService {
     pub fn new(
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         device_repository: Arc<dyn DeviceRepository>,
@@ -57,8 +57,8 @@ impl IssueDeviceCredentialService {
 
     pub async fn execute(
         &self,
-        command: IssueDeviceCredentialCommand,
-    ) -> Result<DeviceToken, IssueDeviceCredentialError> {
+        command: RotateDeviceCredentialCommand,
+    ) -> Result<DeviceToken, RotateDeviceCredentialError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
             .await
@@ -75,18 +75,18 @@ impl IssueDeviceCredentialService {
                     device_id = %command.device_id,
                     "Failed to load device"
                 );
-                IssueDeviceCredentialError::Internal(InternalError::Failed)
+                RotateDeviceCredentialError::Internal(InternalError::Failed)
             })?
-            .ok_or(IssueDeviceCredentialError::DeviceNotFound)?;
+            .ok_or(RotateDeviceCredentialError::DeviceNotFound)?;
 
         if device.is_revoked() {
-            return Err(IssueDeviceCredentialError::DeviceRevoked);
+            return Err(RotateDeviceCredentialError::DeviceRevoked);
         }
 
         let token = self
             .token_generator
             .generate()
-            .map_err(|_| IssueDeviceCredentialError::TokenGenerationFailed)?;
+            .map_err(|_| RotateDeviceCredentialError::TokenGenerationFailed)?;
 
         let hash = self.token_hasher.hash(&token);
 
@@ -98,20 +98,20 @@ impl IssueDeviceCredentialService {
         );
 
         self.device_credential_repository
-            .insert(&credential)
+            .rotate(&command.device_id, &credential, Utc::now())
             .await
             .map_err(|error| match error {
-                DeviceCredentialRepositoryError::ActiveCredentialAlreadyExists => {
-                    IssueDeviceCredentialError::ActiveCredentialAlreadyExists
+                DeviceCredentialRepositoryError::CredentialNotFound => {
+                    RotateDeviceCredentialError::CredentialNotFound
                 }
                 other => {
                     tracing::error!(
                         error = ?other,
                         household_id = %command.household_id,
                         device_id = %command.device_id,
-                        "Failed to persist device credential"
+                        "Failed to rotate device credential"
                     );
-                    IssueDeviceCredentialError::Internal(InternalError::Failed)
+                    RotateDeviceCredentialError::Internal(InternalError::Failed)
                 }
             })?;
 
@@ -120,13 +120,13 @@ impl IssueDeviceCredentialService {
 }
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
-pub enum IssueDeviceCredentialError {
+pub enum RotateDeviceCredentialError {
     #[error("Device was not found")]
     DeviceNotFound,
     #[error("Device is revoked")]
     DeviceRevoked,
-    #[error("An active credential for this device already exists")]
-    ActiveCredentialAlreadyExists,
+    #[error("Device has no active credential")]
+    CredentialNotFound,
     #[error("Device token generation failed")]
     TokenGenerationFailed,
     #[error("You do not have permission")]
@@ -137,31 +137,31 @@ pub enum IssueDeviceCredentialError {
     Internal(#[from] InternalError),
 }
 
-fn map_household_access_error(error: HouseholdAccessError) -> IssueDeviceCredentialError {
+fn map_household_access_error(error: HouseholdAccessError) -> RotateDeviceCredentialError {
     match error {
-        HouseholdAccessError::Forbidden => IssueDeviceCredentialError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => IssueDeviceCredentialError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => IssueDeviceCredentialError::Internal(error),
+        HouseholdAccessError::Forbidden => RotateDeviceCredentialError::Forbidden,
+        HouseholdAccessError::HouseholdNotFound => RotateDeviceCredentialError::HouseholdNotFound,
+        HouseholdAccessError::Internal(error) => RotateDeviceCredentialError::Internal(error),
     }
 }
 
-//TODO: Write these tests
+//TODO: Write tests
 /*
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn household_member_can_issue_device_credential() {}
+    async fn household_member_can_rotate_device_credential() {}
 
     #[tokio::test]
-    async fn issued_token_is_not_stored_in_plaintext() {}
+    async fn rotated_token_replaces_previous_active_credential() {}
 
     #[tokio::test]
-    async fn second_active_credential_is_rejected() {}
+    async fn device_without_active_credential_cannot_be_rotated() {}
 
     #[tokio::test]
-    async fn revoked_device_cannot_receive_credential() {}
+    async fn revoked_device_cannot_rotate_credential() {}
 
     #[tokio::test]
     async fn unknown_device_returns_not_found() {}

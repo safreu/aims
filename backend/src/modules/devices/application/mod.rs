@@ -14,3 +14,14 @@ mod issue_device_credential;
 pub use issue_device_credential::{
     IssueDeviceCredentialCommand, IssueDeviceCredentialError, IssueDeviceCredentialService,
 };
+
+mod rotate_device_credential;
+pub use rotate_device_credential::{
+    RotateDeviceCredentialCommand, RotateDeviceCredentialError, RotateDeviceCredentialService,
+};
+
+mod authenticate_device;
+pub use authenticate_device::{
+    AuthenticateDeviceCommand, AuthenticateDeviceError, AuthenticateDeviceService,
+    AuthenticatedDevice,
+};
