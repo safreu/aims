@@ -9,3 +9,8 @@ pub use rename_device::{RenameDeviceCommand, RenameDeviceError, RenameDeviceServ
 
 mod revoke_device;
 pub use revoke_device::{RevokeDeviceCommand, RevokeDeviceError, RevokeDeviceService};
+
+mod issue_device_credential;
+pub use issue_device_credential::{
+    IssueDeviceCredentialCommand, IssueDeviceCredentialError, IssueDeviceCredentialService,
+};

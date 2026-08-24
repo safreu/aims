@@ -117,6 +117,10 @@ impl Device {
         Ok(())
     }
 
+    pub fn is_revoked(&self) -> bool {
+        self.revoked_at().is_some()
+    }
+
     pub fn rename(&mut self, name: DeviceName, now: DateTime<Utc>) -> Result<(), DeviceError> {
         self.ensure_active()?;
 
