@@ -1,5 +1,7 @@
 use core::fmt;
 
+use crate::shared::auth::TokenValue;
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct SessionToken(String);
 
@@ -17,6 +19,18 @@ impl SessionToken {
 
     pub fn into_string(self) -> String {
         self.0
+    }
+}
+
+impl TokenValue for SessionToken {
+    type Error = SessionTokenError;
+
+    fn from_string(value: String) -> Result<Self, Self::Error> {
+        SessionToken::from_string(value)
+    }
+
+    fn as_str(&self) -> &str {
+        self.as_str()
     }
 }
 

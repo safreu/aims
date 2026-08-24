@@ -5,15 +5,15 @@ use sqlx::PgPool;
 use crate::{
     config::{SessionConfig, SessionCookieConfig},
     modules::accounts::{
-        adapters::{
-            Argon2PasswordHasher, PostgresSessionRepository, PostgresUserRepository,
-            SecureSessionTokenGenerator, Sha256SessionTokenHasher,
-        },
+        adapters::{Argon2PasswordHasher, PostgresSessionRepository, PostgresUserRepository},
         application::{
             AuthenticateSessionService, CreateSessionService, LoginUserService, RegisterUserService,
         },
     },
-    shared::api::AccountsState,
+    shared::{
+        api::AccountsState,
+        auth::{SecureTokenGenerator, Sha256TokenHasher},
+    },
 };
 
 pub(super) fn build_accounts_state(pool: &PgPool, config: &SessionConfig) -> AccountsState {
@@ -23,9 +23,9 @@ pub(super) fn build_accounts_state(pool: &PgPool, config: &SessionConfig) -> Acc
 
     let password_hasher = Arc::new(Argon2PasswordHasher::new());
 
-    let session_token_generator = Arc::new(SecureSessionTokenGenerator);
+    let session_token_generator = Arc::new(SecureTokenGenerator);
 
-    let session_token_hasher = Arc::new(Sha256SessionTokenHasher);
+    let session_token_hasher = Arc::new(Sha256TokenHasher);
 
     let register_user_service = Arc::new(RegisterUserService::new(
         user_repository.clone(),
