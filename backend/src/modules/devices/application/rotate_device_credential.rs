@@ -61,8 +61,7 @@ impl RotateDeviceCredentialService {
     ) -> Result<DeviceToken, RotateDeviceCredentialError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let device = self
             .device_repository
@@ -129,20 +128,10 @@ pub enum RotateDeviceCredentialError {
     CredentialNotFound,
     #[error("Device token generation failed")]
     TokenGenerationFailed,
-    #[error("You do not have permission")]
-    Forbidden,
-    #[error("Household was not found")]
-    HouseholdNotFound,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> RotateDeviceCredentialError {
-    match error {
-        HouseholdAccessError::Forbidden => RotateDeviceCredentialError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => RotateDeviceCredentialError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => RotateDeviceCredentialError::Internal(error),
-    }
 }
 
 //TODO: Write tests

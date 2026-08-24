@@ -43,12 +43,13 @@ impl RemoveHouseholdMemberService {
         let requester = self
             .household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         if !(command.requester_id == command.member_id) && requester.role() != HouseholdRole::Owner
         {
-            return Err(RemoveHouseholdMemberError::Forbidden);
+            return Err(RemoveHouseholdMemberError::HouseholdAccess(
+                HouseholdAccessError::Forbidden,
+            ));
         }
 
         let target = self
@@ -94,24 +95,14 @@ impl RemoveHouseholdMemberService {
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum RemoveHouseholdMemberError {
-    #[error("Household was not found")]
-    HouseholdNotFound,
-    #[error("You do not have permissions")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error("Household member not found")]
     MemberNotFound,
     #[error("The household owner cannot be removed")]
     OwnerCannotBeRemoved,
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> RemoveHouseholdMemberError {
-    match error {
-        HouseholdAccessError::Forbidden => RemoveHouseholdMemberError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => RemoveHouseholdMemberError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => RemoveHouseholdMemberError::Internal(error),
-    }
 }
 
 #[cfg(test)]
@@ -221,7 +212,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(RemoveHouseholdMemberError::Forbidden));
+        assert_eq!(
+            result,
+            Err(RemoveHouseholdMemberError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        );
 
         let stored = household_repository
             .find_member(&fixture.household.id(), &target.id())
@@ -252,7 +248,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(RemoveHouseholdMemberError::Forbidden));
+        assert_eq!(
+            result,
+            Err(RemoveHouseholdMemberError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        );
 
         let stored = household_repository
             .find_member(&fixture.household.id(), &target.id())
@@ -274,7 +275,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(RemoveHouseholdMemberError::HouseholdNotFound));
+        assert_eq!(
+            result,
+            Err(RemoveHouseholdMemberError::HouseholdAccess(
+                HouseholdAccessError::HouseholdNotFound
+            ))
+        );
     }
 
     #[tokio::test]
@@ -343,7 +349,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(RemoveHouseholdMemberError::Internal(InternalError::Failed))
+            Err(RemoveHouseholdMemberError::HouseholdAccess(
+                HouseholdAccessError::Internal(InternalError::Failed)
+            ))
         )
     }
 

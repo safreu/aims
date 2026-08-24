@@ -39,8 +39,7 @@ impl ListCategoriesService {
     ) -> Result<Vec<Category>, ListCategoriesError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let categories = self
             .category_repository
@@ -61,20 +60,10 @@ impl ListCategoriesService {
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum ListCategoriesError {
-    #[error("Household was not found")]
-    HouseholdNotFound,
-    #[error("You do not have permission")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> ListCategoriesError {
-    match error {
-        HouseholdAccessError::Forbidden => ListCategoriesError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => ListCategoriesError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => ListCategoriesError::Internal(error),
-    }
 }
 
 #[cfg(test)]
@@ -210,6 +199,11 @@ mod tests {
 
         let result = service.execute(command).await;
 
-        assert_eq!(result, Err(ListCategoriesError::Forbidden))
+        assert_eq!(
+            result,
+            Err(ListCategoriesError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        )
     }
 }

@@ -24,13 +24,7 @@ impl From<CreateHouseholdError> for ApiError {
 impl From<GetHouseholdError> for ApiError {
     fn from(error: GetHouseholdError) -> Self {
         match error {
-            GetHouseholdError::NotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
-            GetHouseholdError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have access to this household",
-            ),
+            GetHouseholdError::HouseholdAccess(error) => error.into(),
             GetHouseholdError::Internal(_) => ApiError::internal_error(),
         }
     }
@@ -74,13 +68,10 @@ impl From<AddHouseholdMemberError> for ApiError {
 impl From<ListHouseholdMembersError> for ApiError {
     fn from(error: ListHouseholdMembersError) -> Self {
         match error {
+            ListHouseholdMembersError::HouseholdAccess(error) => error.into(),
             ListHouseholdMembersError::NotFound => {
                 ApiError::not_found("household_not_found", "The household was not found")
             }
-            ListHouseholdMembersError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have access to this household",
-            ),
             ListHouseholdMembersError::Internal(_) => ApiError::internal_error(),
         }
     }
@@ -89,13 +80,7 @@ impl From<ListHouseholdMembersError> for ApiError {
 impl From<RemoveHouseholdMemberError> for ApiError {
     fn from(error: RemoveHouseholdMemberError) -> Self {
         match error {
-            RemoveHouseholdMemberError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
-            RemoveHouseholdMemberError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permission to modify this household",
-            ),
+            RemoveHouseholdMemberError::HouseholdAccess(error) => error.into(),
             RemoveHouseholdMemberError::MemberNotFound => ApiError::not_found(
                 "household_member_not_found",
                 "The household member was not found",

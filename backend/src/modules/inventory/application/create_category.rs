@@ -48,8 +48,7 @@ impl CreateCategoryService {
 
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let existing = self
             .category_repository
@@ -100,22 +99,12 @@ impl CreateCategoryService {
 pub enum CreateCategoryError {
     #[error("Category name is invalid")]
     InvalidName,
-    #[error("Household was not found")]
-    HouseholdNotFound,
-    #[error("You do not have permission")]
-    Forbidden,
     #[error("A category with this name already exists")]
     CategoryAlreadyExists,
     #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
+    #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> CreateCategoryError {
-    match error {
-        HouseholdAccessError::Forbidden => CreateCategoryError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => CreateCategoryError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => CreateCategoryError::Internal(error),
-    }
 }
 
 #[cfg(test)]
@@ -193,7 +182,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(CreateCategoryError::Forbidden))
+        assert_eq!(
+            result,
+            Err(CreateCategoryError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        )
     }
 
     #[tokio::test]

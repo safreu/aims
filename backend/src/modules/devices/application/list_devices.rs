@@ -39,8 +39,7 @@ impl ListDevicesService {
     ) -> Result<Vec<Device>, ListDevicesError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let devices = self
             .device_repository
@@ -62,20 +61,10 @@ impl ListDevicesService {
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum ListDevicesError {
-    #[error("You do not have permission")]
-    Forbidden,
-    #[error("Household was not found")]
-    HouseholdNotFound,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> ListDevicesError {
-    match error {
-        HouseholdAccessError::Forbidden => ListDevicesError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => ListDevicesError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => ListDevicesError::Internal(error),
-    }
 }
 
 //TODO: Implement in memory representation of device_repository and write these tests

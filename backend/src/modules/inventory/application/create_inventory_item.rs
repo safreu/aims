@@ -57,8 +57,7 @@ impl CreateInventoryItemService {
 
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         if let Some(category_id) = command.category_id {
             self.category_repository
@@ -138,24 +137,14 @@ impl CreateInventoryItemService {
 pub enum CreateInventoryItemError {
     #[error("Inventory item name is invalid")]
     InvalidName,
-    #[error("Household was not found")]
-    HouseholdNotFound,
-    #[error("You do not have permission")]
-    Forbidden,
     #[error("Category was not found")]
     CategoryNotFound,
     #[error("An inventory item with this name already exists")]
     ItemAlreadyExists,
     #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
+    #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> CreateInventoryItemError {
-    match error {
-        HouseholdAccessError::Forbidden => CreateInventoryItemError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => CreateInventoryItemError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => CreateInventoryItemError::Internal(error),
-    }
 }
 
 #[cfg(test)]
@@ -325,7 +314,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(CreateInventoryItemError::HouseholdNotFound))
+        assert_eq!(
+            result,
+            Err(CreateInventoryItemError::HouseholdAccess(
+                HouseholdAccessError::HouseholdNotFound
+            ))
+        )
     }
 
     #[tokio::test]
@@ -349,7 +343,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(CreateInventoryItemError::Forbidden))
+        assert_eq!(
+            result,
+            Err(CreateInventoryItemError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        )
     }
 
     #[tokio::test]
