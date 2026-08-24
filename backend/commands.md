@@ -1727,3 +1727,196 @@ curl -i \
 ```
 
 Expected status: `401 Unauthorized`.
+
+## Register a device
+
+Registers a device for a household. The authenticated user must be a member of the household.
+
+Replace `<household-uuid>` with the corresponding household ID.
+
+Valid device kinds are:
+
+- `scanner`
+- `display`
+- `other`
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kitchen Scanner",
+    "kind": "scanner"
+  }'
+```
+
+Expected status: `201 Created`.
+
+Example response:
+
+```json
+{
+  "id": "<device-uuid>"
+}
+```
+
+### Register a device with an invalid name
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "   ",
+    "kind": "scanner"
+  }'
+```
+
+Expected status: `400 Bad Request`.
+
+### Register a device with an invalid kind
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kitchen Scanner",
+    "kind": "invalid"
+  }'
+```
+
+Expected status: `400 Bad Request`.
+
+### Register a device without authentication
+
+```bash
+curl -i \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kitchen Scanner",
+    "kind": "scanner"
+  }'
+```
+
+Expected status: `401 Unauthorized`.
+
+## List devices
+
+Returns all active devices registered for a household. Revoked devices are not returned.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices"
+```
+
+Expected status: `200 OK`.
+
+Example response:
+
+```json
+[
+  {
+    "id": "<device-uuid>",
+    "name": "Kitchen Scanner",
+    "kind": "scanner"
+  }
+]
+```
+
+If the household has no active devices, the endpoint returns:
+
+```json
+[]
+```
+
+## Rename a device
+
+Renames an active device.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kitchen Raspberry Pi"
+  }'
+```
+
+Expected status: `204 No Content`.
+
+### Rename an unknown device
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/00000000-0000-0000-0000-000000000000" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kitchen Raspberry Pi"
+  }'
+```
+
+Expected status: `404 Not Found`.
+
+### Rename a revoked device
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<revoked-device-uuid>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Name"
+  }'
+```
+
+Expected status: `409 Conflict`.
+
+## Revoke a device
+
+Revokes a device. Revoked devices are no longer returned by the active device list and cannot be modified.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/revoke"
+```
+
+Expected status: `204 No Content`.
+
+### Revoke an already revoked device
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/revoke"
+```
+
+Expected status: `409 Conflict`.
+
+### Revoke an unknown device
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/00000000-0000-0000-0000-000000000000/revoke"
+```
+
+Expected status: `404 Not Found`.
