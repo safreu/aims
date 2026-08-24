@@ -5,7 +5,10 @@ use sqlx::PgPool;
 use crate::{
     modules::{
         devices::{
-            adapters::{PostgresDeviceCredentialRepository, PostgresDeviceRepository},
+            adapters::{
+                PostgresDeviceCredentialRepository, PostgresDeviceRepository,
+                PostgresDeviceRevocationRepository,
+            },
             application::{
                 AuthenticateDeviceService, IssueDeviceCredentialService, ListDevicesService,
                 RegisterDeviceService, RenameDeviceService, RevokeDeviceService,
@@ -28,6 +31,8 @@ pub(super) fn build_device_state(pool: &PgPool) -> DeviceState {
         Arc::new(PostgresDeviceCredentialRepository::new(pool.clone()));
     let token_generator = Arc::new(SecureTokenGenerator::new());
     let token_hasher = Arc::new(Sha256TokenHasher::new());
+    let device_revocation_repository =
+        Arc::new(PostgresDeviceRevocationRepository::new(pool.clone()));
 
     let register_device_service = Arc::new(RegisterDeviceService::new(
         household_access_policy.clone(),
@@ -42,6 +47,7 @@ pub(super) fn build_device_state(pool: &PgPool) -> DeviceState {
     let revoke_device_service = Arc::new(RevokeDeviceService::new(
         household_access_policy.clone(),
         device_repository.clone(),
+        device_revocation_repository.clone(),
     ));
 
     let list_devices_service = Arc::new(ListDevicesService::new(

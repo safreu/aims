@@ -7,7 +7,9 @@ use crate::{
         accounts::domain::UserId,
         devices::{
             domain::{DeviceError, DeviceId},
-            ports::{DeviceRepository, DeviceRepositoryError},
+            ports::{
+                DeviceRepository, DeviceRevocationRepository, DeviceRevocationRepositoryError,
+            },
         },
         households::{
             domain::HouseholdId,
@@ -26,16 +28,19 @@ pub struct RevokeDeviceCommand {
 pub struct RevokeDeviceService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     device_repository: Arc<dyn DeviceRepository>,
+    device_revocation_repository: Arc<dyn DeviceRevocationRepository>,
 }
 
 impl RevokeDeviceService {
     pub fn new(
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         device_repository: Arc<dyn DeviceRepository>,
+        device_revocation_repository: Arc<dyn DeviceRevocationRepository>,
     ) -> Self {
         Self {
             household_access_policy,
             device_repository,
+            device_revocation_repository,
         }
     }
 
@@ -75,12 +80,14 @@ impl RevokeDeviceService {
             }
         })?;
 
-        self.device_repository
-            .update(&device)
+        self.device_revocation_repository
+            .revoke(&device)
             .await
             .map_err(|error| match error {
-                DeviceRepositoryError::DeviceNotFound => RevokeDeviceError::DeviceNotFound,
-                DeviceRepositoryError::DeviceRevoked => RevokeDeviceError::AlreadyRevoked,
+                DeviceRevocationRepositoryError::DeviceNotFound => {
+                    RevokeDeviceError::DeviceNotFound
+                }
+                DeviceRevocationRepositoryError::DeviceRevoked => RevokeDeviceError::AlreadyRevoked,
                 other => {
                     tracing::error!(
                         error = ?other,
