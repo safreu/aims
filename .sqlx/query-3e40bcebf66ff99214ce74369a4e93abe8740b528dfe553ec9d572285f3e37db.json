@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n           SELECT\n                household_id,\n                item_id,\n                actor_user_id,\n                actor_device_id,\n                kind,\n                source,\n                amount,\n                stock_before,\n                stock_after\n            FROM inventory_stock_events\n            WHERE item_id = $1\n           ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "household_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "item_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "actor_user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "actor_device_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "kind",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "source",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "amount",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "stock_before",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "stock_after",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "3e40bcebf66ff99214ce74369a4e93abe8740b528dfe553ec9d572285f3e37db"
+}
