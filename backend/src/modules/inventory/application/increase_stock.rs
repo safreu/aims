@@ -52,8 +52,7 @@ impl IncreaseInventoryStockService {
 
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         //TODO: When implemented replace this with actual source and device_id
         let context = StockMutationContext {
@@ -107,20 +106,10 @@ pub enum IncreaseInventoryStockError {
     InvalidAmount,
     #[error("Stock can't be increased further")]
     StockOverflow,
-    #[error("Household was not found")]
-    HouseholdNotFound,
-    #[error("You do not have permission")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> IncreaseInventoryStockError {
-    match error {
-        HouseholdAccessError::Forbidden => IncreaseInventoryStockError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => IncreaseInventoryStockError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => IncreaseInventoryStockError::Internal(error),
-    }
 }
 
 //TODO: Implement the in memory representation of the inventory_stock_repository and write the following tests

@@ -61,8 +61,7 @@ impl IssueDeviceCredentialService {
     ) -> Result<DeviceToken, IssueDeviceCredentialError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let device = self
             .device_repository
@@ -129,20 +128,10 @@ pub enum IssueDeviceCredentialError {
     ActiveCredentialAlreadyExists,
     #[error("Device token generation failed")]
     TokenGenerationFailed,
-    #[error("You do not have permission")]
-    Forbidden,
-    #[error("Household was not found")]
-    HouseholdNotFound,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> IssueDeviceCredentialError {
-    match error {
-        HouseholdAccessError::Forbidden => IssueDeviceCredentialError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => IssueDeviceCredentialError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => IssueDeviceCredentialError::Internal(error),
-    }
 }
 
 //TODO: Write these tests

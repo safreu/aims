@@ -45,8 +45,7 @@ impl RestoreInventoryItemService {
     ) -> Result<(), RestoreInventoryItemError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let mut item = self
             .inventory_item_repository
@@ -107,20 +106,10 @@ pub enum RestoreInventoryItemError {
     ItemNotFound,
     #[error("Inventory item is not archived")]
     NotArchived,
-    #[error("Household was not found")]
-    HouseholdNotFound,
-    #[error("You do not have permission")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> RestoreInventoryItemError {
-    match error {
-        HouseholdAccessError::Forbidden => RestoreInventoryItemError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => RestoreInventoryItemError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => RestoreInventoryItemError::Internal(error),
-    }
 }
 
 #[cfg(test)]
@@ -261,7 +250,12 @@ mod tests {
 
         let result = service.execute(command).await;
 
-        assert_eq!(result, Err(RestoreInventoryItemError::Forbidden))
+        assert_eq!(
+            result,
+            Err(RestoreInventoryItemError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        )
     }
 
     #[tokio::test]

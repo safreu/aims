@@ -52,8 +52,7 @@ impl RegisterDeviceService {
 
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let now = Utc::now();
         let device_id = DeviceId::new();
@@ -84,20 +83,10 @@ pub enum RegisterDeviceError {
     InvalidName,
     #[error("The device kind is invalid")]
     InvalidKind,
-    #[error("You do not have permission")]
-    Forbidden,
-    #[error("Household was not found")]
-    HouseholdNotFound,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> RegisterDeviceError {
-    match error {
-        HouseholdAccessError::Forbidden => RegisterDeviceError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => RegisterDeviceError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => RegisterDeviceError::Internal(error),
-    }
 }
 
 //TODO: Implement in memory representation of device_repository and write these tests

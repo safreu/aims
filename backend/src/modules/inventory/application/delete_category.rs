@@ -40,8 +40,7 @@ impl DeleteCategoryService {
     pub async fn execute(&self, command: DeleteCategoryCommand) -> Result<(), DeleteCategoryError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         self.category_repository
             .delete(&command.category_id, &command.household_id)
@@ -65,22 +64,12 @@ impl DeleteCategoryService {
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum DeleteCategoryError {
-    #[error("Household was not found")]
-    HouseholdNotFound,
-    #[error("You do not have permission")]
-    Forbidden,
     #[error("Category was not found")]
     CategoryNotFound,
     #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
+    #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> DeleteCategoryError {
-    match error {
-        HouseholdAccessError::Forbidden => DeleteCategoryError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => DeleteCategoryError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => DeleteCategoryError::Internal(error),
-    }
 }
 
 #[cfg(test)]
@@ -157,7 +146,12 @@ mod tests {
 
         let result = service.execute(command).await;
 
-        assert_eq!(result, Err(DeleteCategoryError::Forbidden))
+        assert_eq!(
+            result,
+            Err(DeleteCategoryError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        )
     }
 
     #[tokio::test]

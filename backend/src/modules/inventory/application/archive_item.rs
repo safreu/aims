@@ -45,8 +45,7 @@ impl ArchiveInventoryItemService {
     ) -> Result<(), ArchiveInventoryItemError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let mut item = self
             .inventory_item_repository
@@ -102,20 +101,10 @@ pub enum ArchiveInventoryItemError {
     ItemNotFound,
     #[error("Inventory item was already archived")]
     AlreadyArchived,
-    #[error("Household was not found")]
-    HouseholdNotFound,
-    #[error("You do not have permission")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> ArchiveInventoryItemError {
-    match error {
-        HouseholdAccessError::Forbidden => ArchiveInventoryItemError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => ArchiveInventoryItemError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => ArchiveInventoryItemError::Internal(error),
-    }
 }
 
 #[cfg(test)]
@@ -257,6 +246,11 @@ mod tests {
 
         let result = service.execute(command).await;
 
-        assert_eq!(result, Err(ArchiveInventoryItemError::Forbidden))
+        assert_eq!(
+            result,
+            Err(ArchiveInventoryItemError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        )
     }
 }

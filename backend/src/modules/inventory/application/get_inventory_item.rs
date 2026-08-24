@@ -42,8 +42,7 @@ impl GetInventoryItemService {
     ) -> Result<InventoryItemListEntry, GetInventoryItemError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         self.inventory_item_query
             .find_active_by_id(&command.household_id, &command.item_id)
@@ -63,22 +62,12 @@ impl GetInventoryItemService {
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum GetInventoryItemError {
-    #[error("Household was not found")]
-    HouseholdNotFound,
     #[error("Inventory item was not found")]
     ItemNotFound,
-    #[error("You do not have permission")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> GetInventoryItemError {
-    match error {
-        HouseholdAccessError::Forbidden => GetInventoryItemError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => GetInventoryItemError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => GetInventoryItemError::Internal(error),
-    }
 }
 
 //TODO: Implement the in memory representation of the inventory_item_query and write the following tests

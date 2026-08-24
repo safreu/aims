@@ -47,8 +47,7 @@ impl ListInventoryStockHistoryService {
     ) -> Result<Vec<InventoryStockHistoryEntry>, ListInventoryStockHistoryError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let item = self
             .inventory_item_repository
@@ -87,22 +86,10 @@ impl ListInventoryStockHistoryService {
 pub enum ListInventoryStockHistoryError {
     #[error("Inventory item was not found")]
     ItemNotFound,
-    #[error("Household was not found")]
-    HouseholdNotFound,
-    #[error("You do not have permission")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> ListInventoryStockHistoryError {
-    match error {
-        HouseholdAccessError::Forbidden => ListInventoryStockHistoryError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => {
-            ListInventoryStockHistoryError::HouseholdNotFound
-        }
-        HouseholdAccessError::Internal(error) => ListInventoryStockHistoryError::Internal(error),
-    }
 }
 
 //TODO: Implement the in memory representation of the adapter and implement these tests

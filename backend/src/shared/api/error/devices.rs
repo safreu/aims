@@ -9,13 +9,7 @@ use crate::{
 impl From<RegisterDeviceError> for ApiError {
     fn from(value: RegisterDeviceError) -> Self {
         match value {
-            RegisterDeviceError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to access this household",
-            ),
-            RegisterDeviceError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            RegisterDeviceError::HouseholdAccess(error) => error.into(),
             RegisterDeviceError::Internal(_) => ApiError::internal_error(),
             RegisterDeviceError::InvalidName => {
                 ApiError::bad_request("invalid_device_name", "The device name is invalid")
@@ -30,13 +24,7 @@ impl From<RegisterDeviceError> for ApiError {
 impl From<RenameDeviceError> for ApiError {
     fn from(value: RenameDeviceError) -> Self {
         match value {
-            RenameDeviceError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to access this household",
-            ),
-            RenameDeviceError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            RenameDeviceError::HouseholdAccess(error) => error.into(),
             RenameDeviceError::DeviceNotFound => {
                 ApiError::not_found("device_not_found", "The device was not found")
             }
@@ -54,13 +42,7 @@ impl From<RenameDeviceError> for ApiError {
 impl From<RevokeDeviceError> for ApiError {
     fn from(value: RevokeDeviceError) -> Self {
         match value {
-            RevokeDeviceError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to access this household",
-            ),
-            RevokeDeviceError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            RevokeDeviceError::HouseholdAccess(error) => error.into(),
             RevokeDeviceError::DeviceNotFound => {
                 ApiError::not_found("device_not_found", "The device was not found")
             }
@@ -75,13 +57,7 @@ impl From<RevokeDeviceError> for ApiError {
 impl From<ListDevicesError> for ApiError {
     fn from(value: ListDevicesError) -> Self {
         match value {
-            ListDevicesError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to access this household",
-            ),
-            ListDevicesError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            ListDevicesError::HouseholdAccess(error) => error.into(),
             ListDevicesError::Internal(_) => ApiError::internal_error(),
         }
     }
@@ -102,13 +78,7 @@ impl From<AuthenticateDeviceError> for ApiError {
 impl From<IssueDeviceCredentialError> for ApiError {
     fn from(value: IssueDeviceCredentialError) -> Self {
         match value {
-            IssueDeviceCredentialError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to access this household",
-            ),
-            IssueDeviceCredentialError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            IssueDeviceCredentialError::HouseholdAccess(error) => error.into(),
             IssueDeviceCredentialError::DeviceNotFound => {
                 ApiError::not_found("device_not_found", "The device was not found")
             }
@@ -128,13 +98,7 @@ impl From<IssueDeviceCredentialError> for ApiError {
 impl From<RotateDeviceCredentialError> for ApiError {
     fn from(value: RotateDeviceCredentialError) -> Self {
         match value {
-            RotateDeviceCredentialError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to access this household",
-            ),
-            RotateDeviceCredentialError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            RotateDeviceCredentialError::HouseholdAccess(error) => error.into(),
             RotateDeviceCredentialError::DeviceNotFound => {
                 ApiError::not_found("device_not_found", "The device was not found")
             }

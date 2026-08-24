@@ -47,8 +47,7 @@ impl RevokeDeviceService {
     pub async fn execute(&self, command: RevokeDeviceCommand) -> Result<(), RevokeDeviceError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let mut device = self
             .device_repository
@@ -109,20 +108,10 @@ pub enum RevokeDeviceError {
     DeviceNotFound,
     #[error("Device is revoked")]
     AlreadyRevoked,
-    #[error("You do not have permission")]
-    Forbidden,
-    #[error("Household was not found")]
-    HouseholdNotFound,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> RevokeDeviceError {
-    match error {
-        HouseholdAccessError::Forbidden => RevokeDeviceError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => RevokeDeviceError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => RevokeDeviceError::Internal(error),
-    }
 }
 
 //TODO: Implement in memory representation of device_repository and write these tests
