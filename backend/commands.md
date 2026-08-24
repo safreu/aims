@@ -1920,3 +1920,121 @@ curl -i \
 ```
 
 Expected status: `404 Not Found`.
+
+## Issue a device credential
+
+Issues the first active credential for a registered device.
+
+The plaintext token is returned exactly once. Only the token hash is stored by the backend.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/credentials"
+```
+
+Expected status: `201 Created`.
+
+Example response:
+
+```json
+{
+  "token": "<device-token>"
+}
+```
+
+Store this token securely. It cannot be retrieved again later.
+
+### Issue a second active credential
+
+A device may have at most one active credential.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/credentials"
+```
+
+Expected status: `409 Conflict`.
+
+## Rotate a device credential
+
+Revokes the currently active credential and atomically replaces it with a new one.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/credentials/rotate"
+```
+
+Expected status: `200 OK`.
+
+Example response:
+
+```json
+{
+  "token": "<new-device-token>"
+}
+```
+
+The previous token becomes invalid immediately.
+
+### Rotate a credential when no active credential exists
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/credentials/rotate"
+```
+
+Expected status: `409 Conflict`.
+
+## Authenticate as a device
+
+Device-authenticated requests use the HTTP `Authorization` header:
+
+```bash
+curl -i \
+  -H "Authorization: Bearer <device-token>" \
+  "$BASE_URL/<device-protected-endpoint>"
+```
+
+An invalid, rotated, revoked, or unknown token returns:
+
+```text
+401 Unauthorized
+```
+
+## Revoke a device
+
+Revoking a device also atomically revokes its active credential.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/revoke"
+```
+
+Expected status: `204 No Content`.
+
+After revocation:
+
+- the device is no longer returned by the active device list
+- its active credential is revoked
+- its previous bearer token can no longer authenticate
+
+### Revoke an already revoked device
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/revoke"
+```
+
+Expected status: `409 Conflict`.

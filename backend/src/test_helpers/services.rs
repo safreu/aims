@@ -5,10 +5,7 @@ use chrono::Duration;
 use crate::{
     modules::{
         accounts::{
-            adapters::{
-                Argon2PasswordHasher, InMemorySessionRepository, InMemoryUserRepository,
-                Sha256SessionTokenHasher,
-            },
+            adapters::{Argon2PasswordHasher, InMemorySessionRepository, InMemoryUserRepository},
             application::{
                 AuthenticateSessionService, CreateSessionService, LoginUserService,
                 RegisterUserService,
@@ -31,16 +28,17 @@ use crate::{
             },
         },
     },
+    shared::auth::Sha256TokenHasher,
     test_helpers::FixedSessionTokenGenerator,
 };
 
 pub fn build_auth_service() -> (
     AuthenticateSessionService,
     Arc<InMemorySessionRepository>,
-    Arc<Sha256SessionTokenHasher>,
+    Arc<Sha256TokenHasher>,
 ) {
     let repository = Arc::new(InMemorySessionRepository::new());
-    let hasher = Arc::new(Sha256SessionTokenHasher);
+    let hasher = Arc::new(Sha256TokenHasher);
 
     let service = AuthenticateSessionService::new(repository.clone(), hasher.clone());
 
@@ -63,7 +61,7 @@ pub fn build_register_service() -> (
 pub fn build_create_session_service() -> (
     CreateSessionService,
     Arc<InMemorySessionRepository>,
-    Arc<Sha256SessionTokenHasher>,
+    Arc<Sha256TokenHasher>,
 ) {
     let repository = Arc::new(InMemorySessionRepository::new());
 
@@ -71,7 +69,7 @@ pub fn build_create_session_service() -> (
         "this-session-token-is-fixed",
     ));
 
-    let hasher = Arc::new(Sha256SessionTokenHasher::new());
+    let hasher = Arc::new(Sha256TokenHasher::new());
 
     let service = CreateSessionService::new(
         repository.clone(),

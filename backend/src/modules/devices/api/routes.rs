@@ -5,7 +5,8 @@ use axum::{
 
 use crate::{
     modules::devices::api::handlers::{
-        list_devices, register_device, rename_device, revoke_device,
+        issue_device_credential, list_devices, register_device, rename_device, revoke_device,
+        rotate_device_credential,
     },
     shared::api::AppState,
 };
@@ -15,4 +16,9 @@ pub fn device_routes() -> Router<AppState> {
         .route("/", post(register_device).get(list_devices))
         .route("/{device_id}", patch(rename_device))
         .route("/{device_id}/revoke", post(revoke_device))
+        .route("/{device_id}/credentials", post(issue_device_credential))
+        .route(
+            "/{device_id}/credentials/rotate",
+            post(rotate_device_credential),
+        )
 }

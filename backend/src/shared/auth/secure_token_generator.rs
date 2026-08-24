@@ -1,34 +1,33 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::{TryRngCore, rngs::OsRng};
 
-use crate::modules::accounts::{
-    domain::SessionToken,
-    ports::{SessionTokenGenerator, SessionTokenGeneratorError},
-};
+use crate::shared::auth::{TokenGenerator, TokenGeneratorError, TokenValue};
+pub struct SecureTokenGenerator;
 
-pub struct SecureSessionTokenGenerator;
-
-impl SecureSessionTokenGenerator {
+impl SecureTokenGenerator {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl SessionTokenGenerator for SecureSessionTokenGenerator {
-    fn generate(&self) -> Result<SessionToken, SessionTokenGeneratorError> {
+impl<T> TokenGenerator<T> for SecureTokenGenerator
+where
+    T: TokenValue,
+{
+    fn generate(&self) -> Result<T, TokenGeneratorError> {
         let mut bytes = [0_u8; 32];
 
         OsRng
             .try_fill_bytes(&mut bytes)
-            .map_err(|_| SessionTokenGeneratorError::GenerationFailed)?;
+            .map_err(|_| TokenGeneratorError::GenerationFailed)?;
 
         let encoded = URL_SAFE_NO_PAD.encode(bytes);
 
-        SessionToken::from_string(encoded).map_err(|_| SessionTokenGeneratorError::GenerationFailed)
+        T::from_string(encoded).map_err(|_| TokenGeneratorError::GenerationFailed)
     }
 }
 
-impl Default for SecureSessionTokenGenerator {
+impl Default for SecureTokenGenerator {
     fn default() -> Self {
         Self::new()
     }
@@ -36,13 +35,15 @@ impl Default for SecureSessionTokenGenerator {
 
 #[cfg(test)]
 mod tests {
+    use crate::modules::accounts::domain::SessionToken;
+
     use super::*;
 
     #[test]
     fn generated_token_is_not_empty() {
-        let generator = SecureSessionTokenGenerator;
+        let generator = SecureTokenGenerator;
 
-        let token = generator
+        let token: SessionToken = generator
             .generate()
             .expect("Token generation should succeed");
 
@@ -51,9 +52,9 @@ mod tests {
 
     #[test]
     fn generated_tokens_are_different() {
-        let generator = SecureSessionTokenGenerator;
+        let generator = SecureTokenGenerator;
 
-        let first = generator
+        let first: SessionToken = generator
             .generate()
             .expect("First token generation should succeed");
 

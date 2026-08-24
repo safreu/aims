@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO device_credentials (\n                id,\n                device_id,\n                token_hash,\n                created_at,\n                revoked_at\n            ) VALUES ($1, $2, $3, $4, NULL)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3c2b2c95f228457e664488dbc8214f1f9889c4ed419de7472a476136d355f9a3"
+}

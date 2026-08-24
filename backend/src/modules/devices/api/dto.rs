@@ -35,3 +35,8 @@ impl From<Device> for DeviceResponse {
 pub struct RenameDeviceRequest {
     pub name: String,
 }
+
+#[derive(Debug, Serialize)]
+pub struct DeviceCredentialResponse {
+    pub token: String,
+}

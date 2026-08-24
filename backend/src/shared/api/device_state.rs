@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::modules::devices::application::{
-    ListDevicesService, RegisterDeviceService, RenameDeviceService, RevokeDeviceService,
+    AuthenticateDeviceService, IssueDeviceCredentialService, ListDevicesService,
+    RegisterDeviceService, RenameDeviceService, RevokeDeviceService, RotateDeviceCredentialService,
 };
 
 #[derive(Clone)]
@@ -10,4 +11,7 @@ pub struct DeviceState {
     pub rename_device: Arc<RenameDeviceService>,
     pub revoke_device: Arc<RevokeDeviceService>,
     pub list_devices: Arc<ListDevicesService>,
+    pub issue_device_credential: Arc<IssueDeviceCredentialService>,
+    pub rotate_device_credential: Arc<RotateDeviceCredentialService>,
+    pub authenticate_device: Arc<AuthenticateDeviceService>,
 }

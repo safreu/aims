@@ -41,7 +41,7 @@ async fn device_can_be_inserted_and_loaded(pool: PgPool) {
     assert!(result.is_ok());
 
     let stored = device_repository
-        .find_by_id(&device.id(), &household.id())
+        .find_by_id_for_household(&device.id(), &household.id())
         .await
         .expect("Device lookup should succeed")
         .expect("Device should exist");
@@ -193,7 +193,7 @@ async fn device_can_be_updated(pool: PgPool) {
         .expect("Device update should succeed");
 
     let stored = device_repository
-        .find_by_id(&device.id(), &household.id())
+        .find_by_id_for_household(&device.id(), &household.id())
         .await
         .expect("Device lookup should succeed")
         .expect("Device should exist");

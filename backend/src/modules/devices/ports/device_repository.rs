@@ -12,7 +12,7 @@ use crate::{
 pub trait DeviceRepository: Send + Sync {
     async fn insert(&self, device: &Device) -> Result<(), DeviceRepositoryError>;
 
-    async fn find_by_id(
+    async fn find_by_id_for_household(
         &self,
         device_id: &DeviceId,
         household_id: &HouseholdId,
@@ -24,6 +24,11 @@ pub trait DeviceRepository: Send + Sync {
     ) -> Result<Vec<Device>, DeviceRepositoryError>;
 
     async fn update(&self, device: &Device) -> Result<(), DeviceRepositoryError>;
+
+    async fn find_by_id(
+        &self,
+        device_id: &DeviceId,
+    ) -> Result<Option<Device>, DeviceRepositoryError>;
 }
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]

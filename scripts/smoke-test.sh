@@ -484,6 +484,76 @@ fi
 echo "PASS: device rename was persisted"
 
 # ---------------------------------------------------------------------------
+# Issue device credential
+# ---------------------------------------------------------------------------
+
+STATUS="$(
+    curl -sS \
+        -o "$RESPONSE_FILE" \
+        -w "%{http_code}" \
+        -b "$COOKIE_FILE" \
+        -X POST \
+        "$BASE_URL/api/v1/households/$HOUSEHOLD_ID/devices/$DEVICE_ID/credentials"
+)"
+
+assert_status "$STATUS" "201" "issue device credential"
+
+DEVICE_TOKEN="$(jq -r '.token' "$RESPONSE_FILE")"
+
+if [[ -z "$DEVICE_TOKEN" || "$DEVICE_TOKEN" == "null" ]]; then
+    echo "FAIL: device credential issuance did not return a token"
+    exit 1
+fi
+
+echo "PASS: device credential issuance returned a token"
+
+# ---------------------------------------------------------------------------
+# Reject second active credential
+# ---------------------------------------------------------------------------
+
+STATUS="$(
+    curl -sS \
+        -o "$RESPONSE_FILE" \
+        -w "%{http_code}" \
+        -b "$COOKIE_FILE" \
+        -X POST \
+        "$BASE_URL/api/v1/households/$HOUSEHOLD_ID/devices/$DEVICE_ID/credentials"
+)"
+
+assert_status "$STATUS" "409" "reject second active device credential"
+
+# ---------------------------------------------------------------------------
+# Rotate device credential
+# ---------------------------------------------------------------------------
+
+OLD_DEVICE_TOKEN="$DEVICE_TOKEN"
+
+STATUS="$(
+    curl -sS \
+        -o "$RESPONSE_FILE" \
+        -w "%{http_code}" \
+        -b "$COOKIE_FILE" \
+        -X POST \
+        "$BASE_URL/api/v1/households/$HOUSEHOLD_ID/devices/$DEVICE_ID/credentials/rotate"
+)"
+
+assert_status "$STATUS" "200" "rotate device credential"
+
+DEVICE_TOKEN="$(jq -r '.token' "$RESPONSE_FILE")"
+
+if [[ -z "$DEVICE_TOKEN" || "$DEVICE_TOKEN" == "null" ]]; then
+    echo "FAIL: device credential rotation did not return a token"
+    exit 1
+fi
+
+if [[ "$DEVICE_TOKEN" == "$OLD_DEVICE_TOKEN" ]]; then
+    echo "FAIL: device credential rotation returned the previous token"
+    exit 1
+fi
+
+echo "PASS: device credential was rotated"
+
+# ---------------------------------------------------------------------------
 # Revoke device
 # ---------------------------------------------------------------------------
 

@@ -10,10 +10,12 @@ use crate::{
         accounts::api::CurrentUser,
         devices::{
             api::dto::{
-                DeviceResponse, RegisterDeviceRequest, RegisterDeviceResponse, RenameDeviceRequest,
+                DeviceCredentialResponse, DeviceResponse, RegisterDeviceRequest,
+                RegisterDeviceResponse, RenameDeviceRequest,
             },
             application::{
-                ListDevicesCommand, RegisterDeviceCommand, RenameDeviceCommand, RevokeDeviceCommand,
+                IssueDeviceCredentialCommand, ListDevicesCommand, RegisterDeviceCommand,
+                RenameDeviceCommand, RevokeDeviceCommand, RotateDeviceCredentialCommand,
             },
             domain::DeviceId,
         },
@@ -114,4 +116,53 @@ pub async fn revoke_device(
         .map_err(ApiError::from)?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn issue_device_credential(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Path((household_id, device_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<DeviceCredentialResponse>), ApiError> {
+    let command = IssueDeviceCredentialCommand {
+        requester_id: current_user.user_id(),
+        household_id: HouseholdId::from_uuid(household_id),
+        device_id: DeviceId::from_uuid(device_id),
+    };
+
+    let token = state
+        .device
+        .issue_device_credential
+        .execute(command)
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(DeviceCredentialResponse {
+            token: token.into_string(),
+        }),
+    ))
+}
+
+pub async fn rotate_device_credential(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Path((household_id, device_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<DeviceCredentialResponse>, ApiError> {
+    let command = RotateDeviceCredentialCommand {
+        requester_id: current_user.user_id(),
+        household_id: HouseholdId::from_uuid(household_id),
+        device_id: DeviceId::from_uuid(device_id),
+    };
+
+    let token = state
+        .device
+        .rotate_device_credential
+        .execute(command)
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok(Json(DeviceCredentialResponse {
+        token: token.into_string(),
+    }))
 }

@@ -51,7 +51,7 @@ impl DeviceRepository for PostgresDeviceRepository {
         Ok(())
     }
 
-    async fn find_by_id(
+    async fn find_by_id_for_household(
         &self,
         device_id: &DeviceId,
         household_id: &HouseholdId,
@@ -135,6 +135,33 @@ impl DeviceRepository for PostgresDeviceRepository {
         }
 
         Ok(())
+    }
+
+    async fn find_by_id(
+        &self,
+        device_id: &DeviceId,
+    ) -> Result<Option<Device>, DeviceRepositoryError> {
+        let row = sqlx::query_as!(
+            DeviceRow,
+            r#"
+            SELECT
+                id,
+                household_id,
+                name,
+                kind,
+                revoked_at,
+                created_at,
+                updated_at
+            FROM devices
+            WHERE id = $1
+            "#,
+            device_id.as_uuid(),
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(map_sqlx_error)?;
+
+        row.map(Device::try_from).transpose()
     }
 }
 
