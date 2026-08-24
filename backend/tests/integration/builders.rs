@@ -34,13 +34,13 @@ impl UserTestBuilder {
         self
     }
 
-    pub fn email(mut self, email: String) -> Self {
-        self.email = email;
+    pub fn email(mut self, email: impl Into<String>) -> Self {
+        self.email = email.into();
         self
     }
 
-    pub fn display_name(mut self, name: String) -> Self {
-        self.display_name = name;
+    pub fn display_name(mut self, name: impl Into<String>) -> Self {
+        self.display_name = name.into();
         self
     }
 
@@ -84,8 +84,8 @@ impl HouseholdTestBuilder {
         self
     }
 
-    pub fn name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
         self
     }
 
@@ -152,8 +152,8 @@ impl CategoryTestBuilder {
         self
     }
 
-    pub fn name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
         self
     }
 
@@ -208,8 +208,8 @@ impl InventoryItemTestBuilder {
         self
     }
 
-    pub fn name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
         self
     }
 
@@ -290,8 +290,8 @@ impl DeviceTestBuilder {
         self
     }
 
-    pub fn name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
         self
     }
 

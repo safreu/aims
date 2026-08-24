@@ -1,2 +1,5 @@
 mod postgres_device_repository;
 pub use postgres_device_repository::PostgresDeviceRepository;
+
+mod postgres_device_credential_repository;
+pub use postgres_device_credential_repository::PostgresDeviceCredentialRepository;
