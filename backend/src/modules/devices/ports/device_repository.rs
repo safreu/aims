@@ -30,6 +30,8 @@ pub trait DeviceRepository: Send + Sync {
 pub enum DeviceRepositoryError {
     #[error("Device was not found")]
     DeviceNotFound,
+    #[error("Device revoked")]
+    DeviceRevoked,
     #[error("Invalid stored device data")]
     InvalidStoredData,
     #[error(transparent)]

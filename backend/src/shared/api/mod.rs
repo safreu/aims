@@ -12,3 +12,6 @@ pub use accounts_state::AccountsState;
 
 mod inventory_state;
 pub use inventory_state::InventoryItemState;
+
+mod device_state;
+pub use device_state::DeviceState;
