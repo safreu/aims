@@ -350,3 +350,69 @@ async fn new_credential_can_be_created_after_previous_one_was_revoked(pool: PgPo
 
     assert_eq!(stored, another_credential);
 }
+
+#[sqlx::test]
+async fn active_credential_can_be_rotated(pool: PgPool) {
+    let user_repository = PostgresUserRepository::new(pool.clone());
+    let household_repository = PostgresHouseholdRepository::new(pool.clone());
+    let device_repository = PostgresDeviceRepository::new(pool.clone());
+    let credential_repository = PostgresDeviceCredentialRepository::new(pool.clone());
+
+    let owner = UserTestBuilder::new().build();
+
+    user_repository
+        .insert(&owner)
+        .await
+        .expect("User insertion should succeed");
+
+    let (household, _) =
+        insert_owned_household(&household_repository, owner.id(), HouseholdKind::Shared).await;
+
+    let device = DeviceTestBuilder::new(household.id())
+        .name("Scanner")
+        .build();
+
+    device_repository
+        .insert(&device)
+        .await
+        .expect("Device insertion should succeed");
+
+    let token_hash = DeviceTokenHash::from_encoded("test-device-token-hash")
+        .expect("Device token hash should be valid");
+
+    let credential = DeviceCredential::new(
+        DeviceCredentialId::new(),
+        device.id(),
+        token_hash,
+        Utc::now().trunc_subsecs(6),
+    );
+
+    credential_repository
+        .insert(&credential)
+        .await
+        .expect("Device credential insertion should succeed");
+
+    let token_hash = DeviceTokenHash::from_encoded("new-test-device-token-hash")
+        .expect("Device token hash should be valid");
+
+    let new_credential = DeviceCredential::new(
+        DeviceCredentialId::new(),
+        device.id(),
+        token_hash,
+        Utc::now().trunc_subsecs(6),
+    );
+
+    credential_repository
+        .rotate(&device.id(), &new_credential, Utc::now().trunc_subsecs(6))
+        .await
+        .expect("Device credential rotation should succeed");
+
+    let stored = credential_repository
+        .find_active_by_device_id(&device.id())
+        .await
+        .expect("Device credential lookup should succeed")
+        .expect("Device credential should exists");
+
+    assert_eq!(stored, new_credential);
+    assert_ne!(stored, credential);
+}

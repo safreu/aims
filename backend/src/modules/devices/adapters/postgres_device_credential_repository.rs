@@ -125,6 +125,58 @@ impl DeviceCredentialRepository for PostgresDeviceCredentialRepository {
 
         Ok(())
     }
+
+    async fn rotate(
+        &self,
+        device_id: &DeviceId,
+        new_credential: &DeviceCredential,
+        now: DateTime<Utc>,
+    ) -> Result<(), DeviceCredentialRepositoryError> {
+        let mut transaction = self.pool.begin().await.map_err(map_credential_sqlx_error)?;
+
+        let result = sqlx::query!(
+            r#"
+            UPDATE device_credentials
+            SET revoked_at = $2
+            WHERE device_id = $1 AND revoked_at IS NULL
+            "#,
+            device_id.as_uuid(),
+            now,
+        )
+        .execute(&mut *transaction)
+        .await
+        .map_err(map_credential_sqlx_error)?;
+
+        if result.rows_affected() == 0 {
+            return Err(DeviceCredentialRepositoryError::CredentialNotFound);
+        }
+
+        sqlx::query!(
+            r#"
+            INSERT INTO device_credentials (
+                id,
+                device_id,
+                token_hash,
+                created_at,
+                revoked_at
+            ) VALUES ($1, $2, $3, $4, NULL)
+            "#,
+            new_credential.id().into_uuid(),
+            new_credential.device_id().into_uuid(),
+            new_credential.token_hash().as_str(),
+            new_credential.created_at(),
+        )
+        .execute(&mut *transaction)
+        .await
+        .map_err(map_insert_error)?;
+
+        transaction
+            .commit()
+            .await
+            .map_err(map_credential_sqlx_error)?;
+
+        Ok(())
+    }
 }
 
 struct DeviceCredentialRow {

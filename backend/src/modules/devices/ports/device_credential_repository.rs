@@ -28,6 +28,13 @@ pub trait DeviceCredentialRepository: Send + Sync {
         device_id: &DeviceId,
         now: DateTime<Utc>,
     ) -> Result<(), DeviceCredentialRepositoryError>;
+
+    async fn rotate(
+        &self,
+        device_id: &DeviceId,
+        new_credential: &DeviceCredential,
+        now: DateTime<Utc>,
+    ) -> Result<(), DeviceCredentialRepositoryError>;
 }
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
