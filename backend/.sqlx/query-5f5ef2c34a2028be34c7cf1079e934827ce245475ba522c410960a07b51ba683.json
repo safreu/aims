@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE devices\n            SET\n                name = $3,\n                kind = $4,\n                revoked_at = $5,\n                updated_at = $6\n            WHERE id = $1 AND household_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5f5ef2c34a2028be34c7cf1079e934827ce245475ba522c410960a07b51ba683"
+}
