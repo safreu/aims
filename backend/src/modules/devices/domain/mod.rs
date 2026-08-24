@@ -8,4 +8,4 @@ mod device_name;
 pub use device_name::{DeviceName, DeviceNameError};
 
 mod device;
-pub use device::Device;
+pub use device::{Device, DeviceError};

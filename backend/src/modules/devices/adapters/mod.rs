@@ -1,0 +1,2 @@
+mod postgres_device_repository;
+pub use postgres_device_repository::PostgresDeviceRepository;
