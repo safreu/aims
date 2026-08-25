@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE custom_shopping_entries\n            SET\n                title = $3,\n                quantity = $4,\n                priority = $5,\n                note = $6,\n                checked = $7,\n                updated_at = $8\n            WHERE id = $1 AND household_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Bool",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e175672d5f1ef7c488f8768742beb48d6115a89887c31d19fa83ee4aa60d8182"
+}
