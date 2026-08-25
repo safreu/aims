@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE inventory_shopping_states\n            SET\n                quantity_override = NULL,\n                checked = FALSE,\n                dismissed = FALSE,\n                updated_at = $3\n            WHERE household_id = $1 AND item_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ba2163749628fc0c11eca53a5cb88bec5d65bef6137754140237ac5a76c06b30"
+}
