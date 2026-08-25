@@ -23,6 +23,38 @@ impl InventoryShoppingState {
         }
     }
 
+    pub fn from_persisted(
+        household_id: HouseholdId,
+        item_id: InventoryItemId,
+        quantity_override: Option<u32>,
+        note: Option<String>,
+        checked: bool,
+        dismissed: bool,
+    ) -> Result<Self, InventoryShoppingStateError> {
+        if quantity_override == Some(0) {
+            return Err(InventoryShoppingStateError::InvalidQuantity);
+        }
+
+        let note = note
+            .map(|note| note.trim().to_owned())
+            .filter(|note| !note.is_empty());
+
+        if let Some(note) = &note
+            && note.chars().count() > MAX_NOTE_LENGTH
+        {
+            return Err(InventoryShoppingStateError::NoteTooLong);
+        }
+
+        Ok(Self {
+            household_id,
+            item_id,
+            quantity_override,
+            note,
+            checked,
+            dismissed,
+        })
+    }
+
     pub fn household_id(&self) -> HouseholdId {
         self.household_id
     }
