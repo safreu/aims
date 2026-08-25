@@ -39,8 +39,7 @@ impl ListInventoryItemsService {
     ) -> Result<Vec<InventoryItemListEntry>, ListInventoryItemsError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         self.inventory_item_query
             .find_active_for_household(&command.household_id)
@@ -58,20 +57,10 @@ impl ListInventoryItemsService {
 
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum ListInventoryItemsError {
-    #[error("Household was not found")]
-    HouseholdNotFound,
-    #[error("You do not have permission")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> ListInventoryItemsError {
-    match error {
-        HouseholdAccessError::Forbidden => ListInventoryItemsError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => ListInventoryItemsError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => ListInventoryItemsError::Internal(error),
-    }
 }
 
 //TODO: Implement the in memory representation of the inventory_item_query and write the following tests

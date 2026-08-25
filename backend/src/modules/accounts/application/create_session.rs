@@ -4,10 +4,13 @@ use chrono::{DateTime, Duration, Utc};
 
 use crate::{
     modules::accounts::{
-        domain::{Session, SessionId, SessionToken, UserId},
-        ports::{SessionRepository, SessionTokenGenerator, SessionTokenHasher},
+        domain::{Session, SessionId, SessionToken, SessionTokenHash, UserId},
+        ports::SessionRepository,
     },
-    shared::application::InternalError,
+    shared::{
+        application::InternalError,
+        auth::{TokenGenerator, TokenHasher},
+    },
 };
 
 pub struct CreateSessionCommand {
@@ -21,16 +24,16 @@ pub struct CreateSessionResult {
 
 pub struct CreateSessionService {
     session_repository: Arc<dyn SessionRepository>,
-    token_generator: Arc<dyn SessionTokenGenerator>,
-    token_hasher: Arc<dyn SessionTokenHasher>,
+    token_generator: Arc<dyn TokenGenerator<SessionToken>>,
+    token_hasher: Arc<dyn TokenHasher<SessionToken, SessionTokenHash>>,
     session_lifetime: Duration,
 }
 
 impl CreateSessionService {
     pub fn new(
         session_repository: Arc<dyn SessionRepository>,
-        token_generator: Arc<dyn SessionTokenGenerator>,
-        token_hasher: Arc<dyn SessionTokenHasher>,
+        token_generator: Arc<dyn TokenGenerator<SessionToken>>,
+        token_hasher: Arc<dyn TokenHasher<SessionToken, SessionTokenHash>>,
         session_lifetime: Duration,
     ) -> Self {
         Self {
@@ -81,7 +84,8 @@ impl CreateSessionService {
 mod tests {
 
     use crate::{
-        modules::accounts::adapters::{InMemorySessionRepository, Sha256SessionTokenHasher},
+        modules::accounts::adapters::InMemorySessionRepository,
+        shared::auth::Sha256TokenHasher,
         test_helpers::{FailingSessionTokenGenerator, build_create_session_service},
     };
 
@@ -152,7 +156,7 @@ mod tests {
     async fn token_generation_failure_is_reported() {
         let repository = Arc::new(InMemorySessionRepository::new());
         let generator = Arc::new(FailingSessionTokenGenerator);
-        let hasher = Arc::new(Sha256SessionTokenHasher::new());
+        let hasher = Arc::new(Sha256TokenHasher::new());
 
         let service = CreateSessionService::new(
             repository.clone(),

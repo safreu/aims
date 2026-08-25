@@ -49,3 +49,9 @@ pub use decrease_stock::{
 
 mod set_stock;
 pub use set_stock::{SetInventoryStockCommand, SetInventoryStockError, SetInventoryStockService};
+
+mod list_inventory_stock_history;
+pub use list_inventory_stock_history::{
+    ListInventoryStockHistoryCommand, ListInventoryStockHistoryError,
+    ListInventoryStockHistoryService,
+};

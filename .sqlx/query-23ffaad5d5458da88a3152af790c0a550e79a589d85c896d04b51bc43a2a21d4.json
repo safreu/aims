@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE inventory_items\n            SET\n                current_stock = current_stock + $3,\n                updated_at = $4\n            WHERE id = $1\n                AND household_id = $2\n                AND archived_at IS NULL\n                AND current_stock <= $5::BIGINT - $3::BIGINT\n            RETURNING\n                current_stock - $3 AS \"stock_before!\",\n                current_stock AS \"stock_after!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stock_before!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "stock_after!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      false
+    ]
+  },
+  "hash": "23ffaad5d5458da88a3152af790c0a550e79a589d85c896d04b51bc43a2a21d4"
+}

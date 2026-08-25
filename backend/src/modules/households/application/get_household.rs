@@ -38,8 +38,7 @@ impl GetHouseholdService {
     ) -> Result<Household, GetHouseholdError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let household = self
             .household_repository
@@ -52,7 +51,9 @@ impl GetHouseholdService {
                 );
                 InternalError::Failed
             })?
-            .ok_or(GetHouseholdError::NotFound)?;
+            .ok_or(GetHouseholdError::HouseholdAccess(
+                HouseholdAccessError::HouseholdNotFound,
+            ))?;
 
         Ok(household)
     }
@@ -60,20 +61,10 @@ impl GetHouseholdService {
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum GetHouseholdError {
-    #[error("Household not found")]
-    NotFound,
-    #[error("User is not a member of this household")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> GetHouseholdError {
-    match error {
-        HouseholdAccessError::Forbidden => GetHouseholdError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => GetHouseholdError::NotFound,
-        HouseholdAccessError::Internal(error) => GetHouseholdError::Internal(error),
-    }
 }
 
 #[cfg(test)]
@@ -119,7 +110,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(GetHouseholdError::NotFound))
+        assert_eq!(
+            result,
+            Err(GetHouseholdError::HouseholdAccess(
+                HouseholdAccessError::HouseholdNotFound
+            ))
+        )
     }
 
     #[tokio::test]
@@ -142,7 +138,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(GetHouseholdError::Forbidden))
+        assert_eq!(
+            result,
+            Err(GetHouseholdError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        )
     }
 
     #[tokio::test]
@@ -160,7 +161,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(GetHouseholdError::Internal(InternalError::Failed))
+            Err(GetHouseholdError::HouseholdAccess(
+                HouseholdAccessError::Internal(InternalError::Failed)
+            ))
         )
     }
 }

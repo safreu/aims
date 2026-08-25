@@ -4,10 +4,10 @@ use chrono::Utc;
 
 use crate::{
     modules::accounts::{
-        domain::{SessionToken, UserId},
-        ports::{SessionRepository, SessionTokenHasher},
+        domain::{SessionToken, SessionTokenHash, UserId},
+        ports::SessionRepository,
     },
-    shared::application::InternalError,
+    shared::{application::InternalError, auth::TokenHasher},
 };
 
 pub struct AuthenticateSessionCommand {
@@ -21,13 +21,13 @@ pub struct AuthenticatedUser {
 
 pub struct AuthenticateSessionService {
     session_repository: Arc<dyn SessionRepository>,
-    token_hasher: Arc<dyn SessionTokenHasher>,
+    token_hasher: Arc<dyn TokenHasher<SessionToken, SessionTokenHash>>,
 }
 
 impl AuthenticateSessionService {
     pub fn new(
         session_repository: Arc<dyn SessionRepository>,
-        token_hasher: Arc<dyn SessionTokenHasher>,
+        token_hasher: Arc<dyn TokenHasher<SessionToken, SessionTokenHash>>,
     ) -> Self {
         Self {
             session_repository,

@@ -1,5 +1,7 @@
 use core::fmt;
 
+use crate::shared::auth::TokenHashValue;
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct SessionTokenHash(String);
 
@@ -20,6 +22,18 @@ impl SessionTokenHash {
 
     pub fn into_string(self) -> String {
         self.0
+    }
+}
+
+impl TokenHashValue for SessionTokenHash {
+    type Error = SessionTokenHashError;
+
+    fn from_encoded(value: &str) -> Result<Self, Self::Error> {
+        SessionTokenHash::from_encoded(value)
+    }
+
+    fn as_str(&self) -> &str {
+        self.as_str()
     }
 }
 

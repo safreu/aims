@@ -1613,3 +1613,555 @@ curl -i \
 ```
 
 Expected status: `401 Unauthorized`.
+
+## List inventory stock history
+
+Returns the stock history for a specific inventory item. The authenticated user must be a member of the household.
+
+Replace `<household-uuid>` and `<inventory-item-uuid>` with the corresponding IDs.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/inventory/<household-uuid>/items/<inventory-item-uuid>/history"
+```
+
+Expected status: `200 OK`.
+
+Example response:
+
+```json
+[
+  {
+    "id": "<stock-event-uuid>",
+    "sequence_number": 3,
+    "item_id": "<inventory-item-uuid>",
+    "kind": "set",
+    "source": "manual",
+    "amount": null,
+    "stock_before": 3,
+    "stock_after": 0,
+    "actor": {
+      "type": "user",
+      "id": "<user-uuid>",
+      "display_name": "Samuel"
+    },
+    "created_at": "2026-08-18T19:30:00Z"
+  },
+  {
+    "id": "<stock-event-uuid>",
+    "sequence_number": 2,
+    "item_id": "<inventory-item-uuid>",
+    "kind": "decrease",
+    "source": "manual",
+    "amount": 2,
+    "stock_before": 5,
+    "stock_after": 3,
+    "actor": {
+      "type": "user",
+      "id": "<user-uuid>",
+      "display_name": "Samuel"
+    },
+    "created_at": "2026-08-18T19:29:00Z"
+  },
+  {
+    "id": "<stock-event-uuid>",
+    "sequence_number": 1,
+    "item_id": "<inventory-item-uuid>",
+    "kind": "increase",
+    "source": "manual",
+    "amount": 3,
+    "stock_before": 2,
+    "stock_after": 5,
+    "actor": {
+      "type": "user",
+      "id": "<user-uuid>",
+      "display_name": "Samuel"
+    },
+    "created_at": "2026-08-18T19:28:00Z"
+  }
+]
+```
+
+History is returned newest first.
+
+For `increase` and `decrease` events, `amount` contains the requested stock change.
+
+For `set` events, `amount` is `null`, while `stock_before` and `stock_after` describe the absolute change.
+
+If the inventory item exists but has no stock history, the endpoint returns:
+
+```json
+[]
+```
+
+Expected status: `200 OK`.
+
+### List history of an unknown inventory item
+
+```bash
+curl -i \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/inventory/<household-uuid>/items/00000000-0000-0000-0000-000000000000/history"
+```
+
+Expected status: `404 Not Found`.
+
+### List stock history without membership
+
+Use an inventory item belonging to another household.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/inventory/<other-household-uuid>/items/<inventory-item-uuid>/history"
+```
+
+Expected status: `403 Forbidden`.
+
+### List stock history without authentication
+
+```bash
+curl -i \
+  "$BASE_URL/api/v1/inventory/<household-uuid>/items/<inventory-item-uuid>/history"
+```
+
+Expected status: `401 Unauthorized`.
+
+## Register a device
+
+Registers a device for a household. The authenticated user must be a member of the household.
+
+Replace `<household-uuid>` with the corresponding household ID.
+
+Valid device kinds are:
+
+- `scanner`
+- `display`
+- `other`
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kitchen Scanner",
+    "kind": "scanner"
+  }'
+```
+
+Expected status: `201 Created`.
+
+Example response:
+
+```json
+{
+  "id": "<device-uuid>"
+}
+```
+
+### Register a device with an invalid name
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "   ",
+    "kind": "scanner"
+  }'
+```
+
+Expected status: `400 Bad Request`.
+
+### Register a device with an invalid kind
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kitchen Scanner",
+    "kind": "invalid"
+  }'
+```
+
+Expected status: `400 Bad Request`.
+
+### Register a device without authentication
+
+```bash
+curl -i \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kitchen Scanner",
+    "kind": "scanner"
+  }'
+```
+
+Expected status: `401 Unauthorized`.
+
+## List devices
+
+Returns all active devices registered for a household. Revoked devices are not returned.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices"
+```
+
+Expected status: `200 OK`.
+
+Example response:
+
+```json
+[
+  {
+    "id": "<device-uuid>",
+    "name": "Kitchen Scanner",
+    "kind": "scanner"
+  }
+]
+```
+
+If the household has no active devices, the endpoint returns:
+
+```json
+[]
+```
+
+## Rename a device
+
+Renames an active device.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kitchen Raspberry Pi"
+  }'
+```
+
+Expected status: `204 No Content`.
+
+### Rename an unknown device
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/00000000-0000-0000-0000-000000000000" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kitchen Raspberry Pi"
+  }'
+```
+
+Expected status: `404 Not Found`.
+
+### Rename a revoked device
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<revoked-device-uuid>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Name"
+  }'
+```
+
+Expected status: `409 Conflict`.
+
+## Revoke a device
+
+Revokes a device. Revoked devices are no longer returned by the active device list and cannot be modified.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/revoke"
+```
+
+Expected status: `204 No Content`.
+
+### Revoke an already revoked device
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/revoke"
+```
+
+Expected status: `409 Conflict`.
+
+### Revoke an unknown device
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/00000000-0000-0000-0000-000000000000/revoke"
+```
+
+Expected status: `404 Not Found`.
+
+## Issue a device credential
+
+Issues the first active credential for a registered device.
+
+The plaintext token is returned exactly once. Only the token hash is stored by the backend.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/credentials"
+```
+
+Expected status: `201 Created`.
+
+Example response:
+
+```json
+{
+  "token": "<device-token>"
+}
+```
+
+Store this token securely. It cannot be retrieved again later.
+
+### Issue a second active credential
+
+A device may have at most one active credential.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/credentials"
+```
+
+Expected status: `409 Conflict`.
+
+## Rotate a device credential
+
+Revokes the currently active credential and atomically replaces it with a new one.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/credentials/rotate"
+```
+
+Expected status: `200 OK`.
+
+Example response:
+
+```json
+{
+  "token": "<new-device-token>"
+}
+```
+
+The previous token becomes invalid immediately.
+
+### Rotate a credential when no active credential exists
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/credentials/rotate"
+```
+
+Expected status: `409 Conflict`.
+
+## Authenticate as a device
+
+Device-authenticated requests use the HTTP `Authorization` header:
+
+```bash
+curl -i \
+  -H "Authorization: Bearer <device-token>" \
+  "$BASE_URL/<device-protected-endpoint>"
+```
+
+An invalid, rotated, revoked, or unknown token returns:
+
+```text
+401 Unauthorized
+```
+
+## Revoke a device
+
+Revoking a device also atomically revokes its active credential.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/revoke"
+```
+
+Expected status: `204 No Content`.
+
+After revocation:
+
+- the device is no longer returned by the active device list
+- its active credential is revoked
+- its previous bearer token can no longer authenticate
+
+### Revoke an already revoked device
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/devices/<device-uuid>/revoke"
+```
+
+Expected status: `409 Conflict`.
+
+## Create QR action
+
+Creates a permanent QR action for an inventory item. The authenticated user must be a member of the household.
+
+Valid kinds are:
+
+- `increase`
+- `decrease`
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/qr" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "item_id": "<inventory-item-uuid>",
+    "kind": "increase",
+    "amount": 1
+  }'
+```
+
+Expected status: `201 Created`.
+
+Example response:
+
+```json
+{
+  "id": "<qr-action-uuid>"
+}
+```
+
+The returned ID is the stable identifier that can be encoded into the permanent QR code.
+
+## List QR actions
+
+Returns all active QR actions for a household.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/households/<household-uuid>/qr"
+```
+
+Expected status: `200 OK`.
+
+Example response:
+
+```json
+[
+  {
+    "id": "<qr-action-uuid>",
+    "item_id": "<inventory-item-uuid>",
+    "kind": "increase",
+    "amount": 1
+  }
+]
+```
+
+## Revoke QR action
+
+Revokes a QR action without deleting its historical record.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/qr/<qr-action-uuid>/revoke"
+```
+
+Expected status: `204 No Content`.
+
+Executing the QR after revocation is rejected.
+
+## Execute QR action as device
+
+Device-authenticated requests use a bearer token instead of the user session cookie.
+
+```bash
+curl -i \
+  -X POST \
+  "$BASE_URL/api/v1/device/qr/<qr-action-uuid>/execute" \
+  -H "Authorization: Bearer <device-token>"
+```
+
+Expected status: `204 No Content`.
+
+The stock mutation is recorded with:
+
+- the authenticated device as actor
+- `qr` as the stock event source
+
+### Execute with invalid device credentials
+
+```bash
+curl -i \
+  -X POST \
+  "$BASE_URL/api/v1/device/qr/<qr-action-uuid>/execute" \
+  -H "Authorization: Bearer invalid-token"
+```
+
+Expected status: `401 Unauthorized`.
+
+### Execute QR from another household
+
+If the authenticated device belongs to a different household than the QR action:
+
+```bash
+curl -i \
+  -X POST \
+  "$BASE_URL/api/v1/device/qr/<qr-action-uuid>/execute" \
+  -H "Authorization: Bearer <other-household-device-token>"
+```
+
+Expected status: `404 Not Found`.
+
+### Execute revoked QR
+
+```bash
+curl -i \
+  -X POST \
+  "$BASE_URL/api/v1/device/qr/<revoked-qr-action-uuid>/execute" \
+  -H "Authorization: Bearer <device-token>"
+```
+
+Expected status: `409 Conflict`.

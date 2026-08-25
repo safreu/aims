@@ -1,7 +1,10 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::modules::inventory::read_models::{CategorySummary, InventoryItemListEntry};
+use crate::modules::inventory::read_models::{
+    CategorySummary, InventoryItemListEntry, InventoryStockHistoryActor, InventoryStockHistoryEntry,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateInventoryItemRequest {
@@ -89,4 +92,59 @@ pub struct ChangeInventoryStockRequest {
 #[derive(Debug, Deserialize)]
 pub struct SetInventoryStockRequest {
     pub stock: u32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct InventoryStockHistoryResponse {
+    pub id: Uuid,
+    pub sequence_number: i64,
+    pub item_id: Uuid,
+    pub kind: String,
+    pub source: String,
+    pub amount: Option<u32>,
+    pub stock_before: u32,
+    pub stock_after: u32,
+    pub actor: InventoryStockHistoryActorResponse,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum InventoryStockHistoryActorResponse {
+    User { id: Uuid, display_name: String },
+    Device { id: Uuid, name: String },
+    System,
+}
+
+impl From<InventoryStockHistoryEntry> for InventoryStockHistoryResponse {
+    fn from(value: InventoryStockHistoryEntry) -> Self {
+        Self {
+            id: value.id.into_uuid(),
+            sequence_number: value.sequence_number,
+            item_id: value.item_id.into_uuid(),
+            kind: value.kind.as_str().to_owned(),
+            source: value.source.as_str().to_owned(),
+            amount: value.amount,
+            stock_before: value.stock_before,
+            stock_after: value.stock_after,
+            actor: InventoryStockHistoryActorResponse::from(value.actor),
+            created_at: value.created_at,
+        }
+    }
+}
+
+impl From<InventoryStockHistoryActor> for InventoryStockHistoryActorResponse {
+    fn from(value: InventoryStockHistoryActor) -> Self {
+        match value {
+            InventoryStockHistoryActor::User { id, display_name } => Self::User {
+                id: id.into_uuid(),
+                display_name: display_name.as_str().to_owned(),
+            },
+            InventoryStockHistoryActor::Device { id, name } => Self::Device {
+                id: id.into_uuid(),
+                name: name.as_str().to_owned(),
+            },
+            InventoryStockHistoryActor::System => Self::System,
+        }
+    }
 }

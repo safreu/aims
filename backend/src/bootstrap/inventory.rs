@@ -8,13 +8,15 @@ use crate::{
         inventory::{
             adapters::{
                 PostgresCategoryRepository, PostgresInventoryItemQuery,
-                PostgresInventoryItemRepository, PostgresInventoryStockRepository,
+                PostgresInventoryItemRepository, PostgresInventoryStockHistoryQuery,
+                PostgresInventoryStockRepository,
             },
             application::{
                 ArchiveInventoryItemService, CreateCategoryService, CreateInventoryItemService,
                 DecreaseInventoryStockService, DeleteCategoryService, GetInventoryItemService,
                 IncreaseInventoryStockService, ListCategoriesService, ListInventoryItemsService,
-                RestoreInventoryItemService, SetInventoryStockService, UpdateInventoryItemService,
+                ListInventoryStockHistoryService, RestoreInventoryItemService,
+                SetInventoryStockService, UpdateInventoryItemService,
             },
         },
     },
@@ -28,6 +30,8 @@ pub(super) fn build_inventory_item_state(pool: &PgPool) -> InventoryItemState {
     let inventory_item_repository = Arc::new(PostgresInventoryItemRepository::new(pool.clone()));
     let inventory_item_query = Arc::new(PostgresInventoryItemQuery::new(pool.clone()));
     let inventory_stock_repository = Arc::new(PostgresInventoryStockRepository::new(pool.clone()));
+    let inventory_stock_history_query =
+        Arc::new(PostgresInventoryStockHistoryQuery::new(pool.clone()));
 
     let create_inventory_item_service = Arc::new(CreateInventoryItemService::new(
         household_access_policy.clone(),
@@ -91,6 +95,12 @@ pub(super) fn build_inventory_item_state(pool: &PgPool) -> InventoryItemState {
         inventory_stock_repository.clone(),
     ));
 
+    let list_inventory_stock_history_service = Arc::new(ListInventoryStockHistoryService::new(
+        household_access_policy.clone(),
+        inventory_item_repository.clone(),
+        inventory_stock_history_query.clone(),
+    ));
+
     InventoryItemState {
         create_inventory_item: create_inventory_item_service,
         create_category: create_category_service,
@@ -104,5 +114,6 @@ pub(super) fn build_inventory_item_state(pool: &PgPool) -> InventoryItemState {
         increase_inventory_stock: increase_inventory_stock_service,
         decrease_inventory_stock: decrease_inventory_stock_service,
         set_inventory_stock: set_inventory_stock_service,
+        list_inventory_stock_history: list_inventory_stock_history_service,
     }
 }

@@ -3,7 +3,8 @@ use crate::{
         ArchiveInventoryItemError, CreateCategoryError, CreateInventoryItemError,
         DecreaseInventoryStockError, DeleteCategoryError, GetInventoryItemError,
         IncreaseInventoryStockError, ListCategoriesError, ListInventoryItemsError,
-        RestoreInventoryItemError, SetInventoryStockError, UpdateInventoryItemError,
+        ListInventoryStockHistoryError, RestoreInventoryItemError, SetInventoryStockError,
+        UpdateInventoryItemError,
     },
     shared::api::ApiError,
 };
@@ -11,15 +12,9 @@ use crate::{
 impl From<CreateInventoryItemError> for ApiError {
     fn from(error: CreateInventoryItemError) -> Self {
         match error {
+            CreateInventoryItemError::HouseholdAccess(error) => error.into(),
             CreateInventoryItemError::CategoryNotFound => {
                 ApiError::not_found("category_not_found", "The category was not found")
-            }
-            CreateInventoryItemError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            CreateInventoryItemError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
             }
             CreateInventoryItemError::Internal(_) => ApiError::internal_error(),
             CreateInventoryItemError::InvalidName => ApiError::bad_request(
@@ -37,17 +32,11 @@ impl From<CreateInventoryItemError> for ApiError {
 impl From<CreateCategoryError> for ApiError {
     fn from(error: CreateCategoryError) -> Self {
         match error {
+            CreateCategoryError::HouseholdAccess(error) => error.into(),
             CreateCategoryError::CategoryAlreadyExists => ApiError::conflict(
                 "category_already_exists",
                 "A category with this name already exists",
             ),
-            CreateCategoryError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            CreateCategoryError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
             CreateCategoryError::InvalidName => {
                 ApiError::bad_request("invalid_category_name", "The category name is invalid")
             }
@@ -59,13 +48,7 @@ impl From<CreateCategoryError> for ApiError {
 impl From<ListCategoriesError> for ApiError {
     fn from(error: ListCategoriesError) -> Self {
         match error {
-            ListCategoriesError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            ListCategoriesError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            ListCategoriesError::HouseholdAccess(error) => error.into(),
             ListCategoriesError::Internal(_) => ApiError::internal_error(),
         }
     }
@@ -74,15 +57,9 @@ impl From<ListCategoriesError> for ApiError {
 impl From<DeleteCategoryError> for ApiError {
     fn from(error: DeleteCategoryError) -> Self {
         match error {
+            DeleteCategoryError::HouseholdAccess(error) => error.into(),
             DeleteCategoryError::CategoryNotFound => {
                 ApiError::not_found("category_not_found", "The category was not found")
-            }
-            DeleteCategoryError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            DeleteCategoryError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
             }
             DeleteCategoryError::Internal(_) => ApiError::internal_error(),
         }
@@ -92,13 +69,7 @@ impl From<DeleteCategoryError> for ApiError {
 impl From<ListInventoryItemsError> for ApiError {
     fn from(error: ListInventoryItemsError) -> Self {
         match error {
-            ListInventoryItemsError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            ListInventoryItemsError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            ListInventoryItemsError::HouseholdAccess(error) => error.into(),
             ListInventoryItemsError::Internal(_) => ApiError::internal_error(),
         }
     }
@@ -107,13 +78,7 @@ impl From<ListInventoryItemsError> for ApiError {
 impl From<GetInventoryItemError> for ApiError {
     fn from(error: GetInventoryItemError) -> Self {
         match error {
-            GetInventoryItemError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            GetInventoryItemError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            GetInventoryItemError::HouseholdAccess(error) => error.into(),
             GetInventoryItemError::ItemNotFound => ApiError::not_found(
                 "inventory_item_not_found",
                 "The inventory item was not found",
@@ -126,13 +91,7 @@ impl From<GetInventoryItemError> for ApiError {
 impl From<UpdateInventoryItemError> for ApiError {
     fn from(value: UpdateInventoryItemError) -> Self {
         match value {
-            UpdateInventoryItemError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            UpdateInventoryItemError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            UpdateInventoryItemError::HouseholdAccess(error) => error.into(),
             UpdateInventoryItemError::InvalidName => {
                 ApiError::bad_request("invalid_category_name", "The category name is invalid")
             }
@@ -170,14 +129,8 @@ impl From<ArchiveInventoryItemError> for ApiError {
                 "inventory_item_not_found",
                 "The inventory item was not found",
             ),
+            ArchiveInventoryItemError::HouseholdAccess(error) => error.into(),
             ArchiveInventoryItemError::Internal(_) => ApiError::internal_error(),
-            ArchiveInventoryItemError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            ArchiveInventoryItemError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
             ArchiveInventoryItemError::AlreadyArchived => ApiError::conflict(
                 "inventory_item_already_archived",
                 "The inventory item is already archived",
@@ -189,18 +142,12 @@ impl From<ArchiveInventoryItemError> for ApiError {
 impl From<RestoreInventoryItemError> for ApiError {
     fn from(value: RestoreInventoryItemError) -> Self {
         match value {
+            RestoreInventoryItemError::HouseholdAccess(error) => error.into(),
             RestoreInventoryItemError::ItemNotFound => ApiError::not_found(
                 "inventory_item_not_found",
                 "The inventory item was not found",
             ),
             RestoreInventoryItemError::Internal(_) => ApiError::internal_error(),
-            RestoreInventoryItemError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            RestoreInventoryItemError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
             RestoreInventoryItemError::ItemAlreadyExists => ApiError::conflict(
                 "inventory_item_already_exists",
                 "An active inventory item with this name already exists",
@@ -216,13 +163,7 @@ impl From<RestoreInventoryItemError> for ApiError {
 impl From<IncreaseInventoryStockError> for ApiError {
     fn from(error: IncreaseInventoryStockError) -> Self {
         match error {
-            IncreaseInventoryStockError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            IncreaseInventoryStockError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            IncreaseInventoryStockError::HouseholdAccess(error) => error.into(),
             IncreaseInventoryStockError::ItemNotFound => ApiError::not_found(
                 "inventory_item_not_found",
                 "The inventory item was not found",
@@ -247,13 +188,7 @@ impl From<IncreaseInventoryStockError> for ApiError {
 impl From<DecreaseInventoryStockError> for ApiError {
     fn from(error: DecreaseInventoryStockError) -> Self {
         match error {
-            DecreaseInventoryStockError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            DecreaseInventoryStockError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            DecreaseInventoryStockError::HouseholdAccess(error) => error.into(),
             DecreaseInventoryStockError::ItemNotFound => ApiError::not_found(
                 "inventory_item_not_found",
                 "The inventory item was not found",
@@ -278,13 +213,7 @@ impl From<DecreaseInventoryStockError> for ApiError {
 impl From<SetInventoryStockError> for ApiError {
     fn from(error: SetInventoryStockError) -> Self {
         match error {
-            SetInventoryStockError::Forbidden => ApiError::forbidden(
-                "household_access_forbidden",
-                "You do not have permissions to modify this household",
-            ),
-            SetInventoryStockError::HouseholdNotFound => {
-                ApiError::not_found("household_not_found", "The household was not found")
-            }
+            SetInventoryStockError::HouseholdAccess(error) => error.into(),
             SetInventoryStockError::ItemNotFound => ApiError::not_found(
                 "inventory_item_not_found",
                 "The inventory item was not found",
@@ -293,6 +222,19 @@ impl From<SetInventoryStockError> for ApiError {
             SetInventoryStockError::ItemArchived => ApiError::conflict(
                 "item_archived",
                 "Archived inventory items cannot be modified",
+            ),
+        }
+    }
+}
+
+impl From<ListInventoryStockHistoryError> for ApiError {
+    fn from(value: ListInventoryStockHistoryError) -> Self {
+        match value {
+            ListInventoryStockHistoryError::HouseholdAccess(error) => error.into(),
+            ListInventoryStockHistoryError::Internal(_) => ApiError::internal_error(),
+            ListInventoryStockHistoryError::ItemNotFound => ApiError::not_found(
+                "inventory_item_not_found",
+                "The inventory item was not found",
             ),
         }
     }

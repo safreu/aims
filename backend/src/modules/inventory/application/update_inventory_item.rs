@@ -63,8 +63,7 @@ impl UpdateInventoryItemService {
 
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let mut item = self
             .inventory_item_repository
@@ -169,8 +168,6 @@ pub enum UpdateInventoryItemError {
     InvalidName,
     #[error("Inventory item priority is invalid")]
     InvalidPriority,
-    #[error("Household was not found")]
-    HouseholdNotFound,
     #[error("Inventory item was not found")]
     ItemNotFound,
     #[error("Category was not found")]
@@ -179,18 +176,10 @@ pub enum UpdateInventoryItemError {
     ItemAlreadyExists,
     #[error("Archived inventory items cannot be modified")]
     ItemArchived,
-    #[error("You do not have permission")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> UpdateInventoryItemError {
-    match error {
-        HouseholdAccessError::Forbidden => UpdateInventoryItemError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => UpdateInventoryItemError::HouseholdNotFound,
-        HouseholdAccessError::Internal(error) => UpdateInventoryItemError::Internal(error),
-    }
 }
 
 fn map_inventory_item_error(error: InventoryItemError) -> UpdateInventoryItemError {
@@ -494,7 +483,12 @@ mod tests {
 
         let result = service.execute(command).await;
 
-        assert_eq!(result, Err(UpdateInventoryItemError::HouseholdNotFound));
+        assert_eq!(
+            result,
+            Err(UpdateInventoryItemError::HouseholdAccess(
+                HouseholdAccessError::HouseholdNotFound
+            ))
+        );
     }
 
     #[tokio::test]
@@ -640,6 +634,11 @@ mod tests {
 
         let result = service.execute(command).await;
 
-        assert_eq!(result, Err(UpdateInventoryItemError::Forbidden));
+        assert_eq!(
+            result,
+            Err(UpdateInventoryItemError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        );
     }
 }

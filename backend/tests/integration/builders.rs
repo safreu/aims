@@ -1,5 +1,6 @@
 use backend::modules::{
     accounts::domain::{DisplayName, Email, PasswordHash, User, UserId},
+    devices::domain::{Device, DeviceId, DeviceKind, DeviceName},
     households::domain::{Household, HouseholdId, HouseholdKind, HouseholdName},
     inventory::domain::{
         Category, CategoryId, CategoryName, InventoryItem, InventoryItemId, InventoryItemName,
@@ -33,13 +34,13 @@ impl UserTestBuilder {
         self
     }
 
-    pub fn email(mut self, email: String) -> Self {
-        self.email = email;
+    pub fn email(mut self, email: impl Into<String>) -> Self {
+        self.email = email.into();
         self
     }
 
-    pub fn display_name(mut self, name: String) -> Self {
-        self.display_name = name;
+    pub fn display_name(mut self, name: impl Into<String>) -> Self {
+        self.display_name = name.into();
         self
     }
 
@@ -83,8 +84,8 @@ impl HouseholdTestBuilder {
         self
     }
 
-    pub fn name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
         self
     }
 
@@ -151,8 +152,8 @@ impl CategoryTestBuilder {
         self
     }
 
-    pub fn name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
         self
     }
 
@@ -207,8 +208,8 @@ impl InventoryItemTestBuilder {
         self
     }
 
-    pub fn name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
         self
     }
 
@@ -246,6 +247,81 @@ impl InventoryItemTestBuilder {
             self.current_stock,
             self.reorder_threshold,
             self.priority,
+            self.created_at,
+            self.updated_at,
+        )
+    }
+}
+
+#[allow(unused)]
+pub struct DeviceTestBuilder {
+    id: DeviceId,
+    household_id: HouseholdId,
+    name: String,
+    kind: DeviceKind,
+    revoked_at: Option<DateTime<Utc>>,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+}
+
+#[allow(unused)]
+impl DeviceTestBuilder {
+    pub fn new(household_id: HouseholdId) -> Self {
+        let now = Utc::now().trunc_subsecs(6);
+
+        Self {
+            id: DeviceId::new(),
+            household_id,
+            name: "Test device".to_owned(),
+            kind: DeviceKind::Scanner,
+            revoked_at: None,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    pub fn id(mut self, id: DeviceId) -> Self {
+        self.id = id;
+        self
+    }
+
+    pub fn household_id(mut self, household_id: HouseholdId) -> Self {
+        self.household_id = household_id;
+        self
+    }
+
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
+        self
+    }
+
+    pub fn kind(mut self, kind: DeviceKind) -> Self {
+        self.kind = kind;
+        self
+    }
+
+    pub fn revoked_at(mut self, revoked_at: Option<DateTime<Utc>>) -> Self {
+        self.revoked_at = revoked_at;
+        self
+    }
+
+    pub fn created_at(mut self, created_at: DateTime<Utc>) -> Self {
+        self.created_at = created_at;
+        self
+    }
+
+    pub fn updated_at(mut self, updated_at: DateTime<Utc>) -> Self {
+        self.updated_at = updated_at;
+        self
+    }
+
+    pub fn build(self) -> Device {
+        Device::new_with_revoked_at(
+            self.id,
+            self.household_id,
+            DeviceName::parse(&self.name).expect("Device name should be valid"),
+            self.kind,
+            self.revoked_at,
             self.created_at,
             self.updated_at,
         )

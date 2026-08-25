@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE device_credentials\n            SET revoked_at = $2\n            WHERE device_id = $1 AND revoked_at IS NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "77188739a606b686367a6df4a602f11deb75c30b767ae2371b56ec961a5d0f9b"
+}

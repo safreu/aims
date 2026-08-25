@@ -51,8 +51,7 @@ impl ListHouseholdMembersService {
     ) -> Result<Vec<HouseholdMemberInfo>, ListHouseholdMembersError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
-            .await
-            .map_err(map_household_access_error)?;
+            .await?;
 
         let members = self
             .household_repository
@@ -115,18 +114,10 @@ impl ListHouseholdMembersService {
 pub enum ListHouseholdMembersError {
     #[error("No household was found")]
     NotFound,
-    #[error("You do not have the permissions")]
-    Forbidden,
+    #[error(transparent)]
+    HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]
     Internal(#[from] InternalError),
-}
-
-fn map_household_access_error(error: HouseholdAccessError) -> ListHouseholdMembersError {
-    match error {
-        HouseholdAccessError::Forbidden => ListHouseholdMembersError::Forbidden,
-        HouseholdAccessError::HouseholdNotFound => ListHouseholdMembersError::NotFound,
-        HouseholdAccessError::Internal(error) => ListHouseholdMembersError::Internal(error),
-    }
 }
 
 #[cfg(test)]
@@ -227,7 +218,12 @@ mod tests {
 
         let result = service.execute(command).await;
 
-        assert_eq!(result, Err(ListHouseholdMembersError::NotFound));
+        assert_eq!(
+            result,
+            Err(ListHouseholdMembersError::HouseholdAccess(
+                HouseholdAccessError::HouseholdNotFound
+            ))
+        );
     }
 
     #[tokio::test]
@@ -249,7 +245,12 @@ mod tests {
 
         let result = service.execute(command).await;
 
-        assert_eq!(result, Err(ListHouseholdMembersError::Forbidden))
+        assert_eq!(
+            result,
+            Err(ListHouseholdMembersError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        )
     }
 
     #[tokio::test]
@@ -272,7 +273,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(ListHouseholdMembersError::Internal(InternalError::Failed))
+            Err(ListHouseholdMembersError::HouseholdAccess(
+                HouseholdAccessError::Internal(InternalError::Failed)
+            ))
         )
     }
 

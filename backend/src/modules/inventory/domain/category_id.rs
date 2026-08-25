@@ -34,3 +34,35 @@ impl fmt::Display for CategoryId {
         write!(f, "{}", self.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_creates_different_ids() {
+        let first = CategoryId::new();
+        let second = CategoryId::new();
+
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn from_uuid_preservers_uuid() {
+        let uuid = Uuid::new_v4();
+
+        let user_id = CategoryId::from_uuid(uuid);
+
+        assert_eq!(user_id.as_uuid(), &uuid);
+    }
+
+    #[test]
+    fn into_uuid_returns_the_inner_uuid() {
+        let uuid = Uuid::new_v4();
+        let user_id = CategoryId::from_uuid(uuid);
+
+        let result = user_id.into_uuid();
+
+        assert_eq!(result, uuid);
+    }
+}

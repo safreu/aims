@@ -1,9 +1,6 @@
-use crate::modules::{
-    accounts::{
-        domain::SessionToken,
-        ports::{SessionTokenGenerator, SessionTokenGeneratorError},
-    },
-    households::ports::HouseholdRepository,
+use crate::{
+    modules::{accounts::domain::SessionToken, households::ports::HouseholdRepository},
+    shared::auth::{TokenGenerator, TokenGeneratorError},
 };
 
 use std::sync::Arc;
@@ -36,8 +33,8 @@ impl FixedSessionTokenGenerator {
     }
 }
 
-impl SessionTokenGenerator for FixedSessionTokenGenerator {
-    fn generate(&self) -> Result<SessionToken, SessionTokenGeneratorError> {
+impl TokenGenerator<SessionToken> for FixedSessionTokenGenerator {
+    fn generate(&self) -> Result<SessionToken, TokenGeneratorError> {
         Ok(SessionToken::from_string(self.token.clone())
             .expect("Test session token should be valid"))
     }
@@ -45,9 +42,9 @@ impl SessionTokenGenerator for FixedSessionTokenGenerator {
 
 pub struct FailingSessionTokenGenerator;
 
-impl SessionTokenGenerator for FailingSessionTokenGenerator {
-    fn generate(&self) -> Result<SessionToken, SessionTokenGeneratorError> {
-        Err(SessionTokenGeneratorError::GenerationFailed)
+impl TokenGenerator<SessionToken> for FailingSessionTokenGenerator {
+    fn generate(&self) -> Result<SessionToken, TokenGeneratorError> {
+        Err(TokenGeneratorError::GenerationFailed)
     }
 }
 

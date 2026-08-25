@@ -1,0 +1,95 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                e.id,\n                e.sequence_number,\n                e.item_id,\n                e.kind,\n                e.source,\n                e.amount,\n                e.stock_before,\n                e.stock_after,\n                e.actor_user_id,\n                u.display_name AS \"actor_user_display_name?\",\n                e.actor_device_id,\n                d.name AS \"actor_device_name?\",\n                e.created_at\n            FROM inventory_stock_events e\n            LEFT JOIN users u ON u.id = e.actor_user_id\n            LEFT JOIN devices d ON d.id = e.actor_device_id\n            WHERE e.household_id = $1 AND e.item_id = $2\n            ORDER BY e.sequence_number DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "sequence_number",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "item_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "kind",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "source",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "amount",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "stock_before",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "stock_after",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "actor_user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 9,
+        "name": "actor_user_display_name?",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "actor_device_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 11,
+        "name": "actor_device_name?",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "e845c8f0b73426f0a2844dfaac2aae94232c21c2e0b280f94936c0f6bd2a2757"
+}

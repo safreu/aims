@@ -2,7 +2,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
 use crate::{
-    modules::{households::domain::HouseholdId, inventory::domain::InventoryItemId},
+    modules::{
+        households::domain::HouseholdId,
+        inventory::{domain::InventoryItemId, ports::StockMutationContext},
+    },
     shared::db::PersistenceError,
 };
 
@@ -13,6 +16,7 @@ pub trait InventoryStockRepository: Sync + Send {
         household_id: &HouseholdId,
         item_id: &InventoryItemId,
         amount: u32,
+        context: &StockMutationContext,
         now: DateTime<Utc>,
     ) -> Result<(), InventoryStockRepositoryError>;
 
@@ -21,6 +25,7 @@ pub trait InventoryStockRepository: Sync + Send {
         household_id: &HouseholdId,
         item_id: &InventoryItemId,
         amount: u32,
+        context: &StockMutationContext,
         now: DateTime<Utc>,
     ) -> Result<(), InventoryStockRepositoryError>;
 
@@ -29,6 +34,7 @@ pub trait InventoryStockRepository: Sync + Send {
         household_id: &HouseholdId,
         item_id: &InventoryItemId,
         amount: u32,
+        context: &StockMutationContext,
         now: DateTime<Utc>,
     ) -> Result<(), InventoryStockRepositoryError>;
 }

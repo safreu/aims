@@ -13,13 +13,15 @@ use crate::{
             api::dto::{
                 ChangeInventoryStockRequest, CreateCategoryRequest, CreateCategoryResponse,
                 CreateInventoryItemRequest, CreateInventoryItemResponse, InventoryItemResponse,
-                ListCategoriesResponse, SetInventoryStockRequest, UpdateInventoryItemRequest,
+                InventoryStockHistoryResponse, ListCategoriesResponse, SetInventoryStockRequest,
+                UpdateInventoryItemRequest,
             },
             application::{
                 ArchiveInventoryItemCommand, CreateCategoryCommand, CreateInventoryItemCommand,
                 DecreaseInventoryStockCommand, DeleteCategoryCommand, GetInventoryItemCommand,
                 IncreaseInventoryStockCommand, ListCategoriesCommand, ListInventoryItemsCommand,
-                RestoreInventoryItemCommand, SetInventoryStockCommand, UpdateInventoryItemCommand,
+                ListInventoryStockHistoryCommand, RestoreInventoryItemCommand,
+                SetInventoryStockCommand, UpdateInventoryItemCommand,
             },
             domain::{CategoryId, InventoryItemId, InventoryPriority},
         },
@@ -326,4 +328,30 @@ pub async fn set_inventory_stock(
         .map_err(ApiError::from)?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn list_inventory_stock_history(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Path((household_id, item_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<Vec<InventoryStockHistoryResponse>>, ApiError> {
+    let command = ListInventoryStockHistoryCommand {
+        requester_id: current_user.user_id(),
+        household_id: HouseholdId::from_uuid(household_id),
+        item_id: InventoryItemId::from_uuid(item_id),
+    };
+
+    let history = state
+        .inventory
+        .list_inventory_stock_history
+        .execute(command)
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok(Json(
+        history
+            .into_iter()
+            .map(InventoryStockHistoryResponse::from)
+            .collect(),
+    ))
 }
