@@ -102,8 +102,12 @@ impl QrAction {
         self.updated_at
     }
 
+    pub fn is_revoked(&self) -> bool {
+        self.revoked_at().is_some()
+    }
+
     pub fn revoke(&mut self, now: DateTime<Utc>) -> Result<(), QrActionError> {
-        if self.revoked_at().is_some() {
+        if self.is_revoked() {
             return Err(QrActionError::AlreadyRevoked);
         }
 

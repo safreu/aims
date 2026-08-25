@@ -6,3 +6,6 @@ pub use list_qr_actions::{ListQrActionsCommand, ListQrActionsError, ListQrAction
 
 mod revoke_qr_action;
 pub use revoke_qr_action::{RevokeQrActionCommand, RevokeQrActionError, RevokeQrActionService};
+
+mod execute_qr_action;
+pub use execute_qr_action::{ExecuteQrActionCommand, ExecuteQrActionError, ExecuteQrActionService};
