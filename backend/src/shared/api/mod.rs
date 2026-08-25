@@ -15,3 +15,6 @@ pub use inventory_state::InventoryItemState;
 
 mod device_state;
 pub use device_state::DeviceState;
+
+mod scanning_state;
+pub use scanning_state::ScanningState;

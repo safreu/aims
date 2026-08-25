@@ -1,0 +1,2 @@
+mod postgres_qr_action_repository;
+pub use postgres_qr_action_repository::PostgresQrActionRepository;

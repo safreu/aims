@@ -2038,3 +2038,130 @@ curl -i \
 ```
 
 Expected status: `409 Conflict`.
+
+## Create QR action
+
+Creates a permanent QR action for an inventory item. The authenticated user must be a member of the household.
+
+Valid kinds are:
+
+- `increase`
+- `decrease`
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/qr" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "item_id": "<inventory-item-uuid>",
+    "kind": "increase",
+    "amount": 1
+  }'
+```
+
+Expected status: `201 Created`.
+
+Example response:
+
+```json
+{
+  "id": "<qr-action-uuid>"
+}
+```
+
+The returned ID is the stable identifier that can be encoded into the permanent QR code.
+
+## List QR actions
+
+Returns all active QR actions for a household.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/households/<household-uuid>/qr"
+```
+
+Expected status: `200 OK`.
+
+Example response:
+
+```json
+[
+  {
+    "id": "<qr-action-uuid>",
+    "item_id": "<inventory-item-uuid>",
+    "kind": "increase",
+    "amount": 1
+  }
+]
+```
+
+## Revoke QR action
+
+Revokes a QR action without deleting its historical record.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/qr/<qr-action-uuid>/revoke"
+```
+
+Expected status: `204 No Content`.
+
+Executing the QR after revocation is rejected.
+
+## Execute QR action as device
+
+Device-authenticated requests use a bearer token instead of the user session cookie.
+
+```bash
+curl -i \
+  -X POST \
+  "$BASE_URL/api/v1/device/qr/<qr-action-uuid>/execute" \
+  -H "Authorization: Bearer <device-token>"
+```
+
+Expected status: `204 No Content`.
+
+The stock mutation is recorded with:
+
+- the authenticated device as actor
+- `qr` as the stock event source
+
+### Execute with invalid device credentials
+
+```bash
+curl -i \
+  -X POST \
+  "$BASE_URL/api/v1/device/qr/<qr-action-uuid>/execute" \
+  -H "Authorization: Bearer invalid-token"
+```
+
+Expected status: `401 Unauthorized`.
+
+### Execute QR from another household
+
+If the authenticated device belongs to a different household than the QR action:
+
+```bash
+curl -i \
+  -X POST \
+  "$BASE_URL/api/v1/device/qr/<qr-action-uuid>/execute" \
+  -H "Authorization: Bearer <other-household-device-token>"
+```
+
+Expected status: `404 Not Found`.
+
+### Execute revoked QR
+
+```bash
+curl -i \
+  -X POST \
+  "$BASE_URL/api/v1/device/qr/<revoked-qr-action-uuid>/execute" \
+  -H "Authorization: Bearer <device-token>"
+```
+
+Expected status: `409 Conflict`.

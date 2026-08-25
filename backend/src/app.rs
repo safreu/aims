@@ -1,6 +1,7 @@
 use crate::bootstrap::BootstrapError;
 use crate::modules::households::api::households_router;
 use crate::modules::inventory::api::inventory_routes;
+use crate::modules::scanning::api::scanning_device_routes;
 use crate::{
     bootstrap::build_app_state, config::AppConfig, modules::accounts::api::accounts_router,
     shared::api::AppState,
@@ -45,6 +46,7 @@ fn build_router(state: AppState) -> Router {
         .nest("/api/v1/auth", accounts_router())
         .nest("/api/v1/households", households_router())
         .nest("/api/v1/inventory", inventory_routes())
+        .nest("/api/v1/device", scanning_device_routes())
         .layer(PropagateRequestIdLayer::x_request_id())
         .layer(TraceLayer::new_for_http())
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))

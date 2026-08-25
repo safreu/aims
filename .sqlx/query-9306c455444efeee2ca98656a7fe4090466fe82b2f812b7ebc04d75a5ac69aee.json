@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE qr_actions\n            SET\n                revoked_at = $3,\n                updated_at = $4\n            WHERE id = $1 AND household_id = $2\n           ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9306c455444efeee2ca98656a7fe4090466fe82b2f812b7ebc04d75a5ac69aee"
+}
