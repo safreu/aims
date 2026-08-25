@@ -1,0 +1,3 @@
+mod inventory_shopping_state;
+pub use inventory_shopping_state::InventoryShoppingState;
+pub use inventory_shopping_state::InventoryShoppingStateError;
