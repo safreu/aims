@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO inventory_shopping_states(\n                household_id,\n                item_id,\n                quantity_override,\n                note,\n                checked,\n                dismissed,\n                created_at,\n                updated_at\n            ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())\n            ON CONFLICT (household_id, item_id)\n            DO UPDATE SET\n                quantity_override = EXCLUDED.quantity_override,\n                note = EXCLUDED.note,\n                checked = EXCLUDED.checked,\n                dismissed = EXCLUDED.dismissed,\n                updated_at = NOW()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Varchar",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a8ebf6167aa989a9d2f872aad23738975a89d6023b7d8b199ebc749bd3eb798d"
+}
