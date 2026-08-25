@@ -8,6 +8,7 @@ use crate::modules::{
 
 const MAX_NOTE_LENGTH: usize = 50;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct CustomShoppingEntry {
     id: CustomShoppingEntryId,
     household_id: HouseholdId,
