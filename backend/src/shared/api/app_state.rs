@@ -1,4 +1,6 @@
-use crate::shared::api::{AccountsState, DeviceState, HouseholdsState, InventoryItemState};
+use crate::shared::api::{
+    AccountsState, DeviceState, HouseholdsState, InventoryItemState, ScanningState,
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -6,4 +8,5 @@ pub struct AppState {
     pub households: HouseholdsState,
     pub inventory: InventoryItemState,
     pub device: DeviceState,
+    pub scanning: ScanningState,
 }
