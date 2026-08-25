@@ -60,7 +60,7 @@ async fn qr_action_can_be_inserted_and_loaded(pool: PgPool) {
         .expect("QR action insertion should succeed");
 
     let stored = qr_action_repository
-        .find_by_id(&action.id())
+        .find_by_id_for_household(&action.id(), &household.id())
         .await
         .expect("QR action lookup should succeed")
         .expect("QR action should exist");

@@ -84,9 +84,10 @@ impl QrActionRepository for PostgresQrActionRepository {
         Ok(())
     }
 
-    async fn find_by_id(
+    async fn find_by_id_for_household(
         &self,
         action_id: &QrActionId,
+        household_id: &HouseholdId,
     ) -> Result<Option<QrAction>, QrActionRepositoryError> {
         let row = sqlx::query_as!(
             QrActionRow,
@@ -101,9 +102,10 @@ impl QrActionRepository for PostgresQrActionRepository {
                 created_at,
                 updated_at
             FROM qr_actions
-            WHERE id = $1
+            WHERE id = $1 AND household_id = $2
            "#,
             action_id.into_uuid(),
+            household_id.into_uuid(),
         )
         .fetch_optional(&self.pool)
         .await

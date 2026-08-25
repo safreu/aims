@@ -12,9 +12,10 @@ use crate::{
 pub trait QrActionRepository: Send + Sync {
     async fn insert(&self, action: &QrAction) -> Result<(), QrActionRepositoryError>;
 
-    async fn find_by_id(
+    async fn find_by_id_for_household(
         &self,
         action_id: &QrActionId,
+        household_id: &HouseholdId,
     ) -> Result<Option<QrAction>, QrActionRepositoryError>;
 
     async fn find_active_for_household(
