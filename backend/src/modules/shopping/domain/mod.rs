@@ -2,7 +2,7 @@ mod inventory_shopping_state;
 pub use inventory_shopping_state::{InventoryShoppingState, InventoryShoppingStateError};
 
 mod custom_shopping_entry;
-pub use custom_shopping_entry::CustomShoppingEntry;
+pub use custom_shopping_entry::{CustomShoppingEntry, CustomShoppingEntryError};
 
 mod custom_shopping_entry_id;
 pub use custom_shopping_entry_id::CustomShoppingEntryId;
