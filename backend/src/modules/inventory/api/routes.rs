@@ -4,11 +4,15 @@ use axum::{
 };
 
 use crate::{
-    modules::inventory::api::handlers::{
-        archive_inventory_item, create_category, create_inventory_item, decrease_inventory_stock,
-        delete_category, get_inventory_item, increase_inventory_stock, list_categories,
-        list_inventory_items, list_inventory_stock_history, restore_inventory_item,
-        set_inventory_stock, update_inventory_item,
+    modules::{
+        inventory::api::handlers::{
+            archive_inventory_item, create_category, create_inventory_item,
+            decrease_inventory_stock, delete_category, get_inventory_item,
+            increase_inventory_stock, list_categories, list_inventory_items,
+            list_inventory_stock_history, restore_inventory_item, set_inventory_stock,
+            update_inventory_item,
+        },
+        shopping::api::shopping_routes,
     },
     shared::api::AppState,
 };
@@ -55,4 +59,5 @@ pub fn inventory_routes() -> Router<AppState> {
             "/{household_id}/categories/{category_id}",
             delete(delete_category),
         )
+        .nest("/{household_id}/shopping", shopping_routes())
 }

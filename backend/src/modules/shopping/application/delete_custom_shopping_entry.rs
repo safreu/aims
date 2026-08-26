@@ -19,7 +19,6 @@ pub struct DeleteCustomShoppingEntryCommand {
     pub requester_id: UserId,
     pub household_id: HouseholdId,
     pub entry_id: CustomShoppingEntryId,
-    pub checked: bool,
 }
 
 pub struct DeleteCustomShoppingEntryService {

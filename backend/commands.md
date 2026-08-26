@@ -2165,3 +2165,337 @@ curl -i \
 ```
 
 Expected status: `409 Conflict`.
+
+## List shopping entries
+
+Returns the shared shopping list for a household.
+
+The response contains inventory-backed shopping entries and custom shopping entries in separate sections.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping"
+```
+
+Expected status: `200 OK`.
+
+Example response:
+
+```json
+{
+  "inventory_entries": [
+    {
+      "item_id": "<inventory-item-uuid>",
+      "name": "Milk",
+      "category": {
+        "id": "<category-uuid>",
+        "name": "Food"
+      },
+      "quantity": 2,
+      "priority": "high",
+      "note": "Buy lactose-free",
+      "checked": false
+    }
+  ],
+  "custom_entries": [
+    {
+      "id": "<custom-shopping-entry-uuid>",
+      "title": "Batteries",
+      "quantity": 4,
+      "priority": "medium",
+      "note": "AA batteries",
+      "checked": false
+    }
+  ]
+}
+```
+
+Inventory items without a category contain:
+
+```json
+{
+  "category": null
+}
+```
+
+## Set inventory shopping quantity
+
+Sets a manual quantity override for an inventory-backed shopping entry.
+
+The quantity must be greater than zero.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/items/<inventory-item-uuid>/quantity" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "quantity": 5
+  }'
+```
+
+Expected status: `204 No Content`.
+
+The override remains active until the inventory stock changes.
+
+### Set shopping quantity to zero
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/items/<inventory-item-uuid>/quantity" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "quantity": 0
+  }'
+```
+
+Expected status: `400 Bad Request`.
+
+## Set inventory shopping note
+
+Sets or replaces the note attached to an inventory-backed shopping entry.
+
+Notes may contain at most 50 characters.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/items/<inventory-item-uuid>/note" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "note": "Buy lactose-free"
+  }'
+```
+
+Expected status: `204 No Content`.
+
+### Clear inventory shopping note
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/items/<inventory-item-uuid>/note" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "note": null
+  }'
+```
+
+Expected status: `204 No Content`.
+
+## Check inventory shopping entry
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/items/<inventory-item-uuid>/checked" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "checked": true
+  }'
+```
+
+Expected status: `204 No Content`.
+
+## Uncheck inventory shopping entry
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/items/<inventory-item-uuid>/checked" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "checked": false
+  }'
+```
+
+Expected status: `204 No Content`.
+
+## Dismiss inventory shopping entry
+
+Dismisses an inventory-backed entry from the current shopping list.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X DELETE \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/items/<inventory-item-uuid>"
+```
+
+Expected status: `204 No Content`.
+
+The underlying inventory item is not deleted.
+
+A later inventory stock change resets the dismissed state and may cause the item to appear on the shopping list again.
+
+## Create custom shopping entry
+
+Creates a shopping-list entry that is not backed by an inventory item.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X POST \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/custom" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Batteries",
+    "quantity": 4,
+    "priority": "high",
+    "note": "AA batteries"
+  }'
+```
+
+Expected status: `201 Created`.
+
+Example response:
+
+```json
+{
+  "id": "<custom-shopping-entry-uuid>"
+}
+```
+
+The quantity must be greater than zero.
+
+Valid priority values are:
+
+- `default`
+- `low`
+- `medium`
+- `high`
+
+The note is optional and may contain at most 50 characters.
+
+## Update custom shopping entry
+
+Updates one or more fields of an existing custom shopping entry.
+
+Fields that are omitted remain unchanged.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/custom/<custom-shopping-entry-uuid>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Rechargeable Batteries",
+    "quantity": 6,
+    "priority": "medium",
+    "note": "AA or AAA"
+  }'
+```
+
+Expected status: `204 No Content`.
+
+### Update custom shopping entry without changes
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/custom/<custom-shopping-entry-uuid>" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Expected status: `400 Bad Request`.
+
+### Update an unknown custom shopping entry
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/custom/00000000-0000-0000-0000-000000000000" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "quantity": 2
+  }'
+```
+
+Expected status: `404 Not Found`.
+
+## Check custom shopping entry
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/custom/<custom-shopping-entry-uuid>/checked" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "checked": true
+  }'
+```
+
+Expected status: `204 No Content`.
+
+## Uncheck custom shopping entry
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X PATCH \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/custom/<custom-shopping-entry-uuid>/checked" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "checked": false
+  }'
+```
+
+Expected status: `204 No Content`.
+
+## Delete custom shopping entry
+
+Permanently removes a custom entry from the shopping list.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X DELETE \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/custom/<custom-shopping-entry-uuid>"
+```
+
+Expected status: `204 No Content`.
+
+### Delete an unknown custom shopping entry
+
+```bash
+curl -i \
+  -b cookies.txt \
+  -X DELETE \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping/custom/00000000-0000-0000-0000-000000000000"
+```
+
+Expected status: `404 Not Found`.
+
+## Access shopping list without authentication
+
+```bash
+curl -i \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping"
+```
+
+Expected status: `401 Unauthorized`.
+
+## Access shopping list without household membership
+
+Use the ID of a household the authenticated user does not belong to.
+
+```bash
+curl -i \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/households/<other-household-uuid>/shopping"
+```
+
+Expected status: `403 Forbidden`.
