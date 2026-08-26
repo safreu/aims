@@ -6,3 +6,4 @@ mod household_access;
 mod households;
 mod inventory;
 mod scanning;
+mod shopping;

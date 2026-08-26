@@ -11,6 +11,7 @@ use crate::{
             list_households, remove_household_member, rename_household,
         },
         scanning::api::scanning_management_routes,
+        shopping::api::shopping_routes,
     },
     shared::api::AppState,
 };
@@ -26,4 +27,5 @@ pub fn households_router() -> Router<AppState> {
         .route("/{id}/members/{member_id}", delete(remove_household_member))
         .nest("/{household_id}/devices", device_routes())
         .nest("/{household_id}/qr", scanning_management_routes())
+        .nest("/{household_id}/shopping", shopping_routes())
 }

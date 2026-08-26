@@ -1,4 +1,5 @@
 mod postgres_category_repository;
+mod postgres_custom_shopping_entry_repository;
 mod postgres_device_credential_repository;
 mod postgres_device_repository;
 mod postgres_household_repository;

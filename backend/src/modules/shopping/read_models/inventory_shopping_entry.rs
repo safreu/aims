@@ -1,5 +1,6 @@
 use crate::modules::inventory::domain::{CategoryId, InventoryItemId, InventoryPriority};
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct InventoryShoppingEntry {
     pub item_id: InventoryItemId,
     pub name: String,

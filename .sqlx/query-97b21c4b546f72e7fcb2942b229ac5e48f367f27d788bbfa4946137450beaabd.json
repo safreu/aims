@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO custom_shopping_entries (\n                id,\n                household_id,\n                title,\n                quantity,\n                priority,\n                note,\n                checked,\n                created_at,\n                updated_at\n            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Bool",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "97b21c4b546f72e7fcb2942b229ac5e48f367f27d788bbfa4946137450beaabd"
+}
