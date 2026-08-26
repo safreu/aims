@@ -67,6 +67,14 @@ impl UpdateCustomShoppingEntryService {
             })?
             .ok_or(UpdateCustomShoppingEntryError::EntryNotFound)?;
 
+        if command.note.is_none()
+            && command.priority.is_none()
+            && command.quantity.is_none()
+            && command.title.is_none()
+        {
+            return Err(UpdateCustomShoppingEntryError::NoChanges);
+        }
+
         let title = command
             .title
             .map(|title| {
@@ -131,6 +139,8 @@ pub enum UpdateCustomShoppingEntryError {
     InvalidNote,
     #[error("Custom shopping entry not found")]
     EntryNotFound,
+    #[error("No changes were provided")]
+    NoChanges,
     #[error(transparent)]
     HouseholdAccess(#[from] HouseholdAccessError),
     #[error(transparent)]

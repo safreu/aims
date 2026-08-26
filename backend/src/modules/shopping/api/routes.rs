@@ -19,7 +19,7 @@ pub fn shopping_routes() -> Router<AppState> {
         .route("/items/{item_id}/note", patch(set_shopping_note))
         .route("/items/{item_id}/checked", patch(set_shopping_checked))
         .route("/items/{item_id}", delete(dismiss_shopping_item))
-        .route("/custom/", post(create_custom_shopping_entry))
+        .route("/custom", post(create_custom_shopping_entry))
         .route(
             "/custom/{entry_id}",
             patch(update_custom_shopping_entry).delete(delete_custom_shopping_entry),

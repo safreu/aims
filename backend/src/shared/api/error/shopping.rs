@@ -138,6 +138,9 @@ impl From<UpdateCustomShoppingEntryError> for ApiError {
                 "custom_shopping_list_entry_not_found",
                 "The custom shopping list entry was not found",
             ),
+            UpdateCustomShoppingEntryError::NoChanges => {
+                ApiError::bad_request("no_changes", "At least one field must be provided")
+            }
         }
     }
 }
