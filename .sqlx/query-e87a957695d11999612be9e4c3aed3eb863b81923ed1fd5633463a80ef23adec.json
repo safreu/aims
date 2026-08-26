@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM inventory_shopping_states\n            WHERE household_id = $1 AND item_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e87a957695d11999612be9e4c3aed3eb863b81923ed1fd5633463a80ef23adec"
+}

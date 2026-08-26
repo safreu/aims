@@ -9,6 +9,10 @@ use backend::modules::{
         domain::InventoryItemId,
         ports::{InventoryItemRepository, InventoryStockRepository, StockMutationContext},
     },
+    shopping::{
+        adapters::PostgresInventoryShoppingStateRepository, domain::InventoryShoppingState,
+        ports::InventoryShoppingStateRepository,
+    },
 };
 use chrono::Utc;
 use sqlx::PgPool;
@@ -617,4 +621,238 @@ async fn setting_stock_creates_stock_event(pool: PgPool) {
     assert_eq!(event.amount, None);
     assert_eq!(event.stock_before, 3);
     assert_eq!(event.stock_after, 2)
+}
+
+#[sqlx::test]
+async fn increasing_stock_resets_shopping_state(pool: PgPool) {
+    let user_repository = PostgresUserRepository::new(pool.clone());
+    let household_repository = PostgresHouseholdRepository::new(pool.clone());
+    let inventory_item_repository = PostgresInventoryItemRepository::new(pool.clone());
+    let stock_repository = Arc::new(PostgresInventoryStockRepository::new(pool.clone()));
+    let shopping_state_repository =
+        Arc::new(PostgresInventoryShoppingStateRepository::new(pool.clone()));
+
+    let owner = UserTestBuilder::new().build();
+    user_repository
+        .insert(&owner)
+        .await
+        .expect("User insertion should succeed");
+
+    let (household, _) =
+        insert_owned_household(&household_repository, owner.id(), HouseholdKind::Shared).await;
+
+    let item = InventoryItemTestBuilder::new(household.id())
+        .current_stock(3)
+        .name("Tofu")
+        .build();
+    inventory_item_repository
+        .insert(&item)
+        .await
+        .expect("Inventory item insertion should succeed");
+
+    let mut state = InventoryShoppingState::new(household.id(), item.id());
+
+    state
+        .set_quantity_override(10)
+        .expect("Quantity override should be valid");
+
+    state.check();
+    state.dismiss();
+
+    shopping_state_repository
+        .upsert(&state)
+        .await
+        .expect("Shopping state insertion should succeed");
+
+    stock_repository
+        .increase(
+            &household.id(),
+            &item.id(),
+            1,
+            &manual_stock_context(owner.id()),
+            Utc::now(),
+        )
+        .await
+        .expect("Stock increase should succeed");
+
+    let stored = shopping_state_repository
+        .find_by_item(&household.id(), &item.id())
+        .await
+        .expect("Shopping state lookup should succeed")
+        .expect("Shopping state should exist");
+
+    assert_eq!(stored.quantity_override(), None);
+    assert!(!stored.checked());
+    assert!(!stored.dismissed());
+}
+
+#[sqlx::test]
+async fn decreasing_stock_resets_shopping_state(pool: PgPool) {
+    let user_repository = PostgresUserRepository::new(pool.clone());
+    let household_repository = PostgresHouseholdRepository::new(pool.clone());
+    let inventory_item_repository = PostgresInventoryItemRepository::new(pool.clone());
+    let stock_repository = Arc::new(PostgresInventoryStockRepository::new(pool.clone()));
+    let shopping_state_repository =
+        Arc::new(PostgresInventoryShoppingStateRepository::new(pool.clone()));
+
+    let owner = UserTestBuilder::new().build();
+    user_repository
+        .insert(&owner)
+        .await
+        .expect("User insertion should succeed");
+
+    let (household, _) =
+        insert_owned_household(&household_repository, owner.id(), HouseholdKind::Shared).await;
+
+    let item = InventoryItemTestBuilder::new(household.id())
+        .current_stock(3)
+        .name("Tofu")
+        .build();
+    inventory_item_repository
+        .insert(&item)
+        .await
+        .expect("Inventory item insertion should succeed");
+
+    let mut state = InventoryShoppingState::new(household.id(), item.id());
+
+    state
+        .set_quantity_override(10)
+        .expect("Quantity override should be valid");
+
+    state.check();
+    state.dismiss();
+
+    shopping_state_repository
+        .upsert(&state)
+        .await
+        .expect("Shopping state insertion should succeed");
+
+    stock_repository
+        .decrease(
+            &household.id(),
+            &item.id(),
+            1,
+            &manual_stock_context(owner.id()),
+            Utc::now(),
+        )
+        .await
+        .expect("Stock decrease should succeed");
+
+    let stored = shopping_state_repository
+        .find_by_item(&household.id(), &item.id())
+        .await
+        .expect("Shopping state lookup should succeed")
+        .expect("Shopping state should exist");
+
+    assert_eq!(stored.quantity_override(), None);
+    assert!(!stored.checked());
+    assert!(!stored.dismissed());
+}
+
+#[sqlx::test]
+async fn setting_stock_resets_shopping_state(pool: PgPool) {
+    let user_repository = PostgresUserRepository::new(pool.clone());
+    let household_repository = PostgresHouseholdRepository::new(pool.clone());
+    let inventory_item_repository = PostgresInventoryItemRepository::new(pool.clone());
+    let stock_repository = Arc::new(PostgresInventoryStockRepository::new(pool.clone()));
+    let shopping_state_repository =
+        Arc::new(PostgresInventoryShoppingStateRepository::new(pool.clone()));
+
+    let owner = UserTestBuilder::new().build();
+    user_repository
+        .insert(&owner)
+        .await
+        .expect("User insertion should succeed");
+
+    let (household, _) =
+        insert_owned_household(&household_repository, owner.id(), HouseholdKind::Shared).await;
+
+    let item = InventoryItemTestBuilder::new(household.id())
+        .current_stock(3)
+        .name("Tofu")
+        .build();
+    inventory_item_repository
+        .insert(&item)
+        .await
+        .expect("Inventory item insertion should succeed");
+
+    let mut state = InventoryShoppingState::new(household.id(), item.id());
+
+    state
+        .set_quantity_override(10)
+        .expect("Quantity override should be valid");
+
+    state.check();
+    state.dismiss();
+
+    shopping_state_repository
+        .upsert(&state)
+        .await
+        .expect("Shopping state insertion should succeed");
+
+    stock_repository
+        .set(
+            &household.id(),
+            &item.id(),
+            1,
+            &manual_stock_context(owner.id()),
+            Utc::now(),
+        )
+        .await
+        .expect("Setting stock should succeed");
+
+    let stored = shopping_state_repository
+        .find_by_item(&household.id(), &item.id())
+        .await
+        .expect("Shopping state lookup should succeed")
+        .expect("Shopping state should exist");
+
+    assert_eq!(stored.quantity_override(), None);
+    assert!(!stored.checked());
+    assert!(!stored.dismissed());
+}
+
+#[sqlx::test]
+async fn stock_mutation_succeeds_without_shopping_state(pool: PgPool) {
+    let user_repository = PostgresUserRepository::new(pool.clone());
+    let household_repository = PostgresHouseholdRepository::new(pool.clone());
+    let inventory_item_repository = PostgresInventoryItemRepository::new(pool.clone());
+    let stock_repository = Arc::new(PostgresInventoryStockRepository::new(pool.clone()));
+
+    let owner = UserTestBuilder::new().build();
+    user_repository
+        .insert(&owner)
+        .await
+        .expect("User insertion should succeed");
+
+    let (household, _) =
+        insert_owned_household(&household_repository, owner.id(), HouseholdKind::Shared).await;
+
+    let item = InventoryItemTestBuilder::new(household.id())
+        .current_stock(3)
+        .name("Tofu")
+        .build();
+    inventory_item_repository
+        .insert(&item)
+        .await
+        .expect("Inventory item insertion should succeed");
+
+    stock_repository
+        .increase(
+            &household.id(),
+            &item.id(),
+            1,
+            &manual_stock_context(owner.id()),
+            Utc::now(),
+        )
+        .await
+        .expect("Stock increase should succeed");
+
+    let stored = inventory_item_repository
+        .find_by_id(&item.id(), &household.id())
+        .await
+        .expect("Shopping state lookup should succeed")
+        .expect("Shopping state should exist");
+
+    assert_eq!(stored.current_stock(), 4)
 }

@@ -18,3 +18,6 @@ pub use device_state::DeviceState;
 
 mod scanning_state;
 pub use scanning_state::ScanningState;
+
+mod shopping_state;
+pub use shopping_state::ShoppingState;

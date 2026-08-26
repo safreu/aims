@@ -140,6 +140,33 @@ impl PostgresInventoryStockRepository {
             }
         }
     }
+
+    async fn reset_shopping_state(
+        transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        household_id: &HouseholdId,
+        item_id: &InventoryItemId,
+        now: DateTime<Utc>,
+    ) -> Result<(), InventoryStockRepositoryError> {
+        sqlx::query!(
+            r#"
+            UPDATE inventory_shopping_states
+            SET
+                quantity_override = NULL,
+                checked = FALSE,
+                dismissed = FALSE,
+                updated_at = $3
+            WHERE household_id = $1 AND item_id = $2
+            "#,
+            household_id.into_uuid(),
+            item_id.into_uuid(),
+            now,
+        )
+        .execute(&mut **transaction)
+        .await
+        .map_err(map_stock_sqlx_error)?;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -222,6 +249,8 @@ impl InventoryStockRepository for PostgresInventoryStockRepository {
         .await
         .map_err(map_stock_sqlx_error)?;
 
+        Self::reset_shopping_state(&mut transaction, household_id, item_id, now).await?;
+
         transaction.commit().await.map_err(map_stock_sqlx_error)?;
 
         Ok(())
@@ -303,6 +332,8 @@ impl InventoryStockRepository for PostgresInventoryStockRepository {
         .execute(&mut *transaction)
         .await
         .map_err(map_stock_sqlx_error)?;
+
+        Self::reset_shopping_state(&mut transaction, household_id, item_id, now).await?;
 
         transaction.commit().await.map_err(map_stock_sqlx_error)?;
 
@@ -389,6 +420,8 @@ impl InventoryStockRepository for PostgresInventoryStockRepository {
         .execute(&mut *transaction)
         .await
         .map_err(map_stock_sqlx_error)?;
+
+        Self::reset_shopping_state(&mut transaction, household_id, item_id, now).await?;
 
         transaction.commit().await.map_err(map_stock_sqlx_error)?;
 
