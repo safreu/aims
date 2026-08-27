@@ -24,3 +24,8 @@ pub use remove_member::{
 
 mod update_name;
 pub use update_name::{RenameHouseholdCommand, RenameHouseholdError, RenameHouseholdService};
+
+mod subscribe_household_events;
+pub use subscribe_household_events::{
+    SubscribeHouseholdEventsCommand, SubscribeHouseholdEventsError, SubscribeHouseholdEventsService,
+};

@@ -6,8 +6,8 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::HouseholdId,
-            ports::{HouseholdAccessError, HouseholdAccessPolicy},
+            domain::{HouseholdEvent, HouseholdId},
+            ports::{HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher},
         },
         inventory::{
             domain::{
@@ -33,6 +33,7 @@ pub struct CreateInventoryItemService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     category_repository: Arc<dyn CategoryRepository>,
     inventory_item_repository: Arc<dyn InventoryItemRepository>,
+    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl CreateInventoryItemService {
@@ -40,11 +41,13 @@ impl CreateInventoryItemService {
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         category_repository: Arc<dyn CategoryRepository>,
         inventory_item_repository: Arc<dyn InventoryItemRepository>,
+        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             household_access_policy,
             category_repository,
             inventory_item_repository,
+            household_events_publisher,
         }
     }
 
@@ -127,6 +130,18 @@ impl CreateInventoryItemService {
                     );
                     CreateInventoryItemError::Internal(InternalError::Failed)
                 }
+            })?;
+
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::ShoppingListChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    item_id = %item.id(),
+                    "Failed to publish shopping list changed event"
+                );
+                CreateInventoryItemError::Internal(InternalError::Failed)
             })?;
 
         Ok(item_id)

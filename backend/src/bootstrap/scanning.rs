@@ -4,7 +4,10 @@ use sqlx::PgPool;
 
 use crate::{
     modules::{
-        households::adapters::{DefaultHouseholdAccessPolicy, PostgresHouseholdRepository},
+        households::{
+            adapters::{DefaultHouseholdAccessPolicy, PostgresHouseholdRepository},
+            ports::HouseholdEventPublisher,
+        },
         inventory::adapters::{
             PostgresInventoryItemRepository, PostgresInventoryStockHistoryQuery,
             PostgresInventoryStockRepository,
@@ -20,7 +23,10 @@ use crate::{
     shared::api::ScanningState,
 };
 
-pub(super) fn build_scanning_state(pool: &PgPool) -> ScanningState {
+pub(super) fn build_scanning_state(
+    pool: &PgPool,
+    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+) -> ScanningState {
     let household_repository = Arc::new(PostgresHouseholdRepository::new(pool.clone()));
     let household_access_policy = Arc::new(DefaultHouseholdAccessPolicy::new(household_repository));
     let inventory_item_repository = Arc::new(PostgresInventoryItemRepository::new(pool.clone()));
@@ -48,6 +54,7 @@ pub(super) fn build_scanning_state(pool: &PgPool) -> ScanningState {
     let execute_qr_action_service = Arc::new(ExecuteQrActionService::new(
         inventory_stock_repository.clone(),
         qr_action_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     ScanningState {

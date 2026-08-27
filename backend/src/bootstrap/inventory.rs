@@ -4,7 +4,10 @@ use sqlx::PgPool;
 
 use crate::{
     modules::{
-        households::adapters::{DefaultHouseholdAccessPolicy, PostgresHouseholdRepository},
+        households::{
+            adapters::{DefaultHouseholdAccessPolicy, PostgresHouseholdRepository},
+            ports::HouseholdEventPublisher,
+        },
         inventory::{
             adapters::{
                 PostgresCategoryRepository, PostgresInventoryItemQuery,
@@ -23,7 +26,10 @@ use crate::{
     shared::api::InventoryItemState,
 };
 
-pub(super) fn build_inventory_item_state(pool: &PgPool) -> InventoryItemState {
+pub(super) fn build_inventory_item_state(
+    pool: &PgPool,
+    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+) -> InventoryItemState {
     let household_repository = Arc::new(PostgresHouseholdRepository::new(pool.clone()));
     let household_access_policy = Arc::new(DefaultHouseholdAccessPolicy::new(household_repository));
     let category_repository = Arc::new(PostgresCategoryRepository::new(pool.clone()));
@@ -37,6 +43,7 @@ pub(super) fn build_inventory_item_state(pool: &PgPool) -> InventoryItemState {
         household_access_policy.clone(),
         category_repository.clone(),
         inventory_item_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     let create_category_service = Arc::new(CreateCategoryService::new(
@@ -68,31 +75,37 @@ pub(super) fn build_inventory_item_state(pool: &PgPool) -> InventoryItemState {
         household_access_policy.clone(),
         category_repository,
         inventory_item_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     let archive_inventory_item_service = Arc::new(ArchiveInventoryItemService::new(
         household_access_policy.clone(),
         inventory_item_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     let restore_inventory_item_service = Arc::new(RestoreInventoryItemService::new(
         household_access_policy.clone(),
         inventory_item_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     let increase_inventory_stock_service = Arc::new(IncreaseInventoryStockService::new(
         household_access_policy.clone(),
         inventory_stock_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     let decrease_inventory_stock_service = Arc::new(DecreaseInventoryStockService::new(
         household_access_policy.clone(),
         inventory_stock_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     let set_inventory_stock_service = Arc::new(SetInventoryStockService::new(
         household_access_policy.clone(),
         inventory_stock_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     let list_inventory_stock_history_service = Arc::new(ListInventoryStockHistoryService::new(

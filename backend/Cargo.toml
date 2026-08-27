@@ -35,3 +35,4 @@ chrono = {"version" = "0.4.45", features = ["serde"]}
 base64 = "0.23.1"
 sha2 = "0.11.0"
 axum-extra = { version = "0.12.6", features = ["cookie"] }
+futures = "0.3.34"
