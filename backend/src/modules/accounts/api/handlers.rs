@@ -3,8 +3,13 @@ use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
 use crate::{
     modules::accounts::{
-        api::{LoginUserRequest, LoginUserResponse, RegisterUserRequest, RegisterUserResponse},
-        application::{CreateSessionCommand, LoginUserCommand, RegisterUserCommand},
+        api::{
+            CurrentUser, LoginUserRequest, LoginUserResponse, RegisterUserRequest,
+            RegisterUserResponse, dto::GetUserResponse,
+        },
+        application::{
+            CreateSessionCommand, GetUserCommand, LoginUserCommand, RegisterUserCommand,
+        },
     },
     shared::api::{ApiError, AppState},
 };
@@ -70,4 +75,26 @@ pub async fn login_user(
             id: user_id.to_string(),
         }),
     ))
+}
+
+pub async fn get_user(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+) -> Result<Json<GetUserResponse>, ApiError> {
+    let command = GetUserCommand {
+        user_id: current_user.user_id(),
+    };
+
+    let user = state
+        .accounts
+        .get_user
+        .execute(command)
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok(Json(GetUserResponse {
+        id: user.id().to_string(),
+        display_name: user.display_name().as_str().to_owned(),
+        email: user.email().to_string(),
+    }))
 }

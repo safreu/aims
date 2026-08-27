@@ -12,3 +12,6 @@ pub use authenticate_session::{
     AuthenticateSessionCommand, AuthenticateSessionError, AuthenticateSessionService,
     AuthenticatedUser,
 };
+
+mod get_user;
+pub use get_user::{GetUserCommand, GetUserError, GetUserService};

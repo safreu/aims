@@ -1,5 +1,7 @@
 use crate::{
-    modules::accounts::application::{AuthenticateSessionError, LoginUserError, RegisterUserError},
+    modules::accounts::application::{
+        AuthenticateSessionError, GetUserError, LoginUserError, RegisterUserError,
+    },
     shared::{api::error::ApiError, application::InternalError},
 };
 
@@ -40,6 +42,17 @@ impl From<AuthenticateSessionError> for ApiError {
                 Self::unauthorized("authentication_required", "Authentication is required")
             }
             AuthenticateSessionError::Internal(_) => Self::internal_error(),
+        }
+    }
+}
+
+impl From<GetUserError> for ApiError {
+    fn from(value: GetUserError) -> Self {
+        match value {
+            GetUserError::UserNotFound => {
+                ApiError::not_found("user_not_found", "The user was not found")
+            }
+            GetUserError::Internal(_) => ApiError::internal_error(),
         }
     }
 }
