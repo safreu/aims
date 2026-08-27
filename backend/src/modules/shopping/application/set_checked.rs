@@ -4,8 +4,8 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::HouseholdId,
-            ports::{HouseholdAccessError, HouseholdAccessPolicy},
+            domain::{HouseholdEvent, HouseholdId},
+            ports::{HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher},
         },
         inventory::{domain::InventoryItemId, ports::InventoryItemRepository},
         shopping::{domain::InventoryShoppingState, ports::InventoryShoppingStateRepository},
@@ -24,6 +24,7 @@ pub struct SetCheckedService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     inventory_item_repository: Arc<dyn InventoryItemRepository>,
     shopping_state_repository: Arc<dyn InventoryShoppingStateRepository>,
+    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl SetCheckedService {
@@ -31,11 +32,13 @@ impl SetCheckedService {
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         inventory_item_repository: Arc<dyn InventoryItemRepository>,
         shopping_state_repository: Arc<dyn InventoryShoppingStateRepository>,
+        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             household_access_policy,
             inventory_item_repository,
             shopping_state_repository,
+            household_events_publisher,
         }
     }
 
@@ -93,6 +96,18 @@ impl SetCheckedService {
                     household_id = %command.household_id,
                     item_id = %command.item_id,
                     "Failed to persist shopping state"
+                );
+                SetCheckedError::Internal(InternalError::Failed)
+            })?;
+
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::ShoppingListChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    item_id = %command.item_id,
+                    "Failed to publish shopping list changed event"
                 );
                 SetCheckedError::Internal(InternalError::Failed)
             })?;

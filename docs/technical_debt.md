@@ -79,3 +79,9 @@ rust-auth/
 ├── application/
 ├── ports/
 └── adapters/
+
+- [ ] Review household event publishing before v1 release:
+  - Reduce duplicated `ShoppingListChanged` publishing across application services.
+  - Consider extracting a reusable application-level notification mechanism if additional household events are introduced.
+  - Review whether events should only be published when an operation actually changes the shopping-list projection.
+  - Review failure semantics when persistence succeeds but event publishing fails.

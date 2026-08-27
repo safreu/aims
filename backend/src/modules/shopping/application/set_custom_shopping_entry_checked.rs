@@ -6,8 +6,8 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::HouseholdId,
-            ports::{HouseholdAccessError, HouseholdAccessPolicy},
+            domain::{HouseholdEvent, HouseholdId},
+            ports::{HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher},
         },
         shopping::{domain::CustomShoppingEntryId, ports::CustomShoppingEntryRepository},
     },
@@ -24,16 +24,19 @@ pub struct SetCustomShoppingEntryCheckedCommand {
 pub struct SetCustomShoppingEntryCheckedService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     custom_entry_repository: Arc<dyn CustomShoppingEntryRepository>,
+    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl SetCustomShoppingEntryCheckedService {
     pub fn new(
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         custom_entry_repository: Arc<dyn CustomShoppingEntryRepository>,
+        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             household_access_policy,
             custom_entry_repository,
+            household_events_publisher,
         }
     }
 
@@ -91,6 +94,17 @@ impl SetCustomShoppingEntryCheckedService {
                 SetCustomShoppingEntryCheckedError::Internal(InternalError::Failed)
             })?;
 
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::ShoppingListChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    item_id = %command.entry_id,
+                    "Failed to publish shopping list changed event"
+                );
+                SetCustomShoppingEntryCheckedError::Internal(InternalError::Failed)
+            })?;
         Ok(())
     }
 }

@@ -2,6 +2,7 @@ use crate::{
     modules::households::application::{
         AddHouseholdMemberError, CreateHouseholdError, GetHouseholdError,
         ListHouseholdMembersError, RemoveHouseholdMemberError, RenameHouseholdError,
+        SubscribeHouseholdEventsError,
     },
     shared::api::error::ApiError,
 };
@@ -108,6 +109,15 @@ impl From<RenameHouseholdError> for ApiError {
                 ApiError::not_found("household_not_found", "The household was not found")
             }
             RenameHouseholdError::Internal(_) => ApiError::internal_error(),
+        }
+    }
+}
+
+impl From<SubscribeHouseholdEventsError> for ApiError {
+    fn from(value: SubscribeHouseholdEventsError) -> Self {
+        match value {
+            SubscribeHouseholdEventsError::HouseholdAccess(error) => error.into(),
+            SubscribeHouseholdEventsError::Internal(_) => ApiError::internal_error(),
         }
     }
 }

@@ -5,7 +5,10 @@ use chrono::Utc;
 use crate::{
     modules::{
         devices::domain::DeviceId,
-        households::domain::HouseholdId,
+        households::{
+            domain::{HouseholdEvent, HouseholdId},
+            ports::HouseholdEventPublisher,
+        },
         inventory::{
             domain::InventoryStockEventSource,
             ports::{
@@ -29,16 +32,19 @@ pub struct ExecuteQrActionCommand {
 pub struct ExecuteQrActionService {
     inventory_stock_repository: Arc<dyn InventoryStockRepository>,
     qr_action_repository: Arc<dyn QrActionRepository>,
+    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl ExecuteQrActionService {
     pub fn new(
         inventory_stock_repository: Arc<dyn InventoryStockRepository>,
         qr_action_repository: Arc<dyn QrActionRepository>,
+        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             inventory_stock_repository,
             qr_action_repository,
+            household_events_publisher,
         }
     }
 
@@ -140,6 +146,19 @@ impl ExecuteQrActionService {
                     })?;
             }
         }
+
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::ShoppingListChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    qr_action_id = %command.qr_action_id,
+                    item_id = %action.item_id(),
+                    "Failed to publish shopping list changed event"
+                );
+                ExecuteQrActionError::Internal(InternalError::Failed)
+            })?;
 
         Ok(())
     }

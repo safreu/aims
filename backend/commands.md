@@ -2499,3 +2499,56 @@ curl -i \
 ```
 
 Expected status: `403 Forbidden`.
+
+## Subscribe to household events
+
+Opens a Server-Sent Events (SSE) connection for a household.
+
+The authenticated user must be a member of the household.
+
+The connection remains open and receives events when household data relevant to connected clients changes.
+
+```bash
+curl -N \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/households/<household-uuid>/events"
+```
+
+Expected status: `200 OK`.
+
+When the shopping list changes, the connection receives:
+
+```text
+event: shopping_list_changed
+```
+
+The event acts as an invalidation notification. After receiving it, the client should request the current shopping list again:
+
+```bash
+curl -i \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/households/<household-uuid>/shopping"
+```
+
+Operations that can change the shopping list, such as shopping-list mutations or relevant inventory changes, may emit `shopping_list_changed`.
+
+### Subscribe to household events without authentication
+
+```bash
+curl -N \
+  "$BASE_URL/api/v1/households/<household-uuid>/events"
+```
+
+Expected status: `401 Unauthorized`.
+
+### Subscribe to household events without membership
+
+Use the ID of a household the authenticated user does not belong to.
+
+```bash
+curl -N \
+  -b cookies.txt \
+  "$BASE_URL/api/v1/households/<other-household-uuid>/events"
+```
+
+Expected status: `403 Forbidden`.

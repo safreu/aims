@@ -15,3 +15,6 @@ pub use household_role::{HouseholdRole, HouseholdRoleError};
 
 mod household_member;
 pub use household_member::HouseholdMember;
+
+mod household_event;
+pub use household_event::HouseholdEvent;

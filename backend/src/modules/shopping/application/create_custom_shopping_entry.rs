@@ -6,8 +6,8 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::HouseholdId,
-            ports::{HouseholdAccessError, HouseholdAccessPolicy},
+            domain::{HouseholdEvent, HouseholdId},
+            ports::{HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher},
         },
         inventory::domain::InventoryPriority,
         shopping::{
@@ -33,16 +33,19 @@ pub struct CreateCustomShoppingEntryCommand {
 pub struct CreateCustomShoppingEntryService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     custom_entry_repository: Arc<dyn CustomShoppingEntryRepository>,
+    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl CreateCustomShoppingEntryService {
     pub fn new(
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         custom_entry_repository: Arc<dyn CustomShoppingEntryRepository>,
+        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             household_access_policy,
             custom_entry_repository,
+            household_events_publisher,
         }
     }
 
@@ -95,6 +98,18 @@ impl CreateCustomShoppingEntryService {
                     household_id = %command.household_id,
                     entry_id = %entry.id(),
                     "Failed to persist custom shopping entry"
+                );
+                CreateCustomShoppingEntryError::Internal(InternalError::Failed)
+            })?;
+
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::ShoppingListChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    item_id = %entry.id(),
+                    "Failed to publish shopping list changed event"
                 );
                 CreateCustomShoppingEntryError::Internal(InternalError::Failed)
             })?;
