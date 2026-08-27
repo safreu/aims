@@ -11,6 +11,7 @@ source "$SCRIPT_DIR/devices.sh"
 source "$SCRIPT_DIR/inventory.sh"
 source "$SCRIPT_DIR/qr.sh"
 source "$SCRIPT_DIR/shopping.sh"
+source "$SCRIPT_DIR/events.sh"
 
 setup_smoke_test
 
@@ -24,6 +25,7 @@ smoke_households
 smoke_devices
 smoke_inventory
 smoke_shopping
+smoke_events
 smoke_qr
 
 smoke_device_revocation

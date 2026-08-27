@@ -11,13 +11,19 @@ use crate::{
                 AddHouseholdMemberService, CreateHouseholdService, GetHouseholdService,
                 ListHouseholdMembersService, ListHouseholdsForUserService,
                 RemoveHouseholdMemberService, RenameHouseholdService,
+                SubscribeHouseholdEventsService,
             },
+            ports::{HouseholdEventPublisher, HouseholdEventSubscriber},
         },
     },
     shared::api::HouseholdsState,
 };
 
-pub(super) fn build_households_state(pool: &PgPool) -> HouseholdsState {
+pub(super) fn build_households_state(
+    pool: &PgPool,
+    _household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+    household_events_subscriber: Arc<dyn HouseholdEventSubscriber>,
+) -> HouseholdsState {
     let household_repository: Arc<PostgresHouseholdRepository> =
         Arc::new(PostgresHouseholdRepository::new(pool.clone()));
     let user_repository = Arc::new(PostgresUserRepository::new(pool.clone()));
@@ -56,6 +62,11 @@ pub(super) fn build_households_state(pool: &PgPool) -> HouseholdsState {
 
     let rename_household_service = Arc::new(RenameHouseholdService::new(household_repository));
 
+    let subscribe_household_event_service = Arc::new(SubscribeHouseholdEventsService::new(
+        household_access_policy.clone(),
+        household_events_subscriber.clone(),
+    ));
+
     HouseholdsState {
         create_household: create_household_service,
         list_households_for_user: list_households_for_user_service,
@@ -64,5 +75,7 @@ pub(super) fn build_households_state(pool: &PgPool) -> HouseholdsState {
         list_household_members: list_household_members_service,
         remove_household_member: remove_household_member_service,
         rename_household: rename_household_service,
+
+        subscribe_household_events: subscribe_household_event_service,
     }
 }
