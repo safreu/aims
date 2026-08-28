@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import "./App.css";
 import { LoginPage } from "./pages/LoginPage";
@@ -9,6 +10,17 @@ import { LogoutButton } from "./features/auth/LogoutButton";
 import { RequireGuest } from "./features/auth/RequireGuest";
 
 function App() {
+=======
+import { useState } from "react";
+import reactLogo from "./assets/react.svg";
+import viteLogo from "./assets/vite.svg";
+import heroImg from "./assets/hero.png";
+import "./App.css";
+
+function App() {
+  const [count, setCount] = useState(0);
+
+>>>>>>> ff276be (feat: Implementing frontend ci, also frontend gets only run on frontend and backend only on backend changes)
   return (
     <BrowserRouter>
       <nav>

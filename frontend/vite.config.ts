@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+<<<<<<< HEAD
   server: {
     proxy: {
       "/api": {
@@ -12,4 +13,6 @@ export default defineConfig({
       },
     },
   },
+=======
+>>>>>>> ff276be (feat: Implementing frontend ci, also frontend gets only run on frontend and backend only on backend changes)
 });
