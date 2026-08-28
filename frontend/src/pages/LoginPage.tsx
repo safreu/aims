@@ -1,8 +1,13 @@
 import { useState, type SubmitEvent } from "react";
 
 import { login } from "../features/auth/api";
+import { useAuth } from "../features/auth/AuthProvider";
+import { useNavigate } from "react-router-dom";
 
 export function LoginPage() {
+  const navigate = useNavigate();
+  const { refreshUser } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -12,7 +17,10 @@ export function LoginPage() {
     setError(null);
 
     void login({ email, password })
-      .then(() => console.log("Login successful"))
+      .then(async () => {
+        await refreshUser();
+        navigate("/inventory", { replace: true });
+      })
       .catch(() => setError("Login failed"));
   }
 

@@ -1,9 +1,11 @@
 import { useState, type SubmitEvent } from "react";
 
-import { login, register } from "../features/auth/api";
+import { register } from "../features/auth/api";
 import { ApiError } from "../api/client";
+import { useNavigate } from "react-router-dom";
 
 export function RegisterPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -18,8 +20,8 @@ export function RegisterPage() {
       display_name: displayName,
       password,
     })
-      .then((response) => {
-        console.log("Registered user:", response.id);
+      .then(() => {
+        navigate("/login", { replace: true });
       })
       .catch((error) => {
         if (error instanceof ApiError && error.status === 409) {

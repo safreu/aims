@@ -1,5 +1,7 @@
 const API_BASE_URL = "/api/v1";
 
+let unauthorizedHandler: (() => void) | null = null;
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -10,6 +12,10 @@ export class ApiError extends Error {
   }
 }
 
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
 export async function apiRequest(
   path: string,
   options?: RequestInit,
@@ -18,6 +24,10 @@ export async function apiRequest(
     ...options,
     credentials: "include",
   });
+
+  if (response.status === 401) {
+    unauthorizedHandler?.();
+  }
 
   if (!response.ok) {
     throw new ApiError(

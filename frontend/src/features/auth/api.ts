@@ -1,5 +1,6 @@
-import { apiJson } from "../../api/client";
+import { apiJson, apiRequest } from "../../api/client";
 import type {
+  CurrentUser,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -26,4 +27,12 @@ export async function register(
     },
     body: JSON.stringify(request),
   });
+}
+
+export async function getCurrentUser(): Promise<CurrentUser> {
+  return apiJson<CurrentUser>("/auth/me");
+}
+
+export async function logout(): Promise<void> {
+  await apiRequest("/auth/logout", { method: "POST" });
 }

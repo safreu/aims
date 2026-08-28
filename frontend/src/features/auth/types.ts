@@ -16,3 +16,9 @@ export type LoginRequest = {
 export type LoginResponse = {
   id: string;
 };
+
+export type CurrentUser = {
+  id: string;
+  display_name: string;
+  email: string;
+};
