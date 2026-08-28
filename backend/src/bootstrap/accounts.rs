@@ -7,7 +7,8 @@ use crate::{
     modules::accounts::{
         adapters::{Argon2PasswordHasher, PostgresSessionRepository, PostgresUserRepository},
         application::{
-            AuthenticateSessionService, CreateSessionService, LoginUserService, RegisterUserService,
+            AuthenticateSessionService, CreateSessionService, GetUserService, LoginUserService,
+            LogoutUserService, RegisterUserService,
         },
     },
     shared::{
@@ -32,7 +33,15 @@ pub(super) fn build_accounts_state(pool: &PgPool, config: &SessionConfig) -> Acc
         password_hasher.clone(),
     ));
 
-    let login_user_service = Arc::new(LoginUserService::new(user_repository, password_hasher));
+    let login_user_service = Arc::new(LoginUserService::new(
+        user_repository.clone(),
+        password_hasher,
+    ));
+
+    let logout_user_service = Arc::new(LogoutUserService::new(
+        session_repository.clone(),
+        session_token_hasher.clone(),
+    ));
 
     let session_lifetime = chrono::Duration::days(config.lifetime_days);
 
@@ -48,14 +57,18 @@ pub(super) fn build_accounts_state(pool: &PgPool, config: &SessionConfig) -> Acc
         session_token_hasher,
     ));
 
+    let get_user_service = Arc::new(GetUserService::new(user_repository.clone()));
+
     AccountsState {
         register_user: register_user_service,
         login_user: login_user_service,
+        logout_user: logout_user_service,
         create_session: create_session_service,
         authenticate_session: authenticate_session_service,
         session_cookie: SessionCookieConfig {
             name: config.cookie_name.clone(),
             secure: config.cookie_secure,
         },
+        get_user: get_user_service,
     }
 }

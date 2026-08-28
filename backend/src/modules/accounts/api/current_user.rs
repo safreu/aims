@@ -9,18 +9,23 @@ use crate::{
     shared::api::{ApiError, AppState},
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CurrentUser {
     user_id: UserId,
+    token: SessionToken,
 }
 
 impl CurrentUser {
-    pub fn new(user_id: UserId) -> Self {
-        Self { user_id }
+    pub fn new(user_id: UserId, token: SessionToken) -> Self {
+        Self { user_id, token }
     }
 
     pub fn user_id(&self) -> UserId {
         self.user_id
+    }
+
+    pub fn token(&self) -> &SessionToken {
+        &self.token
     }
 }
 
@@ -48,10 +53,12 @@ impl FromRequestParts<AppState> for CurrentUser {
         let authenticated = state
             .accounts
             .authenticate_session
-            .execute(AuthenticateSessionCommand { token })
+            .execute(AuthenticateSessionCommand {
+                token: token.clone(),
+            })
             .await
             .map_err(ApiError::from)?;
 
-        Ok(Self::new(authenticated.user_id))
+        Ok(Self::new(authenticated.user_id, token))
     }
 }
