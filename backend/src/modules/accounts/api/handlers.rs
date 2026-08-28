@@ -8,7 +8,8 @@ use crate::{
             RegisterUserResponse, dto::GetUserResponse,
         },
         application::{
-            CreateSessionCommand, GetUserCommand, LoginUserCommand, RegisterUserCommand,
+            CreateSessionCommand, GetUserCommand, LoginUserCommand, LogoutUserCommand,
+            RegisterUserCommand,
         },
     },
     shared::api::{ApiError, AppState},
@@ -97,4 +98,26 @@ pub async fn get_user(
         display_name: user.display_name().as_str().to_owned(),
         email: user.email().to_string(),
     }))
+}
+
+pub async fn logout_user(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    jar: CookieJar,
+) -> Result<(CookieJar, StatusCode), ApiError> {
+    let command = LogoutUserCommand {
+        user_id: current_user.user_id(),
+        token: current_user.token().clone(),
+    };
+
+    state
+        .accounts
+        .logout_user
+        .execute(command)
+        .await
+        .map_err(ApiError::from)?;
+
+    let jar = jar.remove(state.accounts.session_cookie.name.clone());
+
+    Ok((jar, StatusCode::NO_CONTENT))
 }

@@ -4,6 +4,9 @@ pub use register_user::{RegisterUserCommand, RegisterUserError, RegisterUserServ
 mod login_user;
 pub use login_user::{LoginUserCommand, LoginUserError, LoginUserService};
 
+mod logout_user;
+pub use logout_user::{LogoutUserCommand, LogoutUserError, LogoutUserService};
+
 mod create_session;
 pub use create_session::{CreateSessionCommand, CreateSessionResult, CreateSessionService};
 
