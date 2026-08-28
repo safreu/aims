@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -7,6 +7,8 @@ import { ShoppingPage } from "./pages/ShoppingPage";
 import { RequireAuth } from "./features/auth/RequireAuth";
 import { LogoutButton } from "./features/auth/LogoutButton";
 import { RequireGuest } from "./features/auth/RequireGuest";
+import { HouseholdsPage } from "./pages/HouseholdsPage";
+import { HouseholdLayout } from "./features/households/HouseholdLayout";
 
 function App() {
   return (
@@ -16,9 +18,7 @@ function App() {
         {" | "}
         <Link to="/register">Register</Link>
         {" | "}
-        <Link to="/inventory">Inventory</Link>
-        {" | "}
-        <Link to="/shopping">Shopping</Link>
+        <Link to="/households">Households</Link>
       </nav>
 
       <LogoutButton />
@@ -30,8 +30,13 @@ function App() {
         </Route>
 
         <Route element={<RequireAuth />}>
-          <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/shopping" element={<ShoppingPage />} />
+          <Route path="/households" element={<HouseholdsPage />} />
+
+          <Route path="/households/:householdId" element={<HouseholdLayout />}>
+            <Route index element={<Navigate to="inventory" replace />} />
+            <Route path="inventory" element={<InventoryPage />} />
+            <Route path="shopping" element={<ShoppingPage />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>
