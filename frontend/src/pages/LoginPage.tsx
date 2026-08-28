@@ -19,7 +19,7 @@ export function LoginPage() {
     void login({ email, password })
       .then(async () => {
         await refreshUser();
-        navigate("/inventory", { replace: true });
+        navigate("/households", { replace: true });
       })
       .catch(() => setError("Login failed"));
   }

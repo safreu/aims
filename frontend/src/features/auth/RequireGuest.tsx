@@ -9,7 +9,7 @@ export function RequireGuest() {
   }
 
   if (user !== null) {
-    return <Navigate to="/inventory" replace />;
+    return <Navigate to="/households" replace />;
   }
 
   return <Outlet />;
