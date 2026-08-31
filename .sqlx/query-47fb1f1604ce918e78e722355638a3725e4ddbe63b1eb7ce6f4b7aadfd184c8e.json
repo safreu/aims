@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                i.id,\n                i.name,\n                i.current_stock,\n                i.reorder_threshold,\n                i.priority,\n                i.category_id,\n                c.name AS \"category_name?\"\n            FROM inventory_items i\n            LEFT JOIN categories c\n                ON c.id = i.category_id AND c.household_id = i.household_id\n            WHERE i.household_id = $1 AND i.archived_at IS NULL\n            ",
+  "query": "\n            SELECT\n                i.id,\n                i.name,\n                i.current_stock,\n                i.reorder_threshold,\n                i.priority,\n                i.category_id,\n                c.name AS \"category_name?\"\n            FROM inventory_items i\n            LEFT JOIN categories c\n                ON c.id = i.category_id AND c.household_id = i.household_id\n            WHERE i.household_id = $1 AND i.archived_at IS NULL\n            ORDER BY LOWER(i.name), i.id\n            ",
   "describe": {
     "columns": [
       {
@@ -54,5 +54,5 @@
       false
     ]
   },
-  "hash": "5c594a29c0b221e2741067d5206f3deb9a81e049d871a7a44fec5660d532c225"
+  "hash": "47fb1f1604ce918e78e722355638a3725e4ddbe63b1eb7ce6f4b7aadfd184c8e"
 }
