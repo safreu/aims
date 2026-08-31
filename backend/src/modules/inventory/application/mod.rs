@@ -14,7 +14,8 @@ pub use delete_category::{DeleteCategoryCommand, DeleteCategoryError, DeleteCate
 
 mod list_inventory_items;
 pub use list_inventory_items::{
-    ListInventoryItemsCommand, ListInventoryItemsError, ListInventoryItemsService,
+    InventoryItemStatus, ListInventoryItemsCommand, ListInventoryItemsError,
+    ListInventoryItemsService,
 };
 
 mod get_inventory_item;

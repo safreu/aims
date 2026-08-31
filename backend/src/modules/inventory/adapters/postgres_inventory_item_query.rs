@@ -48,6 +48,39 @@ impl InventoryItemQuery for PostgresInventoryItemQuery {
             LEFT JOIN categories c
                 ON c.id = i.category_id AND c.household_id = i.household_id
             WHERE i.household_id = $1 AND i.archived_at IS NULL
+            ORDER BY LOWER(i.name), i.id
+            "#,
+            household_id.into_uuid(),
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_sqlx_error)?;
+
+        rows.into_iter()
+            .map(InventoryItemListEntry::try_from)
+            .collect()
+    }
+
+    async fn find_archived_for_household(
+        &self,
+        household_id: &HouseholdId,
+    ) -> Result<Vec<InventoryItemListEntry>, InventoryItemQueryError> {
+        let rows = sqlx::query_as!(
+            InventoryItemListRow,
+            r#"
+            SELECT
+                i.id,
+                i.name,
+                i.current_stock,
+                i.reorder_threshold,
+                i.priority,
+                i.category_id,
+                c.name AS "category_name?"
+            FROM inventory_items i
+            LEFT JOIN categories c
+                ON c.id = i.category_id AND c.household_id = i.household_id
+            WHERE i.household_id = $1 AND i.archived_at IS NOT NULL
+            ORDER BY LOWER(i.name), i.id
             "#,
             household_id.into_uuid(),
         )
