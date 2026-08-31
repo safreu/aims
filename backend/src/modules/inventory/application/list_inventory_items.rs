@@ -12,9 +12,16 @@ use crate::{
     shared::application::InternalError,
 };
 
+#[derive(Debug, Clone, Copy)]
+pub enum InventoryItemStatus {
+    Active,
+    Archived,
+}
+
 pub struct ListInventoryItemsCommand {
     pub requester_id: UserId,
     pub household_id: HouseholdId,
+    pub status: InventoryItemStatus,
 }
 
 pub struct ListInventoryItemsService {
@@ -41,17 +48,26 @@ impl ListInventoryItemsService {
             .require_member(&command.household_id, &command.requester_id)
             .await?;
 
-        self.inventory_item_query
-            .find_active_for_household(&command.household_id)
-            .await
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    "Failed to list active inventory items",
-                );
-                ListInventoryItemsError::Internal(InternalError::Failed)
-            })
+        match command.status {
+            InventoryItemStatus::Active => {
+                self.inventory_item_query
+                    .find_active_for_household(&command.household_id)
+                    .await
+            }
+            InventoryItemStatus::Archived => {
+                self.inventory_item_query
+                    .find_archived_for_household(&command.household_id)
+                    .await
+            }
+        }
+        .map_err(|error| {
+            tracing::error!(
+                error = ?error,
+                household_id = %command.household_id,
+                "Failed to list inventory items",
+            );
+            ListInventoryItemsError::Internal(InternalError::Failed)
+        })
     }
 }
 

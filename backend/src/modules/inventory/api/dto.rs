@@ -148,3 +148,15 @@ impl From<InventoryStockHistoryActor> for InventoryStockHistoryActorResponse {
         }
     }
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ListInventoryItemsParams {
+    pub status: Option<InventoryItemStatusParam>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InventoryItemStatusParam {
+    Active,
+    Archived,
+}

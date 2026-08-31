@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                i.id,\n                i.name,\n                i.current_stock,\n                i.reorder_threshold,\n                i.priority,\n                i.category_id,\n                c.name AS \"category_name?\"\n            FROM inventory_items i\n            LEFT JOIN categories c\n                ON c.id = i.category_id AND c.household_id = i.household_id\n            WHERE i.household_id = $1 AND i.archived_at IS NOT NULL\n            ORDER BY LOWER(i.name), i.id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "current_stock",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "reorder_threshold",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "priority",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "category_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "category_name?",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "c1211b230a71c19c4964e9e4c5c4251be75eb247e8312ede5d6ec6f6e84e960b"
+}
