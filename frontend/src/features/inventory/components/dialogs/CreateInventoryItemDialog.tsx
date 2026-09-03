@@ -21,8 +21,8 @@ export function CreateInventoryItemDialog({
 
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [currentStock, setCurrentStock] = useState(0);
-  const [reorderThreshold, setReorderThreshold] = useState(0);
+  const [currentStock, setCurrentStock] = useState<number | "">(0);
+  const [reorderThreshold, setReorderThreshold] = useState<number | "">(0);
   const [priority, setPriority] = useState<InventoryItemPriority>("default");
 
   const [isCreating, setIsCreating] = useState(false);
@@ -33,6 +33,11 @@ export function CreateInventoryItemDialog({
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (reorderThreshold === "" || currentStock === "") {
+      showToast("Values must not be empty", "warning");
+      return;
+    }
 
     setIsCreating(true);
 
@@ -101,9 +106,10 @@ export function CreateInventoryItemDialog({
                 type="number"
                 min="0"
                 value={currentStock}
-                onChange={(event) =>
-                  setCurrentStock(Number(event.target.value))
-                }
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setCurrentStock(value === "" ? "" : Number(value));
+                }}
                 disabled={isCreating}
                 required
               />

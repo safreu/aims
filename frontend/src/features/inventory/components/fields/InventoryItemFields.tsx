@@ -5,11 +5,11 @@ type InventoryItemFieldsProps = {
   householdId: string;
   name: string;
   categoryId: string | null;
-  reorderThreshold: number;
+  reorderThreshold: number | "";
   priority: InventoryItemPriority;
   onNameChange: (name: string) => void;
   onCategoryChange: (categoryId: string | null) => void;
-  onReorderThresholdChange: (reorderThreshold: number) => void;
+  onReorderThresholdChange: (reorderThreshold: number | "") => void;
   onPriorityChange: (priority: InventoryItemPriority) => void;
 
   disabled?: boolean;
@@ -61,9 +61,11 @@ export function InventoryItemFields({
           type="number"
           min="0"
           value={reorderThreshold}
-          onChange={(event) =>
-            onReorderThresholdChange(Number(event.target.value))
-          }
+          onChange={(event) => {
+            const value = event.target.value;
+
+            onReorderThresholdChange(value === "" ? "" : Number(value));
+          }}
           disabled={disabled}
         />
       </label>

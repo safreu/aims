@@ -33,7 +33,7 @@ export function InventoryItemDialog({
 
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [reorderThreshold, setReorderThreshold] = useState(0);
+  const [reorderThreshold, setReorderThreshold] = useState<number | "">(0);
   const [priority, setPriority] = useState<InventoryItemPriority>("default");
   const [newStock, setNewStock] = useState("");
   const [showHistory, setShowHistory] = useState(false);
@@ -129,7 +129,7 @@ export function InventoryItemDialog({
       await updateInventoryItem(householdId, itemId, {
         name,
         category_id: categoryId,
-        reorder_threshold: reorderThreshold,
+        reorder_threshold: reorderThreshold === "" ? null : reorderThreshold,
         priority,
       });
     });
