@@ -1,0 +1,129 @@
+.shopping-list {
+  margin: 0;
+  padding: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+
+  list-style: none;
+}
+
+.shopping-entry {
+  min-height: 72px;
+  padding: 0.75rem var(--space-md);
+
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.shopping-entry__checkbox {
+  width: 22px;
+  height: 22px;
+  margin: 2px 0 0;
+
+  flex-shrink: 0;
+
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.shopping-entry__content {
+  min-width: 0;
+  flex: 1;
+}
+
+.shopping-entry__main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.shopping-entry__name {
+  overflow: hidden;
+
+  color: var(--text-h);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shopping-entry__quantity {
+  flex-shrink: 0;
+  color: var(--text-h);
+}
+
+.shopping-entry__meta {
+  margin-top: var(--space-xs);
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.shopping-entry__note {
+  margin: var(--space-sm) 0 0;
+
+  color: var(--text);
+  font-size: 0.875rem;
+}
+
+.shopping-entry__error {
+  margin: var(--space-sm) 0 0;
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+.shopping-entry--checked {
+  opacity: 0.72;
+  background: var(--surface);
+}
+
+.shopping-entry--checked .shopping-entry__name {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.shopping-entry--checked .shopping-entry__quantity,
+.shopping-entry--checked .shopping-entry__meta,
+.shopping-entry--checked .shopping-entry__note {
+  color: var(--text-muted);
+}
+
+.shopping-entry__open {
+  min-width: 0;
+  padding: 0;
+
+  flex: 1;
+
+  color: inherit;
+  background: transparent;
+  border: 0;
+
+  text-align: left;
+  cursor: pointer;
+}
+
+.shopping-entry__open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
+
+@media (hover: hover) {
+  .shopping-entry:hover {
+    background: var(--surface-hover);
+  }
+
+  .shopping-entry--checked:hover {
+    background: var(--surface-hover);
+  }
+}

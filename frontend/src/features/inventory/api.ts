@@ -63,7 +63,7 @@ export async function updateInventoryItem(
   itemId: string,
   request: UpdateInventoryItemRequest,
 ): Promise<void> {
-  apiRequest(`/inventory/${householdId}/items/${itemId}`, {
+  await apiRequest(`/inventory/${householdId}/items/${itemId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -129,4 +129,11 @@ export async function getInventoryStockHistory(
   itemId: string,
 ): Promise<InventoryStockHistoryEntry[]> {
   return apiJson(`/inventory/${householdId}/items/${itemId}/history`);
+}
+
+export async function getInventoryItem(
+  householdId: string,
+  itemId: string,
+): Promise<InventoryItem> {
+  return apiJson<InventoryItem>(`/inventory/${householdId}/items/${itemId}`);
 }

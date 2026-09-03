@@ -1,28 +1,17 @@
-import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
-import { LoginPage } from "./pages/LoginPage";
-import { RegisterPage } from "./pages/RegisterPage";
-import { InventoryPage } from "./pages/InventoryPage";
-import { ShoppingPage } from "./pages/ShoppingPage";
-import { RequireAuth } from "./features/auth/RequireAuth";
-import { LogoutButton } from "./features/auth/LogoutButton";
-import { RequireGuest } from "./features/auth/RequireGuest";
-import { HouseholdsPage } from "./pages/HouseholdsPage";
-import { HouseholdLayout } from "./features/households/HouseholdLayout";
+import { LoginPage } from "./pages/auth/LoginPage";
+import { RegisterPage } from "./pages/auth/RegisterPage";
+import { InventoryPage } from "./pages/inventory/InventoryPage";
+import { ShoppingPage } from "./pages/shopping/ShoppingPage";
+import { RequireAuth } from "./features/auth/guards/RequireAuth";
+import { RequireGuest } from "./features/auth/guards/RequireGuest";
+import { HouseholdsPage } from "./pages/households/HouseholdsPage";
+import { HouseholdLayout } from "./features/households/layouts/HouseholdLayout";
 
 function App() {
   return (
     <BrowserRouter>
-      <nav>
-        <Link to="/login">Login</Link>
-        {" | "}
-        <Link to="/register">Register</Link>
-        {" | "}
-        <Link to="/households">Households</Link>
-      </nav>
-
-      <LogoutButton />
-
       <Routes>
         <Route element={<RequireGuest />}>
           <Route path="/login" element={<LoginPage />} />

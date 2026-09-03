@@ -1,0 +1,174 @@
+.households-page {
+  width: 100%;
+  max-width: 1200px;
+
+  margin: 0 auto;
+  padding: var(--space-lg);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.households-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.households-page__header h1 {
+  margin-bottom: var(--space-xs);
+}
+
+.households-page__header p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.households-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-md);
+}
+
+.household-card {
+  min-height: 110px;
+  padding: var(--space-md);
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+
+  color: inherit;
+  text-decoration: none;
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.household-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+
+  transform: translateY(-1px);
+}
+
+.household-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.household-card__icon {
+  width: 46px;
+  height: 46px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--purple-11);
+
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.household-card__icon svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.household-card__content {
+  min-width: 0;
+}
+
+.household-card__content h2 {
+  margin: 0 0 var(--space-xs);
+
+  overflow: hidden;
+
+  font-size: 1rem;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.household-card__content p {
+  margin: 0;
+
+  color: var(--text-muted);
+
+  font-size: 0.875rem;
+}
+
+.households-page__status {
+  margin: 0;
+
+  color: var(--text-muted);
+}
+
+.households-page__empty {
+  min-height: 280px;
+  padding: var(--space-xl);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+
+  background: var(--surface);
+
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.households-page__empty-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+
+  margin-bottom: var(--space-md);
+
+  color: var(--purple-11);
+}
+
+.households-page__empty h2 {
+  margin-bottom: var(--space-xs);
+}
+
+.households-page__empty p {
+  max-width: 420px;
+  margin-bottom: var(--space-lg);
+
+  color: var(--text-muted);
+}
+
+@media (max-width: 600px) {
+  .households-page {
+    padding: var(--space-md);
+  }
+
+  .households-page__header {
+    flex-direction: column;
+  }
+
+  .households-page__header .button {
+    width: 100%;
+  }
+
+  .households-page__grid {
+    grid-template-columns: 1fr;
+  }
+}
