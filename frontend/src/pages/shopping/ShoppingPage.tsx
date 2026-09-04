@@ -4,13 +4,29 @@ import type { ShoppingList } from "../../features/shopping/types";
 import { getShoppingList } from "../../features/shopping/api";
 import { InventoryShoppingEntryRow } from "../../features/shopping/components/rows/InventoryShoppingEntryRow";
 import { CustomShoppingEntryRow } from "../../features/shopping/components/rows/CustomShoppingEntryRow";
-import { subscribeToHouseholdEvents } from "../../features/households/events";
 import { CreateShoppingEntryDialog } from "../../features/shopping/components/dialogs/CreateShoppingEntryDialog";
 import "./ShoppingPage.css";
 import { AddItemAction } from "../../components/actions/AddItemAction";
+import { ListControls } from "../../components/list-controls/ListControls";
+import { filterShoppingEntries } from "../../features/shopping/components/list/filterShoppingEntries";
+import { useHouseholdEvents } from "../../features/households/events/HouseholdEventsContext";
+import {
+  CategoryFilter,
+  type CategoryFilterValue,
+} from "../../components/list-controls/filters/CategoryFilter";
+import {
+  PriorityFilter,
+  type PriorityFilterValue,
+} from "../../components/list-controls/filters/PriorityFilter";
+import { orderShoppingEntries } from "../../features/shopping/components/list/orderShoppingEntries";
+import {
+  OrderBy,
+  type OrderByValue,
+} from "../../components/list-controls/OderBy";
 
 export function ShoppingPage() {
   const { householdId } = useParams();
+  const { subscribe } = useHouseholdEvents();
 
   if (householdId === undefined) {
     throw new Error("ShoppingPage requires a householdId");
@@ -23,6 +39,35 @@ export function ShoppingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] =
+    useState<CategoryFilterValue>("all");
+  const [priorityFilter, setPriorityFilter] =
+    useState<PriorityFilterValue>("all");
+  const [orderBy, setOrderBy] = useState<OrderByValue>("default");
+
+  const canReset =
+    categoryFilter !== "all" ||
+    priorityFilter !== "all" ||
+    orderBy !== "default";
+
+  function resetListControls() {
+    setCategoryFilter("all");
+    setPriorityFilter("all");
+    setOrderBy("default");
+  }
+
+  const visibleItems = filterShoppingEntries(
+    shoppingList ?? { inventory_entries: [], custom_entries: [] },
+    {
+      search,
+      category: categoryFilter,
+      priority: priorityFilter,
+    },
+  );
+
+  const orderedItems = orderShoppingEntries(visibleItems, orderBy);
 
   const refreshShoppingList = useCallback(async () => {
     const shoppingList = await getShoppingList(resolvedHouseholdId);
@@ -37,11 +82,21 @@ export function ShoppingPage() {
   }, [resolvedHouseholdId]);
 
   useEffect(() => {
-    const eventSource = subscribeToHouseholdEvents(resolvedHouseholdId, () => {
-      void refreshShoppingList();
-    });
-    return () => eventSource.close();
-  }, [resolvedHouseholdId, refreshShoppingList]);
+    const unsubscribeCategories = subscribe(
+      "inventory_categories_changed",
+      () => void refreshShoppingList(),
+    );
+
+    const unsubscribeResync = subscribe(
+      "household_resync_required",
+      () => void refreshShoppingList(),
+    );
+
+    return () => {
+      unsubscribeCategories();
+      unsubscribeResync();
+    };
+  }, [subscribe, refreshShoppingList]);
 
   if (loading) {
     return <p>Loading shopping list...</p>;
@@ -63,13 +118,8 @@ export function ShoppingPage() {
     (entry) => !entry.checked,
   ).length;
 
-  const sortedInventoryEntries = [...shoppingList.inventory_entries].sort(
-    (a, b) => Number(a.checked) - Number(b.checked),
-  );
-
-  const sortedCustomEntries = [...shoppingList.custom_entries].sort(
-    (a, b) => Number(a.checked) - Number(b.checked),
-  );
+  const activeFilterCount =
+    Number(categoryFilter !== "all") + Number(priorityFilter !== "all");
 
   return (
     <main className="shopping-page">
@@ -82,6 +132,29 @@ export function ShoppingPage() {
         <AddItemAction onClick={() => setShowCreateDialog(true)} />
       </header>
 
+      <div>
+        <ListControls
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search inventory..."
+          activeFilterCount={activeFilterCount}
+          canReset={canReset}
+          onReset={resetListControls}
+        >
+          <CategoryFilter
+            value={categoryFilter}
+            onValueChange={setCategoryFilter}
+          />
+
+          <PriorityFilter
+            value={priorityFilter}
+            onValueChange={setPriorityFilter}
+          />
+
+          <OrderBy value={orderBy} onValueChange={setOrderBy} />
+        </ListControls>
+      </div>
+
       <section className="shopping-page__section">
         <div className="shopping-page__section-header">
           <h2>Inventory items</h2>
@@ -91,13 +164,13 @@ export function ShoppingPage() {
           </span>
         </div>
 
-        {shoppingList.inventory_entries.length === 0 ? (
+        {orderedItems.inventory_entries.length === 0 ? (
           <p className="shopping-page__empty">
             No inventory items need to be bought :)
           </p>
         ) : (
           <ul className="shopping-list">
-            {sortedInventoryEntries.map((entry) => (
+            {orderedItems.inventory_entries.map((entry) => (
               <InventoryShoppingEntryRow
                 key={entry.item_id}
                 householdId={resolvedHouseholdId}
@@ -115,13 +188,13 @@ export function ShoppingPage() {
           <span className="shopping-page__count">{remainingCustomCount}</span>
         </div>
 
-        {shoppingList.custom_entries.length === 0 ? (
+        {orderedItems.custom_entries.length === 0 ? (
           <p className="shopping-page__empty">
             No custom items need to be bought :)
           </p>
         ) : (
           <ul className="shopping-list">
-            {sortedCustomEntries.map((entry) => (
+            {orderedItems.custom_entries.map((entry) => (
               <CustomShoppingEntryRow
                 key={entry.id}
                 householdId={resolvedHouseholdId}

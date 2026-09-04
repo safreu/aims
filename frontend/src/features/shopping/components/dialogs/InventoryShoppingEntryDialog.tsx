@@ -5,6 +5,10 @@ import {
   setShoppingQuantity,
 } from "../../api";
 import type { InventoryShoppingEntry } from "../../types";
+import type { InventoryItemPriority } from "../../../inventory/types";
+import { Select } from "../../../../components/select/Select";
+import { INVENTORY_PRIORITIES } from "../../../inventory/priorities";
+import { updateInventoryItem } from "../../../inventory/api";
 
 type InventoryShoppingEntryDialogProps = {
   householdId: string;
@@ -22,6 +26,9 @@ export function InventoryShoppingEntryDialog({
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const [quantity, setQuantity] = useState(entry.quantity);
+  const [priority, setPriority] = useState<InventoryItemPriority>(
+    entry.priority,
+  );
   const [note, setNote] = useState(entry.note ?? "");
 
   const [isMutating, setIsMutating] = useState(false);
@@ -39,6 +46,7 @@ export function InventoryShoppingEntryDialog({
 
     await Promise.all([
       setShoppingQuantity(householdId, entry.item_id, { quantity }),
+      updateInventoryItem(householdId, entry.item_id, { priority }),
       setShoppingNote(householdId, entry.item_id, {
         note: note.trim() === "" ? null : note.trim(),
       })
@@ -103,6 +111,19 @@ export function InventoryShoppingEntryDialog({
                 onChange={(event) => setQuantity(Number(event.target.value))}
                 disabled={isMutating}
                 required
+              />
+            </label>
+
+            <label className="inventory-item-dialog__field">
+              <span>Priority</span>
+
+              <Select
+                value={priority}
+                options={INVENTORY_PRIORITIES}
+                onValueChange={(priority) => setPriority(priority)}
+                portal={false}
+                disabled={isMutating}
+                ariaLabel="Priority"
               />
             </label>
 
