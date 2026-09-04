@@ -33,6 +33,10 @@
   user-select: none;
 
   outline: none;
+
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .dropdown-menu__item svg {
@@ -44,8 +48,12 @@
 
 .dropdown-menu__item[data-highlighted] {
   color: var(--text-h);
-
-  background: var(--surface-hover);
+  background: color-mix(in srgb, var(--accent) 15%, var(--surface));
+  outline: none;
+}
+.dropdown-menu__item:active {
+  color: var(--text-h);
+  background: color-mix(in srgb, var(--accent) 25%, var(--surface));
 }
 
 .dropdown-menu__item[data-disabled] {

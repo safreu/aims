@@ -7,6 +7,7 @@ type DropdownMenuProps = {
   trigger: ReactNode;
   children: ReactNode;
   portal?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 type DropdownMenuItemProps = {
@@ -20,6 +21,7 @@ export function DropdownMenu({
   trigger,
   children,
   portal = true,
+  onOpenChange,
 }: DropdownMenuProps) {
   const content = (
     <RadixDropdownMenu.Content
@@ -31,7 +33,7 @@ export function DropdownMenu({
     </RadixDropdownMenu.Content>
   );
   return (
-    <RadixDropdownMenu.Root>
+    <RadixDropdownMenu.Root onOpenChange={onOpenChange}>
       <RadixDropdownMenu.Trigger asChild>{trigger}</RadixDropdownMenu.Trigger>
 
       {portal ? (

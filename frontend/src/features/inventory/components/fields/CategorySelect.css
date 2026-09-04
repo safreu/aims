@@ -12,7 +12,7 @@
   color: var(--text);
   background: var(--bg);
 
-  border: 1px solid var(--gray-6);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 
   font: inherit;
@@ -77,4 +77,40 @@
 
 .category-select__create {
   color: var(--purple-11);
+}
+
+.category-select__search {
+  padding: var(--space-xs);
+}
+
+.category-select__search input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0.5rem 0.65rem;
+
+  color: var(--text);
+  background: var(--bg);
+
+  border: 1px solid var(--gray-6);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.category-select__search input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.category-select__options {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.category-select__empty {
+  padding: 0.6rem 0.65rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }

@@ -38,7 +38,7 @@ export type CreateInventoryCategoryResponse = {
 export type UpdateInventoryItemRequest = {
   name?: string;
   category_id?: string | null;
-  reorder_threshold?: number;
+  reorder_threshold?: number | null;
   priority?: InventoryItemPriority;
 };
 
