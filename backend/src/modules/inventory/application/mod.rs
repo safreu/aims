@@ -6,6 +6,9 @@ pub use create_inventory_item::{
 mod create_category;
 pub use create_category::{CreateCategoryCommand, CreateCategoryError, CreateCategoryService};
 
+mod update_category;
+pub use update_category::{UpdateCategoryCommand, UpdateCategoryError, UpdateCategoryService};
+
 mod list_categories;
 pub use list_categories::{ListCategoriesCommand, ListCategoriesError, ListCategoriesService};
 

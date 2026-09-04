@@ -107,6 +107,18 @@ impl IncreaseInventoryStockService {
                 IncreaseInventoryStockError::Internal(InternalError::Failed)
             })?;
 
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::InventoryItemsChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    item_id = %command.item_id,
+                    "Failed to publish inventory items changed event"
+                );
+                IncreaseInventoryStockError::Internal(InternalError::Failed)
+            })?;
+
         Ok(())
     }
 }

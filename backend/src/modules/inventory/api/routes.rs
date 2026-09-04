@@ -8,7 +8,7 @@ use crate::{
         archive_inventory_item, create_category, create_inventory_item, decrease_inventory_stock,
         delete_category, get_inventory_item, increase_inventory_stock, list_categories,
         list_inventory_items, list_inventory_stock_history, restore_inventory_item,
-        set_inventory_stock, update_inventory_item,
+        set_inventory_stock, update_category, update_inventory_item,
     },
     shared::api::AppState,
 };
@@ -53,6 +53,6 @@ pub fn inventory_routes() -> Router<AppState> {
         )
         .route(
             "/{household_id}/categories/{category_id}",
-            delete(delete_category),
+            delete(delete_category).post(update_category),
         )
 }

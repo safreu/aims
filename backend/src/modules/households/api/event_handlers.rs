@@ -46,11 +46,19 @@ pub async fn subscribe_household_events(
                     HouseholdEvent::ShoppingListChanged => {
                         Event::default().event("shopping_list_changed").data("{}")
                     }
+                    HouseholdEvent::InventoryCategoriesChanged => Event::default()
+                        .event("inventory_categories_changed")
+                        .data("{}"),
+                    HouseholdEvent::InventoryItemsChanged => {
+                        Event::default().event("inventory_items_changed").data("{}")
+                    }
                 };
                 Some((Ok::<_, Infallible>(event), receiver))
             }
             Err(HouseholdEventReceiverError::Lagged) => {
-                let event = Event::default().event("shopping_list_changed").data("{}");
+                let event = Event::default()
+                    .event("household_resync_required")
+                    .data("{}");
 
                 Some((Ok::<_, Infallible>(event), receiver))
             }
