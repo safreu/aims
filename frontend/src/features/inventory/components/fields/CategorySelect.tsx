@@ -4,13 +4,12 @@ import {
   DropdownMenuItem,
   DropDownMenuSeparator,
 } from "../../../../components/dropdown-menu/DropdownMenu";
-import type { InventoryItemCategory } from "../../types";
 import { createPortal } from "react-dom";
 
 import "./CategorySelect.css";
-import { useEffect, useState } from "react";
-import { getInventoryCategories } from "../../api";
+import { useState } from "react";
 import { CreateInventoryCategoryDialog } from "../dialogs/CreateInventoryCategoryDialog";
+import { useCategories } from "../categories/CategoryContex";
 
 type CategorySelectProps = {
   householdId: string;
@@ -23,7 +22,7 @@ export function CategorySelect({
   value,
   onValueChange,
 }: CategorySelectProps) {
-  const [categories, setCategories] = useState<InventoryItemCategory[]>([]);
+  const { categories, refreshCategories } = useCategories();
   const [showCreateCategoryDialog, setShowCreateCategoryDialog] =
     useState(false);
 
@@ -31,20 +30,6 @@ export function CategorySelect({
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(search.trim().toLowerCase()),
   );
-
-  async function refreshCategories() {
-    const categories = await getInventoryCategories(householdId);
-    setCategories(categories);
-  }
-
-  useEffect(() => {
-    async function loadCategories() {
-      const categories = await getInventoryCategories(householdId);
-      setCategories(categories);
-    }
-
-    void loadCategories();
-  }, [householdId]);
 
   async function handleCategoryCreated(categoryId: string) {
     await refreshCategories();

@@ -225,9 +225,15 @@ pub fn build_create_category_service() -> (
     let household_access_policy = Arc::new(DefaultHouseholdAccessPolicy::new(
         household_repository.clone(),
     ));
+    let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+    let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
     let category_repository = Arc::new(InMemoryCategoryRepository::new());
 
-    let service = CreateCategoryService::new(household_access_policy, category_repository.clone());
+    let service = CreateCategoryService::new(
+        household_access_policy,
+        category_repository.clone(),
+        household_events_publisher.clone(),
+    );
 
     (service, category_repository, household_repository)
 }
@@ -257,9 +263,15 @@ pub fn build_delete_category_service() -> (
     let household_access_policy = Arc::new(DefaultHouseholdAccessPolicy::new(
         household_repository.clone(),
     ));
+    let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+    let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
     let category_repository = Arc::new(InMemoryCategoryRepository::new());
 
-    let service = DeleteCategoryService::new(household_access_policy, category_repository.clone());
+    let service = DeleteCategoryService::new(
+        household_access_policy,
+        category_repository.clone(),
+        household_events_publisher.clone(),
+    );
 
     (service, category_repository, household_repository)
 }

@@ -11,6 +11,7 @@ import {
 import { InventoryStockHistory } from "../history/InventoryStockHistory";
 import "./InventoryItemDialog.css";
 import { InventoryItemFields } from "../fields/InventoryItemFields";
+import { useToast } from "../../../../components/toast/ToastContext";
 
 type InventoryItemDialogProps = {
   householdId: string;
@@ -27,6 +28,8 @@ export function InventoryItemDialog({
 }: InventoryItemDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
+  const { showToast } = useToast();
+
   const [item, setItem] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -40,7 +43,6 @@ export function InventoryItemDialog({
   const [historyVersion, setHistoryVersion] = useState(0);
 
   const [isMutating, setIsMutating] = useState(false);
-  const [mutationError, setMutationError] = useState<string | null>(null);
 
   async function refreshItem() {
     const refreshedItem = await getInventoryItem(householdId, itemId);
@@ -75,64 +77,90 @@ export function InventoryItemDialog({
     void loadItem();
   }, [householdId, itemId]);
 
-  function runMutation(operation: () => Promise<void>) {
+  function runMutation(
+    operation: () => Promise<void>,
+    successMessage: string,
+    errorMessage: string,
+  ) {
     setIsMutating(true);
-    setMutationError(null);
 
     void operation()
       .then(async () => {
         await refreshItem();
         await onChanged();
+
+        showToast(successMessage, "success");
       })
-      .catch(() => setMutationError("Failed to mutate item"))
+      .catch(() => showToast(errorMessage, "error"))
       .finally(() => setIsMutating(false));
   }
 
   function handleIncreaseStock() {
-    runMutation(async () => {
-      await increaseInventoryStock(householdId, itemId, { amount: 1 });
+    runMutation(
+      async () => {
+        await increaseInventoryStock(householdId, itemId, { amount: 1 });
 
-      setHistoryVersion((current) => current + 1);
-    });
+        setHistoryVersion((current) => current + 1);
+      },
+      "Stock increased",
+      "Failed to increase stock",
+    );
   }
 
   function handleDecreaseStock() {
-    runMutation(async () => {
-      await decreaseInventoryStock(householdId, itemId, { amount: 1 });
-      setHistoryVersion((current) => current + 1);
-    });
+    runMutation(
+      async () => {
+        await decreaseInventoryStock(householdId, itemId, { amount: 1 });
+        setHistoryVersion((current) => current + 1);
+      },
+      "Stock decreased",
+      "Failed to decrease stock",
+    );
   }
 
   function handleSetStock() {
     if (newStock === "") return;
 
-    runMutation(async () => {
-      await setInventoryStock(householdId, itemId, {
-        stock: Number(newStock),
-      });
-      setNewStock("");
-      setHistoryVersion((current) => current + 1);
-    });
+    runMutation(
+      async () => {
+        await setInventoryStock(householdId, itemId, {
+          stock: Number(newStock),
+        });
+        setNewStock("");
+        setHistoryVersion((current) => current + 1);
+      },
+      "Stock updated",
+      "Failed to set stock",
+    );
   }
 
   function handleArchive() {
+    setIsMutating(true);
+
     void archiveInventoryItem(householdId, itemId)
-      .then(() => dialogRef.current?.close())
-      .catch(() => setMutationError("Failed to archive item"))
+      .then(() => {
+        showToast("Item archived", "success");
+        dialogRef.current?.close();
+      })
+      .catch(() => showToast("Failed to archive item", "error"))
       .finally(() => setIsMutating(false));
   }
 
   function handleUpdate(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    runMutation(async () => {
-      await updateInventoryItem(householdId, itemId, {
-        name,
-        category_id: categoryId,
-        reorder_threshold: reorderThreshold === "" ? null : reorderThreshold,
-        priority,
-      });
-    });
+    runMutation(
+      async () => {
+        await updateInventoryItem(householdId, itemId, {
+          name,
+          category_id: categoryId,
+          reorder_threshold: reorderThreshold === "" ? null : reorderThreshold,
+          priority,
+        });
+      },
+      "Inventory updated",
+      "Failed to update Inventory",
+    );
   }
 
   return (
@@ -286,10 +314,6 @@ export function InventoryItemDialog({
                 Archive item
               </button>
             </section>
-
-            {mutationError !== null && (
-              <p className="inventory-item-dialog__error">{mutationError}</p>
-            )}
           </>
         ) : null}
       </div>

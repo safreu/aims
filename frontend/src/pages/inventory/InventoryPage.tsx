@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { InventoryItem } from "../../features/inventory/types";
 import { getInventoryItems } from "../../features/inventory/api";
@@ -7,8 +7,20 @@ import { ArchivedInventoryItemRow } from "../../features/inventory/components/ro
 import "./InventoryPage.css";
 import { CreateInventoryItemDialog } from "../../features/inventory/components/dialogs/CreateInventoryItemDialog";
 import { AddItemAction } from "../../components/actions/AddItemAction";
+import { ListControls } from "../../components/list-controls/ListControls";
+import { filterInventoryItems } from "../../features/inventory/components/search/filterInventoryItems";
+import {
+  CategoryFilter,
+  type CategoryFilterValue,
+} from "../../components/list-controls/filters/CategoryFilter";
+import { useHouseholdEvents } from "../../features/households/events/HouseholdEventsContext";
+import {
+  PriorityFilter,
+  type PriorityFilterValue,
+} from "../../components/list-controls/filters/PriorityFilter";
 export function InventoryPage() {
   const { householdId } = useParams();
+  const { subscribe } = useHouseholdEvents();
 
   if (householdId === undefined) {
     throw new Error("InventoryPage requires a householdId");
@@ -23,7 +35,19 @@ export function InventoryPage() {
 
   const [showCreateItemDialog, setShowCreateItemDialog] = useState(false);
 
-  async function refreshInventory() {
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] =
+    useState<CategoryFilterValue>("all");
+  const [priorityFilter, setPriorityFilter] =
+    useState<PriorityFilterValue>("all");
+
+  const visibleItems = filterInventoryItems(items, {
+    search,
+    category: categoryFilter,
+    priority: priorityFilter,
+  });
+
+  const refreshInventory = useCallback(async () => {
     const [items, archivedItems] = await Promise.all([
       getInventoryItems(resolvedHouseholdId),
       getInventoryItems(resolvedHouseholdId, "archived"),
@@ -31,7 +55,30 @@ export function InventoryPage() {
 
     setItems(items);
     setArchivedItems(archivedItems);
-  }
+  }, [resolvedHouseholdId]);
+
+  useEffect(() => {
+    const unsubscribeCategories = subscribe(
+      "inventory_categories_changed",
+      () => void refreshInventory(),
+    );
+
+    const unsubscribeInventory = subscribe(
+      "inventory_items_changed",
+      () => void refreshInventory(),
+    );
+
+    const unsubscribeResync = subscribe(
+      "household_resync_required",
+      () => void refreshInventory(),
+    );
+
+    return () => {
+      unsubscribeCategories();
+      unsubscribeInventory();
+      unsubscribeResync();
+    };
+  }, [subscribe, refreshInventory]);
 
   useEffect(() => {
     void Promise.all([
@@ -54,6 +101,9 @@ export function InventoryPage() {
     return <p>{error}</p>;
   }
 
+  const activeFilterCount =
+    Number(categoryFilter !== "all") + Number(priorityFilter !== "all");
+
   return (
     <div className="inventory-page">
       <header className="inventory-page__header">
@@ -67,6 +117,25 @@ export function InventoryPage() {
         </div>
       </header>
 
+      <div>
+        <ListControls
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search inventory..."
+          activeFilterCount={activeFilterCount}
+        >
+          <CategoryFilter
+            value={categoryFilter}
+            onValueChange={setCategoryFilter}
+          />
+
+          <PriorityFilter
+            value={priorityFilter}
+            onValueChange={setPriorityFilter}
+          />
+        </ListControls>
+      </div>
+
       <section className="inventory-page__section">
         <div className="inventory-page__section-header">
           <h2>Items</h2>
@@ -76,7 +145,7 @@ export function InventoryPage() {
           <p className="inventory-page__empty">No inventory items :(</p>
         ) : (
           <div className="inventory-list">
-            {items.map((item) => (
+            {visibleItems.map((item) => (
               <InventoryItemRow
                 key={item.id}
                 householdId={resolvedHouseholdId}
