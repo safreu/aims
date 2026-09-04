@@ -6,6 +6,7 @@ import { InventoryItemRow } from "../../features/inventory/components/rows/Inven
 import { ArchivedInventoryItemRow } from "../../features/inventory/components/rows/ArchivedInventoryItemRow";
 import "./InventoryPage.css";
 import { CreateInventoryItemDialog } from "../../features/inventory/components/dialogs/CreateInventoryItemDialog";
+import { AddItemAction } from "../../components/actions/AddItemAction";
 export function InventoryPage() {
   const { householdId } = useParams();
 
@@ -62,13 +63,7 @@ export function InventoryPage() {
         </div>
 
         <div className="inventory-page__actions">
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => setShowCreateItemDialog(true)}
-          >
-            Add item
-          </button>
+          <AddItemAction onClick={() => setShowCreateItemDialog(true)} />
         </div>
       </header>
 

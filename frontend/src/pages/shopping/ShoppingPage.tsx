@@ -7,6 +7,7 @@ import { CustomShoppingEntryRow } from "../../features/shopping/components/rows/
 import { subscribeToHouseholdEvents } from "../../features/households/events";
 import { CreateShoppingEntryDialog } from "../../features/shopping/components/dialogs/CreateShoppingEntryDialog";
 import "./ShoppingPage.css";
+import { AddItemAction } from "../../components/actions/AddItemAction";
 
 export function ShoppingPage() {
   const { householdId } = useParams();
@@ -78,13 +79,7 @@ export function ShoppingPage() {
           <p>Your household shopping list</p>
         </div>
 
-        <button
-          type="button"
-          className="button button--primary"
-          onClick={() => setShowCreateDialog(true)}
-        >
-          Add item
-        </button>
+        <AddItemAction onClick={() => setShowCreateDialog(true)} />
       </header>
 
       <section className="shopping-page__section">
