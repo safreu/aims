@@ -3,7 +3,8 @@ use std::sync::Arc;
 use crate::{
     config::SessionCookieConfig,
     modules::accounts::application::{
-        AuthenticateSessionService, CreateSessionService, LoginUserService, RegisterUserService,
+        AuthenticateSessionService, CreateSessionService, GetUserService, LoginUserService,
+        LogoutUserService, RegisterUserService,
     },
 };
 
@@ -11,7 +12,9 @@ use crate::{
 pub struct AccountsState {
     pub register_user: Arc<RegisterUserService>,
     pub login_user: Arc<LoginUserService>,
+    pub logout_user: Arc<LogoutUserService>,
     pub create_session: Arc<CreateSessionService>,
     pub authenticate_session: Arc<AuthenticateSessionService>,
     pub session_cookie: SessionCookieConfig,
+    pub get_user: Arc<GetUserService>,
 }

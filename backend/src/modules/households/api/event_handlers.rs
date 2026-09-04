@@ -44,13 +44,13 @@ pub async fn subscribe_household_events(
             Ok(event) => {
                 let event = match event {
                     HouseholdEvent::ShoppingListChanged => {
-                        Event::default().event("shopping_list_changed")
+                        Event::default().event("shopping_list_changed").data("{}")
                     }
                 };
                 Some((Ok::<_, Infallible>(event), receiver))
             }
             Err(HouseholdEventReceiverError::Lagged) => {
-                let event = Event::default().event("shopping_list_changed");
+                let event = Event::default().event("shopping_list_changed").data("{}");
 
                 Some((Ok::<_, Infallible>(event), receiver))
             }

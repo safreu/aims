@@ -1,0 +1,80 @@
+.category-select {
+  width: 100%;
+  min-height: 44px;
+
+  padding: 0.65rem 0.75rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+
+  color: var(--text);
+  background: var(--bg);
+
+  border: 1px solid var(--gray-6);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  font-size: 0.9rem;
+
+  cursor: pointer;
+
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.category-select:hover {
+  border-color: var(--border-hover);
+}
+
+.category-select:focus-visible {
+  border-color: var(--accent);
+
+  outline: none;
+
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.category-select__label {
+  min-width: 0;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-select__chevron {
+  width: 1rem;
+  height: 1rem;
+
+  flex-shrink: 0;
+
+  color: var(--text-muted);
+}
+
+.category-select__name {
+  min-width: 0;
+  flex: 1;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-select__selected {
+  width: 1rem;
+  height: 1rem;
+
+  flex-shrink: 0;
+
+  color: var(--purple-11);
+}
+
+.category-select__create {
+  color: var(--purple-11);
+}

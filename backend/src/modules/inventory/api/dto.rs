@@ -79,9 +79,20 @@ impl From<CategorySummary> for InventoryItemCategoryResponse {
 #[derive(Debug, Deserialize)]
 pub struct UpdateInventoryItemRequest {
     pub name: Option<String>,
+
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
     pub category_id: Option<Option<Uuid>>,
+
     pub reorder_threshold: Option<u32>,
     pub priority: Option<String>,
+}
+
+fn deserialize_optional_field<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
 }
 
 #[derive(Debug, Deserialize)]
@@ -147,4 +158,16 @@ impl From<InventoryStockHistoryActor> for InventoryStockHistoryActorResponse {
             InventoryStockHistoryActor::System => Self::System,
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ListInventoryItemsParams {
+    pub status: Option<InventoryItemStatusParam>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InventoryItemStatusParam {
+    Active,
+    Archived,
 }

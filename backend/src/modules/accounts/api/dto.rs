@@ -22,3 +22,10 @@ pub struct LoginUserRequest {
 pub struct LoginUserResponse {
     pub id: String,
 }
+
+#[derive(Debug, Serialize)]
+pub struct GetUserResponse {
+    pub id: String,
+    pub display_name: String,
+    pub email: String,
+}

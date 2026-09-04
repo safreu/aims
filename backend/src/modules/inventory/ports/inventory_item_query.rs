@@ -15,6 +15,11 @@ pub trait InventoryItemQuery: Send + Sync {
         household_id: &HouseholdId,
     ) -> Result<Vec<InventoryItemListEntry>, InventoryItemQueryError>;
 
+    async fn find_archived_for_household(
+        &self,
+        household_id: &HouseholdId,
+    ) -> Result<Vec<InventoryItemListEntry>, InventoryItemQueryError>;
+
     async fn find_active_by_id(
         &self,
         household_id: &HouseholdId,

@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
 };
 use uuid::Uuid;
@@ -13,15 +13,15 @@ use crate::{
             api::dto::{
                 ChangeInventoryStockRequest, CreateCategoryRequest, CreateCategoryResponse,
                 CreateInventoryItemRequest, CreateInventoryItemResponse, InventoryItemResponse,
-                InventoryStockHistoryResponse, ListCategoriesResponse, SetInventoryStockRequest,
-                UpdateInventoryItemRequest,
+                InventoryItemStatusParam, InventoryStockHistoryResponse, ListCategoriesResponse,
+                ListInventoryItemsParams, SetInventoryStockRequest, UpdateInventoryItemRequest,
             },
             application::{
                 ArchiveInventoryItemCommand, CreateCategoryCommand, CreateInventoryItemCommand,
                 DecreaseInventoryStockCommand, DeleteCategoryCommand, GetInventoryItemCommand,
-                IncreaseInventoryStockCommand, ListCategoriesCommand, ListInventoryItemsCommand,
-                ListInventoryStockHistoryCommand, RestoreInventoryItemCommand,
-                SetInventoryStockCommand, UpdateInventoryItemCommand,
+                IncreaseInventoryStockCommand, InventoryItemStatus, ListCategoriesCommand,
+                ListInventoryItemsCommand, ListInventoryStockHistoryCommand,
+                RestoreInventoryItemCommand, SetInventoryStockCommand, UpdateInventoryItemCommand,
             },
             domain::{CategoryId, InventoryItemId, InventoryPriority},
         },
@@ -152,10 +152,15 @@ pub async fn list_inventory_items(
     State(state): State<AppState>,
     current_user: CurrentUser,
     Path(household_id): Path<Uuid>,
+    Query(params): Query<ListInventoryItemsParams>,
 ) -> Result<Json<Vec<InventoryItemResponse>>, ApiError> {
     let command = ListInventoryItemsCommand {
         requester_id: current_user.user_id(),
         household_id: HouseholdId::from_uuid(household_id),
+        status: match params.status {
+            Some(InventoryItemStatusParam::Active) | None => InventoryItemStatus::Active,
+            Some(InventoryItemStatusParam::Archived) => InventoryItemStatus::Archived,
+        },
     };
 
     let items = state
