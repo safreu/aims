@@ -1,9 +1,9 @@
-import * as RadixSelect from "@radix-ui/react-select";
-import { Check, ChevronDown } from "lucide-react";
+import { Check } from "lucide-react";
 
 import "./Select.css";
+import { DropdownMenu, DropdownMenuItem } from "../dropdown-menu/DropdownMenu";
 
-type SelectOption<T extends string> = {
+export type SelectOption<T extends string> = {
   value: T;
   label: string;
 };
@@ -12,7 +12,7 @@ type SelectProps<T extends string> = {
   value: T;
   options: SelectOption<T>[];
   onValueChange: (value: T) => void;
-
+  portal?: boolean;
   placeholder?: string;
   disabled?: boolean;
   ariaLabel?: string;
@@ -22,49 +22,39 @@ export function Select<T extends string>({
   value,
   options,
   onValueChange,
+  portal = true,
   placeholder,
   disabled = false,
   ariaLabel,
 }: SelectProps<T>) {
+  const selectedOption = options.find((option) => option.value === value);
+
   return (
-    <RadixSelect.Root
-      value={value}
-      onValueChange={(value) => onValueChange(value as T)}
-      disabled={disabled}
-    >
-      <RadixSelect.Trigger className="select__trigger" aria-label={ariaLabel}>
-        <RadixSelect.Value placeholder={placeholder} />
-
-        <RadixSelect.Icon className="select__icon">
-          <ChevronDown />
-        </RadixSelect.Icon>
-      </RadixSelect.Trigger>
-
-      <RadixSelect.Portal>
-        <RadixSelect.Content
-          className="select__content"
-          position="popper"
-          sideOffset={4}
+    <DropdownMenu
+      portal={portal}
+      trigger={
+        <button
+          type="button"
+          className="select__trigger"
+          disabled={disabled}
+          aria-label={ariaLabel}
         >
-          <RadixSelect.Viewport className="select__viewport">
-            {options.map((option) => (
-              <RadixSelect.Item
-                key={option.value}
-                value={option.value}
-                className="select__item"
-              >
-                <span className="select__item-indicator">
-                  <RadixSelect.ItemIndicator>
-                    <Check />
-                  </RadixSelect.ItemIndicator>
-                </span>
+          <span className="select__value">
+            {selectedOption?.label ?? placeholder}
+          </span>
+        </button>
+      }
+    >
+      {options.map((option) => (
+        <DropdownMenuItem
+          key={option.value}
+          onSelect={() => onValueChange(option.value)}
+        >
+          <span className="select__option-label">{option.label}</span>
 
-                <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>
-              </RadixSelect.Item>
-            ))}
-          </RadixSelect.Viewport>
-        </RadixSelect.Content>
-      </RadixSelect.Portal>
-    </RadixSelect.Root>
+          {option.value === value && <Check className="select__indicator" />}
+        </DropdownMenuItem>
+      ))}
+    </DropdownMenu>
   );
 }

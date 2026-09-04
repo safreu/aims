@@ -27,6 +27,11 @@ export function CategorySelect({
   const [showCreateCategoryDialog, setShowCreateCategoryDialog] =
     useState(false);
 
+  const [search, setSearch] = useState("");
+  const filteredCategories = categories.filter((category) =>
+    category.name.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+
   async function refreshCategories() {
     const categories = await getInventoryCategories(householdId);
     setCategories(categories);
@@ -54,6 +59,9 @@ export function CategorySelect({
     <>
       <DropdownMenu
         portal={false}
+        onOpenChange={(open) => {
+          if (!open) setSearch("");
+        }}
         trigger={
           <button
             type="button"
@@ -68,24 +76,40 @@ export function CategorySelect({
           </button>
         }
       >
-        <DropdownMenuItem onSelect={() => onValueChange(null)}>
-          <span className="category-select__name">No category</span>
+        <div className="category-select__search">
+          <input
+            type="search"
+            placeholder="Search categories..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => event.stopPropagation()}
+          />
+        </div>
 
-          {value === null && <Check className="category-select__selected" />}
-        </DropdownMenuItem>
+        <div className="category-select__options">
+          <DropdownMenuItem onSelect={() => onValueChange(null)}>
+            <span className="category-select__name">No category</span>
 
-        {categories.map((category) => (
-          <DropdownMenuItem
-            key={category.id}
-            onSelect={() => onValueChange(category.id)}
-          >
-            <span className="category-select__name">{category.name}</span>
-
-            {category.id === value && (
-              <Check className="category-select__selected" />
-            )}
+            {value === null && <Check className="category-select__selected" />}
           </DropdownMenuItem>
-        ))}
+
+          {filteredCategories.map((category) => (
+            <DropdownMenuItem
+              key={category.id}
+              onSelect={() => onValueChange(category.id)}
+            >
+              <span className="category-select__name">{category.name}</span>
+
+              {category.id === value && (
+                <Check className="category-select__selected" />
+              )}
+            </DropdownMenuItem>
+          ))}
+
+          {filteredCategories.length === 0 && (
+            <div className="category-select__empty">No categories found</div>
+          )}
+        </div>
 
         <DropDownMenuSeparator />
 

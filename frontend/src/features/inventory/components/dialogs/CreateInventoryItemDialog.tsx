@@ -5,6 +5,12 @@ import "./InventoryItemDialog.css";
 import { InventoryItemFields } from "../fields/InventoryItemFields";
 import { useToast } from "../../../../components/toast/ToastContext";
 
+type InventoryItemFieldErrors = {
+  name?: string;
+  currentStock?: string;
+  reorderThreshold?: string;
+};
+
 type CreateInventoryItemDialogProps = {
   householdId: string;
   onCreated: () => Promise<void>;
@@ -27,6 +33,8 @@ export function CreateInventoryItemDialog({
 
   const [isCreating, setIsCreating] = useState(false);
 
+  const [fieldErrors, setFieldErrors] = useState<InventoryItemFieldErrors>({});
+
   useEffect(() => {
     dialogRef.current?.showModal();
   }, []);
@@ -34,8 +42,19 @@ export function CreateInventoryItemDialog({
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (reorderThreshold === "" || currentStock === "") {
-      showToast("Values must not be empty", "warning");
+    const errors: InventoryItemFieldErrors = {};
+
+    if (name.trim() === "") errors.name = "Name is required";
+    if (currentStock === "") errors.currentStock = "Current stock is required";
+    if (reorderThreshold === "")
+      errors.reorderThreshold = "Reorder threshold is required";
+
+    setFieldErrors(errors);
+    if (
+      Object.keys(errors).length > 0 ||
+      currentStock === "" ||
+      reorderThreshold === ""
+    ) {
       return;
     }
 
@@ -97,9 +116,13 @@ export function CreateInventoryItemDialog({
             onCategoryChange={setCategoryId}
             onReorderThresholdChange={setReorderThreshold}
             onPriorityChange={setPriority}
+            nameError={fieldErrors.name}
+            reorderThresholdError={fieldErrors.reorderThreshold}
             disabled={isCreating}
           >
-            <label className="inventory-item-dialog__field">
+            <label
+              className={`inventory-item-dialog__field ${fieldErrors.currentStock ? "inventory-item-dialog__field--error" : ""}`}
+            >
               <span>Current stock</span>
 
               <input
@@ -111,8 +134,12 @@ export function CreateInventoryItemDialog({
                   setCurrentStock(value === "" ? "" : Number(value));
                 }}
                 disabled={isCreating}
-                required
               />
+              {fieldErrors.currentStock && (
+                <span className="inventory-item-dialog__field-error">
+                  {fieldErrors.currentStock}
+                </span>
+              )}
             </label>
           </InventoryItemFields>
 

@@ -252,6 +252,26 @@
   grid-template-columns: 1fr;
 }
 
+.inventory-item-dialog__field-error {
+  margin-top: var(--space-xs);
+  color: var(--danger);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.inventory-item-dialog__field--error input {
+  border-color: var(--danger);
+}
+
+.inventory-item-dialog__field--error input:hover {
+  border-color: var(--danger);
+}
+
+.inventory-item-dialog__field--error input:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
 @media (max-width: 600px) {
   .inventory-item-dialog__section-header {
     align-items: stretch;

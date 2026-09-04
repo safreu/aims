@@ -1,3 +1,7 @@
+import {
+  Select,
+  type SelectOption,
+} from "../../../../components/select/Select";
 import type { InventoryItemPriority } from "../../types";
 import { CategorySelect } from "./CategorySelect";
 
@@ -12,10 +16,20 @@ type InventoryItemFieldsProps = {
   onReorderThresholdChange: (reorderThreshold: number | "") => void;
   onPriorityChange: (priority: InventoryItemPriority) => void;
 
+  nameError?: string;
+  reorderThresholdError?: string;
+
   disabled?: boolean;
 
   children?: React.ReactNode;
 };
+
+const PriorityOptions: SelectOption<InventoryItemPriority>[] = [
+  { value: "default", label: "Default" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+];
 
 export function InventoryItemFields({
   householdId,
@@ -27,12 +41,16 @@ export function InventoryItemFields({
   onCategoryChange,
   onReorderThresholdChange,
   onPriorityChange,
+  nameError,
+  reorderThresholdError,
   disabled = false,
   children,
 }: InventoryItemFieldsProps) {
   return (
     <div className="inventory-item-dialog__fields">
-      <label className="inventory-item-dialog__field">
+      <label
+        className={`inventory-item-dialog__field ${nameError ? "inventory-item-dialog__field--error" : ""}`}
+      >
         <span>Name</span>
 
         <input
@@ -40,8 +58,12 @@ export function InventoryItemFields({
           value={name}
           onChange={(event) => onNameChange(event.target.value)}
           disabled={disabled}
-          required
         />
+        {nameError && (
+          <span className="inventory-item-dialog__field-error">
+            {nameError}
+          </span>
+        )}
       </label>
 
       <div className="inventory-item-dialog__field">
@@ -54,7 +76,9 @@ export function InventoryItemFields({
         />
       </div>
 
-      <label className="inventory-item-dialog__field">
+      <label
+        className={`inventory-item-dialog__field ${reorderThresholdError ? "inventory-item-dialog__field--error" : ""}`}
+      >
         <span>Reorder threshold</span>
 
         <input
@@ -68,26 +92,26 @@ export function InventoryItemFields({
           }}
           disabled={disabled}
         />
+        {reorderThresholdError && (
+          <span className="inventory-item-dialog__field-error">
+            {reorderThresholdError}
+          </span>
+        )}
       </label>
 
-      <label className="inventory-item-dialog__field">
+      <div className="inventory-item-dialog__field">
         <span>Priority</span>
 
-        <select
+        <Select
           value={priority}
-          onChange={(event) =>
-            onPriorityChange(event.target.value as InventoryItemPriority)
-          }
+          options={PriorityOptions}
+          onValueChange={onPriorityChange}
+          portal={false}
           disabled={disabled}
-        >
-          <option value="default">Default</option>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
-
-        {children}
-      </label>
+          ariaLabel="Priority"
+        />
+      </div>
+      {children}
     </div>
   );
 }
