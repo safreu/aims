@@ -8,6 +8,7 @@ import { RequireAuth } from "./features/auth/guards/RequireAuth";
 import { RequireGuest } from "./features/auth/guards/RequireGuest";
 import { HouseholdsPage } from "./pages/households/HouseholdsPage";
 import { HouseholdLayout } from "./features/households/layouts/HouseholdLayout";
+import { HouseholdSettingsPage } from "./pages/households/HouseholdSettingsPage";
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
             <Route index element={<Navigate to="inventory" replace />} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="shopping" element={<ShoppingPage />} />
+            <Route path="settings" element={<HouseholdSettingsPage />} />
           </Route>
         </Route>
       </Routes>

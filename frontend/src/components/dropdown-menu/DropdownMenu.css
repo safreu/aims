@@ -71,3 +71,12 @@
 
   background: var(--gray-5);
 }
+
+.dropdown-menu__item-content {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}

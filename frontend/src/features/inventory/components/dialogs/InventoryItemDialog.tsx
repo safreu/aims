@@ -12,6 +12,7 @@ import { InventoryStockHistory } from "../history/InventoryStockHistory";
 import "./InventoryItemDialog.css";
 import { InventoryItemFields } from "../fields/InventoryItemFields";
 import { useToast } from "../../../../components/toast/ToastContext";
+import { useDangerMode } from "../../../households/danger-mode/DangerModeContext";
 
 type InventoryItemDialogProps = {
   householdId: string;
@@ -29,6 +30,7 @@ export function InventoryItemDialog({
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const { showToast } = useToast();
+  const { dangerMode } = useDangerMode();
 
   const [item, setItem] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -224,56 +226,58 @@ export function InventoryItemDialog({
               </button>
             </form>
 
-            <section className="inventory-item-dialog__section">
-              <h3>Stock</h3>
+            {dangerMode && (
+              <section className="inventory-item-dialog__section">
+                <h3>Stock</h3>
 
-              <div className="inventory-item-dialog__stock-controls">
-                <button
-                  type="button"
-                  className="inventory-item-dialog__stock-button"
-                  onClick={handleDecreaseStock}
-                  disabled={item.current_stock === 0 || isMutating}
-                  aria-label="Decrease stock by one"
-                >
-                  -
-                </button>
-
-                <button
-                  type="button"
-                  className="inventory-item-dialog__stock-button"
-                  onClick={handleIncreaseStock}
-                  disabled={isMutating}
-                  aria-label="Increase stock by one"
-                >
-                  +
-                </button>
-              </div>
-
-              <div className="inventory-item-dialog__set-stock">
-                <label className="inventory-item-dialog__field">
-                  <span>Set exact stock</span>
-                </label>
-
-                <div className="inventory-item-dialog__set-stock-controls">
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder={String(item.current_stock)}
-                    value={newStock}
-                    onChange={(event) => setNewStock(event.target.value)}
-                  />
+                <div className="inventory-item-dialog__stock-controls">
+                  <button
+                    type="button"
+                    className="inventory-item-dialog__stock-button"
+                    onClick={handleDecreaseStock}
+                    disabled={item.current_stock === 0 || isMutating}
+                    aria-label="Decrease stock by one"
+                  >
+                    -
+                  </button>
 
                   <button
                     type="button"
-                    className="button button--primary"
-                    onClick={handleSetStock}
-                    disabled={isMutating || newStock === ""}
+                    className="inventory-item-dialog__stock-button"
+                    onClick={handleIncreaseStock}
+                    disabled={isMutating}
+                    aria-label="Increase stock by one"
                   >
-                    Set stock
+                    +
                   </button>
                 </div>
-              </div>
-            </section>
+
+                <div className="inventory-item-dialog__set-stock">
+                  <label className="inventory-item-dialog__field">
+                    <span>Set exact stock</span>
+                  </label>
+
+                  <div className="inventory-item-dialog__set-stock-controls">
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder={String(item.current_stock)}
+                      value={newStock}
+                      onChange={(event) => setNewStock(event.target.value)}
+                    />
+
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      onClick={handleSetStock}
+                      disabled={isMutating || newStock === ""}
+                    >
+                      Set stock
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
 
             <section className="inventory-item-dialog__section">
               <div className="inventory-item-dialog__section-header">

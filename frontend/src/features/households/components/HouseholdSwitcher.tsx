@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropDownMenuSeparator,
 } from "../../../components/dropdown-menu/DropdownMenu";
-import { Check, ChevronDown, Plus, User, Users } from "lucide-react";
+import { Check, ChevronDown, Plus, Settings, User, Users } from "lucide-react";
 
 import "./HouseholdSwitcher.css";
 import { CreateHouseholdDialog } from "./CreateHouseholdDialog";
@@ -98,6 +98,15 @@ export function HouseholdSwitcher({ householdId }: HouseholdSwitcherProps) {
 
           <span>Create household</span>
         </DropdownMenuItem>
+
+        {householdId !== undefined && (
+          <DropdownMenuItem
+            onSelect={() => navigate(`/households/${householdId}/settings`)}
+          >
+            <Settings />
+            <span>Manage household</span>
+          </DropdownMenuItem>
+        )}
       </DropdownMenu>
 
       {showCreateDialog && (
