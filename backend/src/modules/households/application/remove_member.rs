@@ -4,10 +4,10 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::{HouseholdId, HouseholdRole},
+            domain::{HouseholdEvent, HouseholdId, HouseholdRole},
             ports::{
-                HouseholdAccessError, HouseholdAccessPolicy, HouseholdRepository,
-                HouseholdRepositoryError,
+                HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher,
+                HouseholdRepository, HouseholdRepositoryError,
             },
         },
     },
@@ -23,16 +23,19 @@ pub struct RemoveHouseholdMemberCommand {
 pub struct RemoveHouseholdMemberService {
     household_repository: Arc<dyn HouseholdRepository>,
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
+    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl RemoveHouseholdMemberService {
     pub fn new(
         household_repository: Arc<dyn HouseholdRepository>,
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
+        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             household_repository,
             household_access_policy,
+            household_events_publisher,
         }
     }
 
@@ -89,6 +92,17 @@ impl RemoveHouseholdMemberService {
                 }
             })?;
 
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::HouseholdChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    "Failed to publish household changed event"
+                );
+                RemoveHouseholdMemberError::Internal(InternalError::Failed)
+            })?;
+
         Ok(())
     }
 }
@@ -113,7 +127,9 @@ mod tests {
     use super::*;
     use crate::{
         modules::households::{
-            adapters::{DefaultHouseholdAccessPolicy, InMemoryHouseholdRepository},
+            adapters::{
+                BroadcastHouseholdEvents, DefaultHouseholdAccessPolicy, InMemoryHouseholdRepository,
+            },
             application::RemoveHouseholdMemberCommand,
             domain::{HouseholdKind, HouseholdMember},
             ports::HouseholdRepository,
@@ -337,7 +353,10 @@ mod tests {
     async fn household_repository_failure_returns_internal() {
         let repository = Arc::new(FailingHouseholdRepository);
         let policy = Arc::new(DefaultHouseholdAccessPolicy::new(repository.clone()));
-        let service = RemoveHouseholdMemberService::new(repository, policy);
+        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+        let service =
+            RemoveHouseholdMemberService::new(repository, policy, household_events_publisher);
 
         let result = service
             .execute(RemoveHouseholdMemberCommand {
@@ -362,9 +381,12 @@ mod tests {
         let repository = Arc::new(MissingOnRemoveHouseholdRepository {
             inner: inner.clone(),
         });
+        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
 
         let policy = Arc::new(DefaultHouseholdAccessPolicy::new(repository.clone()));
-        let service = RemoveHouseholdMemberService::new(repository, policy);
+        let service =
+            RemoveHouseholdMemberService::new(repository, policy, household_events_publisher);
 
         let owner_id = UserId::new();
         let member_id = UserId::new();

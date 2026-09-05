@@ -21,7 +21,7 @@ use crate::{
 
 pub(super) fn build_households_state(
     pool: &PgPool,
-    _household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     household_events_subscriber: Arc<dyn HouseholdEventSubscriber>,
 ) -> HouseholdsState {
     let household_repository: Arc<PostgresHouseholdRepository> =
@@ -47,6 +47,7 @@ pub(super) fn build_households_state(
     let add_household_member_service = Arc::new(AddHouseholdMemberService::new(
         household_repository.clone(),
         user_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     let list_household_members_service = Arc::new(ListHouseholdMembersService::new(
@@ -58,9 +59,13 @@ pub(super) fn build_households_state(
     let remove_household_member_service = Arc::new(RemoveHouseholdMemberService::new(
         household_repository.clone(),
         household_access_policy.clone(),
+        household_events_publisher.clone(),
     ));
 
-    let rename_household_service = Arc::new(RenameHouseholdService::new(household_repository));
+    let rename_household_service = Arc::new(RenameHouseholdService::new(
+        household_repository,
+        household_events_publisher.clone(),
+    ));
 
     let subscribe_household_event_service = Arc::new(SubscribeHouseholdEventsService::new(
         household_access_policy.clone(),
