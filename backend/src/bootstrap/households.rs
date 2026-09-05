@@ -8,9 +8,9 @@ use crate::{
         households::{
             adapters::{DefaultHouseholdAccessPolicy, PostgresHouseholdRepository},
             application::{
-                AddHouseholdMemberService, CreateHouseholdService, GetHouseholdService,
-                ListHouseholdMembersService, ListHouseholdsForUserService,
-                RemoveHouseholdMemberService, RenameHouseholdService,
+                AddHouseholdMemberService, CreateHouseholdService, DeleteHouseholdService,
+                GetHouseholdService, LeaveHouseholdService, ListHouseholdMembersService,
+                ListHouseholdsForUserService, RemoveHouseholdMemberService, RenameHouseholdService,
                 SubscribeHouseholdEventsService,
             },
             ports::{HouseholdEventPublisher, HouseholdEventSubscriber},
@@ -63,7 +63,19 @@ pub(super) fn build_households_state(
     ));
 
     let rename_household_service = Arc::new(RenameHouseholdService::new(
-        household_repository,
+        household_repository.clone(),
+        household_events_publisher.clone(),
+    ));
+
+    let leave_household_service = Arc::new(LeaveHouseholdService::new(
+        household_repository.clone(),
+        household_access_policy.clone(),
+        household_events_publisher.clone(),
+    ));
+
+    let delete_household_service = Arc::new(DeleteHouseholdService::new(
+        household_repository.clone(),
+        household_access_policy.clone(),
         household_events_publisher.clone(),
     ));
 
@@ -80,6 +92,8 @@ pub(super) fn build_households_state(
         list_household_members: list_household_members_service,
         remove_household_member: remove_household_member_service,
         rename_household: rename_household_service,
+        leave_household: leave_household_service,
+        delete_household: delete_household_service,
 
         subscribe_household_events: subscribe_household_event_service,
     }

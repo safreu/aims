@@ -51,6 +51,8 @@ pub trait HouseholdRepository: Send + Sync {
     ) -> Result<(), HouseholdRepositoryError>;
 
     async fn update(&self, household: &Household) -> Result<(), HouseholdRepositoryError>;
+
+    async fn delete(&self, household_id: &HouseholdId) -> Result<(), HouseholdRepositoryError>;
 }
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]

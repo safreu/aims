@@ -14,9 +14,9 @@ use crate::{
                 HouseholdMemberResponse, HouseholdResponse, RenameHouseholdRequest,
             },
             application::{
-                AddHouseholdMemberCommand, CreateHouseholdCommand, GetHouseholdCommand,
-                ListHouseholdMembersCommand, ListHouseholdsForUserCommand,
-                RemoveHouseholdMemberCommand, RenameHouseholdCommand,
+                AddHouseholdMemberCommand, CreateHouseholdCommand, DeleteHouseholdCommand,
+                GetHouseholdCommand, LeaveHouseholdCommand, ListHouseholdMembersCommand,
+                ListHouseholdsForUserCommand, RemoveHouseholdMemberCommand, RenameHouseholdCommand,
             },
             domain::{HouseholdId, HouseholdKind},
         },
@@ -191,6 +191,46 @@ pub async fn rename_household(
     state
         .households
         .rename_household
+        .execute(command)
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn leave_household(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Path(household_id): Path<Uuid>,
+) -> Result<StatusCode, ApiError> {
+    let command = LeaveHouseholdCommand {
+        requester_id: current_user.user_id(),
+        household_id: HouseholdId::from_uuid(household_id),
+    };
+
+    state
+        .households
+        .leave_household
+        .execute(command)
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn delete_household(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Path(household_id): Path<Uuid>,
+) -> Result<StatusCode, ApiError> {
+    let command = DeleteHouseholdCommand {
+        requester_id: current_user.user_id(),
+        household_id: HouseholdId::from_uuid(household_id),
+    };
+
+    state
+        .households
+        .delete_household
         .execute(command)
         .await
         .map_err(ApiError::from)?;

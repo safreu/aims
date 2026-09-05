@@ -281,6 +281,25 @@ impl HouseholdRepository for PostgresHouseholdRepository {
 
         Ok(())
     }
+
+    async fn delete(&self, household_id: &HouseholdId) -> Result<(), HouseholdRepositoryError> {
+        let result = sqlx::query!(
+            r#"
+            DELETE FROM households
+            WHERE id = $1
+            "#,
+            household_id.as_uuid()
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(map_sqlx_error)?;
+
+        if result.rows_affected() == 0 {
+            return Err(HouseholdRepositoryError::HouseholdNotFound);
+        }
+
+        Ok(())
+    }
 }
 
 const HOUSEHOLDS_PERSONAL_OWNER_UNIQUE_INDEX: &str = "households_personal_owner_unique_idx";
