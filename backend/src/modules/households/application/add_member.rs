@@ -5,8 +5,8 @@ use chrono::Utc;
 use crate::{
     modules::{
         accounts::{
-            domain::{Email, UserId},
-            ports::UserRepository,
+            domain::{Email, UserEvent, UserId},
+            ports::{UserEventPublisher, UserRepository},
         },
         households::{
             domain::{HouseholdEvent, HouseholdId, HouseholdKind, HouseholdMember, HouseholdRole},
@@ -26,6 +26,7 @@ pub struct AddHouseholdMemberService {
     household_repository: Arc<dyn HouseholdRepository>,
     user_repository: Arc<dyn UserRepository>,
     household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+    user_events_publisher: Arc<dyn UserEventPublisher>,
 }
 
 impl AddHouseholdMemberService {
@@ -33,11 +34,13 @@ impl AddHouseholdMemberService {
         household_repository: Arc<dyn HouseholdRepository>,
         user_repository: Arc<dyn UserRepository>,
         household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+        user_events_publisher: Arc<dyn UserEventPublisher>,
     ) -> Self {
         Self {
             household_repository,
             user_repository,
             household_events_publisher,
+            user_events_publisher,
         }
     }
 
@@ -152,6 +155,17 @@ impl AddHouseholdMemberService {
                 AddHouseholdMemberError::Internal(InternalError::Failed)
             })?;
 
+        self.user_events_publisher
+            .publish(user.id(), UserEvent::HouseholdMembershipChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    "Failed to publish user membership changed event"
+                );
+                AddHouseholdMemberError::Internal(InternalError::Failed)
+            })?;
+
         Ok(())
     }
 }
@@ -178,7 +192,7 @@ pub enum AddHouseholdMemberError {
 mod tests {
     use crate::{
         modules::{
-            accounts::adapters::InMemoryUserRepository,
+            accounts::adapters::{BroadcastUserEvents, InMemoryUserRepository},
             households::adapters::{BroadcastHouseholdEvents, InMemoryHouseholdRepository},
         },
         test_helpers::{
@@ -515,11 +529,14 @@ mod tests {
         let user_repository = Arc::new(InMemoryUserRepository::new());
         let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
         let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+        let user_events = Arc::new(BroadcastUserEvents::new(64));
+        let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
         let service = AddHouseholdMemberService::new(
             household_repository,
             user_repository,
             household_events_publisher,
+            user_events_publisher,
         );
 
         let command = AddHouseholdMemberCommand {
@@ -542,11 +559,14 @@ mod tests {
         let user_repository = Arc::new(FailingUserRepository);
         let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
         let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+        let user_events = Arc::new(BroadcastUserEvents::new(64));
+        let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
         let service = AddHouseholdMemberService::new(
             household_repository.clone(),
             user_repository,
             household_events_publisher,
+            user_events_publisher,
         );
 
         let owner_id = UserId::new();
@@ -583,12 +603,16 @@ mod tests {
         let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
         let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
 
+        let user_events = Arc::new(BroadcastUserEvents::new(64));
+        let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
+
         let user_repository = Arc::new(InMemoryUserRepository::new());
 
         let service = AddHouseholdMemberService::new(
             household_repository.clone(),
             user_repository.clone(),
             household_events_publisher,
+            user_events_publisher,
         );
 
         let owner = create_user("owner@email.com");

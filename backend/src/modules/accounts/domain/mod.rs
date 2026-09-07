@@ -24,3 +24,6 @@ pub use session::{Session, SessionError};
 
 mod display_name;
 pub use display_name::{DisplayName, DisplayNameError};
+
+mod user_event;
+pub use user_event::UserEvent;

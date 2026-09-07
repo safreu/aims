@@ -4,7 +4,7 @@ use sqlx::PgPool;
 
 use crate::{
     modules::{
-        accounts::adapters::PostgresUserRepository,
+        accounts::{adapters::PostgresUserRepository, ports::UserEventPublisher},
         households::{
             adapters::{DefaultHouseholdAccessPolicy, PostgresHouseholdRepository},
             application::{
@@ -23,6 +23,7 @@ pub(super) fn build_households_state(
     pool: &PgPool,
     household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     household_events_subscriber: Arc<dyn HouseholdEventSubscriber>,
+    user_events_publisher: Arc<dyn UserEventPublisher>,
 ) -> HouseholdsState {
     let household_repository: Arc<PostgresHouseholdRepository> =
         Arc::new(PostgresHouseholdRepository::new(pool.clone()));
@@ -48,6 +49,7 @@ pub(super) fn build_households_state(
         household_repository.clone(),
         user_repository.clone(),
         household_events_publisher.clone(),
+        user_events_publisher.clone(),
     ));
 
     let list_household_members_service = Arc::new(ListHouseholdMembersService::new(

@@ -8,8 +8,9 @@ use crate::{
         adapters::{Argon2PasswordHasher, PostgresSessionRepository, PostgresUserRepository},
         application::{
             AuthenticateSessionService, CreateSessionService, GetUserService, LoginUserService,
-            LogoutUserService, RegisterUserService,
+            LogoutUserService, RegisterUserService, SubscribeUserEventsService,
         },
+        ports::{UserEventPublisher, UserEventSubscriber},
     },
     shared::{
         api::AccountsState,
@@ -17,7 +18,12 @@ use crate::{
     },
 };
 
-pub(super) fn build_accounts_state(pool: &PgPool, config: &SessionConfig) -> AccountsState {
+pub(super) fn build_accounts_state(
+    pool: &PgPool,
+    config: &SessionConfig,
+    _user_events_publisher: Arc<dyn UserEventPublisher>,
+    user_events_subscriber: Arc<dyn UserEventSubscriber>,
+) -> AccountsState {
     let user_repository = Arc::new(PostgresUserRepository::new(pool.clone()));
 
     let session_repository = Arc::new(PostgresSessionRepository::new(pool.clone()));
@@ -59,6 +65,9 @@ pub(super) fn build_accounts_state(pool: &PgPool, config: &SessionConfig) -> Acc
 
     let get_user_service = Arc::new(GetUserService::new(user_repository.clone()));
 
+    let subscribe_user_events_service =
+        Arc::new(SubscribeUserEventsService::new(user_events_subscriber));
+
     AccountsState {
         register_user: register_user_service,
         login_user: login_user_service,
@@ -70,5 +79,7 @@ pub(super) fn build_accounts_state(pool: &PgPool, config: &SessionConfig) -> Acc
             secure: config.cookie_secure,
         },
         get_user: get_user_service,
+
+        subscribe_user_events: subscribe_user_events_service,
     }
 }
