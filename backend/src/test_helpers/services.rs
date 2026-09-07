@@ -184,11 +184,14 @@ pub fn build_remove_household_member_service() -> (
     let user_repository = Arc::new(InMemoryUserRepository::new());
     let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
     let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+    let user_events = Arc::new(BroadcastUserEvents::new(64));
+    let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
     let service = RemoveHouseholdMemberService::new(
         household_repository.clone(),
         policy,
         household_events_publisher,
+        user_events_publisher,
     );
 
     (service, household_repository, user_repository)

@@ -62,6 +62,7 @@ pub(super) fn build_households_state(
         household_repository.clone(),
         household_access_policy.clone(),
         household_events_publisher.clone(),
+        user_events_publisher.clone(),
     ));
 
     let rename_household_service = Arc::new(RenameHouseholdService::new(

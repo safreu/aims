@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use crate::{
     modules::{
-        accounts::domain::UserId,
+        accounts::{
+            domain::{UserEvent, UserId},
+            ports::UserEventPublisher,
+        },
         households::{
             domain::{HouseholdEvent, HouseholdId, HouseholdRole},
             ports::{
@@ -24,6 +27,7 @@ pub struct RemoveHouseholdMemberService {
     household_repository: Arc<dyn HouseholdRepository>,
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+    user_events_publisher: Arc<dyn UserEventPublisher>,
 }
 
 impl RemoveHouseholdMemberService {
@@ -31,11 +35,13 @@ impl RemoveHouseholdMemberService {
         household_repository: Arc<dyn HouseholdRepository>,
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+        user_events_publisher: Arc<dyn UserEventPublisher>,
     ) -> Self {
         Self {
             household_repository,
             household_access_policy,
             household_events_publisher,
+            user_events_publisher,
         }
     }
 
@@ -103,6 +109,18 @@ impl RemoveHouseholdMemberService {
                 RemoveHouseholdMemberError::Internal(InternalError::Failed)
             })?;
 
+        self.user_events_publisher
+            .publish(command.member_id, UserEvent::HouseholdMembershipChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    member_id = %command.member_id,
+                    "Failed to publish user membership changed event"
+                );
+                RemoveHouseholdMemberError::Internal(InternalError::Failed)
+            })?;
+
         Ok(())
     }
 }
@@ -126,13 +144,17 @@ mod tests {
 
     use super::*;
     use crate::{
-        modules::households::{
-            adapters::{
-                BroadcastHouseholdEvents, DefaultHouseholdAccessPolicy, InMemoryHouseholdRepository,
+        modules::{
+            accounts::adapters::BroadcastUserEvents,
+            households::{
+                adapters::{
+                    BroadcastHouseholdEvents, DefaultHouseholdAccessPolicy,
+                    InMemoryHouseholdRepository,
+                },
+                application::RemoveHouseholdMemberCommand,
+                domain::{HouseholdKind, HouseholdMember},
+                ports::HouseholdRepository,
             },
-            application::RemoveHouseholdMemberCommand,
-            domain::{HouseholdKind, HouseholdMember},
-            ports::HouseholdRepository,
         },
         test_helpers::{
             FailingHouseholdRepository, MissingOnRemoveHouseholdRepository,
@@ -355,8 +377,14 @@ mod tests {
         let policy = Arc::new(DefaultHouseholdAccessPolicy::new(repository.clone()));
         let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
         let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
-        let service =
-            RemoveHouseholdMemberService::new(repository, policy, household_events_publisher);
+        let user_events = Arc::new(BroadcastUserEvents::new(64));
+        let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
+        let service = RemoveHouseholdMemberService::new(
+            repository,
+            policy,
+            household_events_publisher,
+            user_events_publisher,
+        );
 
         let result = service
             .execute(RemoveHouseholdMemberCommand {
@@ -383,10 +411,16 @@ mod tests {
         });
         let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
         let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+        let user_events = Arc::new(BroadcastUserEvents::new(64));
+        let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
         let policy = Arc::new(DefaultHouseholdAccessPolicy::new(repository.clone()));
-        let service =
-            RemoveHouseholdMemberService::new(repository, policy, household_events_publisher);
+        let service = RemoveHouseholdMemberService::new(
+            repository,
+            policy,
+            household_events_publisher,
+            user_events_publisher,
+        );
 
         let owner_id = UserId::new();
         let member_id = UserId::new();
