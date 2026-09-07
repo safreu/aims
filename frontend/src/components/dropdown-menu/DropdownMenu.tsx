@@ -65,3 +65,27 @@ export function DropdownMenuItem({
 export function DropDownMenuSeparator() {
   return <RadixDropdownMenu.Separator className="dropdown-menu__separator" />;
 }
+
+type DropdownMenuCheckboxItemProps = {
+  children: ReactNode;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+};
+
+export function DropdownMenuCheckboxItem({
+  children,
+  checked,
+  onCheckedChange,
+}: DropdownMenuCheckboxItemProps) {
+  return (
+    <RadixDropdownMenu.CheckboxItem
+      className="dropdown-menu__item"
+      checked={checked}
+      onCheckedChange={(checked) => {
+        if (typeof checked === "boolean") onCheckedChange(checked);
+      }}
+    >
+      {children}
+    </RadixDropdownMenu.CheckboxItem>
+  );
+}

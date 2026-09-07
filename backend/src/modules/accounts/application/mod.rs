@@ -18,3 +18,8 @@ pub use authenticate_session::{
 
 mod get_user;
 pub use get_user::{GetUserCommand, GetUserError, GetUserService};
+
+mod subscribe_user_events;
+pub use subscribe_user_events::{
+    SubscribeUserEventsCommand, SubscribeUserEventsError, SubscribeUserEventsService,
+};

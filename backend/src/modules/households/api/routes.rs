@@ -9,8 +9,9 @@ use crate::{
         households::api::{
             event_handlers::subscribe_household_events,
             handlers::{
-                add_household_member, create_household, get_household, list_household_members,
-                list_households, remove_household_member, rename_household,
+                add_household_member, create_household, delete_household, get_household,
+                leave_household, list_household_members, list_households, remove_household_member,
+                rename_household,
             },
         },
         scanning::api::scanning_management_routes,
@@ -24,8 +25,11 @@ pub fn households_router() -> Router<AppState> {
         .route("/", post(create_household).get(list_households))
         .route(
             "/{household_id}",
-            get(get_household).patch(rename_household),
+            get(get_household)
+                .patch(rename_household)
+                .delete(delete_household),
         )
+        .route("/{household_id}/leave", post(leave_household))
         .route(
             "/{household_id}/members",
             post(add_household_member).get(list_household_members),

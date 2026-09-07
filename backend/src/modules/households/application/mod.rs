@@ -29,3 +29,9 @@ mod subscribe_household_events;
 pub use subscribe_household_events::{
     SubscribeHouseholdEventsCommand, SubscribeHouseholdEventsError, SubscribeHouseholdEventsService,
 };
+
+mod leave_household;
+pub use leave_household::{LeaveHouseholdCommand, LeaveHouseholdError, LeaveHouseholdService};
+
+mod delete_household;
+pub use delete_household::{DeleteHouseholdCommand, DeleteHouseholdError, DeleteHouseholdService};

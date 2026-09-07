@@ -52,6 +52,9 @@ pub async fn subscribe_household_events(
                     HouseholdEvent::InventoryItemsChanged => {
                         Event::default().event("inventory_items_changed").data("{}")
                     }
+                    HouseholdEvent::HouseholdChanged => {
+                        Event::default().event("household_changed").data("{}")
+                    }
                 };
                 Some((Ok::<_, Infallible>(event), receiver))
             }

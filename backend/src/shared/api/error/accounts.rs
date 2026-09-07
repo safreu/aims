@@ -1,6 +1,7 @@
 use crate::{
     modules::accounts::application::{
         AuthenticateSessionError, GetUserError, LoginUserError, LogoutUserError, RegisterUserError,
+        SubscribeUserEventsError,
     },
     shared::{api::error::ApiError, application::InternalError},
 };
@@ -67,6 +68,14 @@ impl From<LogoutUserError> for ApiError {
 impl From<InternalError> for ApiError {
     fn from(_error: InternalError) -> Self {
         Self::internal_error()
+    }
+}
+
+impl From<SubscribeUserEventsError> for ApiError {
+    fn from(error: SubscribeUserEventsError) -> Self {
+        match error {
+            SubscribeUserEventsError::Internal(_) => ApiError::internal_error(),
+        }
     }
 }
 

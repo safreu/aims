@@ -5,11 +5,15 @@ use chrono::Duration;
 use crate::{
     modules::{
         accounts::{
-            adapters::{Argon2PasswordHasher, InMemorySessionRepository, InMemoryUserRepository},
+            adapters::{
+                Argon2PasswordHasher, BroadcastUserEvents, InMemorySessionRepository,
+                InMemoryUserRepository,
+            },
             application::{
                 AuthenticateSessionService, CreateSessionService, LoginUserService,
                 RegisterUserService,
             },
+            ports::UserEventPublisher,
         },
         households::{
             adapters::{
@@ -133,9 +137,17 @@ pub fn build_add_member_service() -> (
 ) {
     let household_repository = Arc::new(InMemoryHouseholdRepository::new());
     let user_repository = Arc::new(InMemoryUserRepository::new());
+    let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+    let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+    let user_events = Arc::new(BroadcastUserEvents::new(64));
+    let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
-    let service =
-        AddHouseholdMemberService::new(household_repository.clone(), user_repository.clone());
+    let service = AddHouseholdMemberService::new(
+        household_repository.clone(),
+        user_repository.clone(),
+        household_events_publisher,
+        user_events_publisher,
+    );
 
     (service, household_repository, user_repository)
 }
@@ -170,8 +182,17 @@ pub fn build_remove_household_member_service() -> (
         household_repository.clone(),
     ));
     let user_repository = Arc::new(InMemoryUserRepository::new());
+    let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+    let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+    let user_events = Arc::new(BroadcastUserEvents::new(64));
+    let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
-    let service = RemoveHouseholdMemberService::new(household_repository.clone(), policy);
+    let service = RemoveHouseholdMemberService::new(
+        household_repository.clone(),
+        policy,
+        household_events_publisher,
+        user_events_publisher,
+    );
 
     (service, household_repository, user_repository)
 }
@@ -179,8 +200,10 @@ pub fn build_remove_household_member_service() -> (
 pub fn build_rename_household_service() -> (RenameHouseholdService, Arc<InMemoryHouseholdRepository>)
 {
     let repository = Arc::new(InMemoryHouseholdRepository::new());
+    let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+    let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
 
-    let service = RenameHouseholdService::new(repository.clone());
+    let service = RenameHouseholdService::new(repository.clone(), household_events_publisher);
 
     (service, repository)
 }

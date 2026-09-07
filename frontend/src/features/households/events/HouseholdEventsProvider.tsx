@@ -4,6 +4,7 @@ import {
   type HouseholdEventType,
 } from "./HouseholdEventsContext";
 import { createHouseholdEventSource } from "../events";
+import { HouseholdAccessWatcher } from "./HouseholdAccessWatcher";
 
 type Props = {
   householdId: string;
@@ -44,6 +45,7 @@ export function HouseholdEventsProvider({ householdId, children }: Props) {
       "shopping_list_changed",
       "inventory_items_changed",
       "inventory_categories_changed",
+      "household_changed",
       "household_resync_required",
     ];
 
@@ -58,6 +60,7 @@ export function HouseholdEventsProvider({ householdId, children }: Props) {
 
   return (
     <HouseholdEventsContext.Provider value={value}>
+      <HouseholdAccessWatcher householdId={householdId} />
       {children}
     </HouseholdEventsContext.Provider>
   );

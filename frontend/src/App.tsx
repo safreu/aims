@@ -8,6 +8,8 @@ import { RequireAuth } from "./features/auth/guards/RequireAuth";
 import { RequireGuest } from "./features/auth/guards/RequireGuest";
 import { HouseholdsPage } from "./pages/households/HouseholdsPage";
 import { HouseholdLayout } from "./features/households/layouts/HouseholdLayout";
+import { HouseholdSettingsPage } from "./pages/households/HouseholdSettingsPage";
+import { UserEventsLayout } from "./features/households/events/UserEventsLayout";
 
 function App() {
   return (
@@ -19,12 +21,18 @@ function App() {
         </Route>
 
         <Route element={<RequireAuth />}>
-          <Route path="/households" element={<HouseholdsPage />} />
+          <Route element={<UserEventsLayout />}>
+            <Route path="/households" element={<HouseholdsPage />} />
 
-          <Route path="/households/:householdId" element={<HouseholdLayout />}>
-            <Route index element={<Navigate to="inventory" replace />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="shopping" element={<ShoppingPage />} />
+            <Route
+              path="/households/:householdId"
+              element={<HouseholdLayout />}
+            >
+              <Route index element={<Navigate to="inventory" replace />} />
+              <Route path="inventory" element={<InventoryPage />} />
+              <Route path="shopping" element={<ShoppingPage />} />
+              <Route path="settings" element={<HouseholdSettingsPage />} />
+            </Route>
           </Route>
         </Route>
       </Routes>

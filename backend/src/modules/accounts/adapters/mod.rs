@@ -12,3 +12,9 @@ pub use in_memory_session_repository::InMemorySessionRepository;
 
 mod postgres_session_repository;
 pub use postgres_session_repository::PostgresSessionRepository;
+
+mod broadcast_user_event_receiver;
+pub use broadcast_user_event_receiver::BroadcastUserEventReceiver;
+
+mod broadcast_user_events;
+pub use broadcast_user_events::BroadcastUserEvents;

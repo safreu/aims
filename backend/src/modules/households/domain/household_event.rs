@@ -3,4 +3,5 @@ pub enum HouseholdEvent {
     ShoppingListChanged,
     InventoryCategoriesChanged,
     InventoryItemsChanged,
+    HouseholdChanged,
 }
