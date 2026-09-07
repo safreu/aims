@@ -4,6 +4,7 @@ import { useToast } from "../../../../components/toast/ToastContext";
 import { useHouseholdEvents } from "../../../households/events/HouseholdEventsContext";
 import type { InventoryItemCategory } from "../../types";
 import { getInventoryCategories } from "../../api";
+import { isHouseholdAccessError } from "../../../households/errors";
 
 type Props = {
   householdId: string;
@@ -19,7 +20,10 @@ export function CategoryProvider({ householdId, children }: Props) {
   const refreshCategories = useCallback(async () => {
     await getInventoryCategories(householdId)
       .then((categories) => setCategories(categories))
-      .catch(() => showToast("Failed to fetch categories", "error"));
+      .catch((error) => {
+        if (isHouseholdAccessError(error)) return;
+        showToast("Failed to fetch categories", "error");
+      });
   }, [householdId, showToast]);
 
   useEffect(() => {

@@ -62,3 +62,15 @@ export async function removeHouseholdMember(
     method: "DELETE",
   });
 }
+
+export async function leaveHousehold(householdId: string): Promise<void> {
+  await apiRequest(`/households/${householdId}/leave`, {
+    method: "POST",
+  });
+}
+
+export async function deleteHousehold(householdId: string): Promise<void> {
+  await apiRequest(`/households/${householdId}`, {
+    method: "DELETE",
+  });
+}
