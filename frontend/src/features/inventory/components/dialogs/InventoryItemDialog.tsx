@@ -14,6 +14,7 @@ import { InventoryItemFields } from "../fields/InventoryItemFields";
 import { useToast } from "../../../../components/toast/ToastContext";
 import { useDangerMode } from "../../../households/danger-mode/DangerModeContext";
 import { useTrackingMode } from "../../../accounts/components/tracking-mode/TrackingModeContext";
+import { InventoryItemQrDialog } from "../../../scanning/components/InventoryItemQrDialog";
 
 type InventoryItemDialogProps = {
   householdId: string;
@@ -43,8 +44,11 @@ export function InventoryItemDialog({
   const [reorderThreshold, setReorderThreshold] = useState<number | "">(0);
   const [priority, setPriority] = useState<InventoryItemPriority>("default");
   const [newStock, setNewStock] = useState("");
+
   const [showHistory, setShowHistory] = useState(false);
   const [historyVersion, setHistoryVersion] = useState(0);
+
+  const [showQrCodes, setShowQrCodes] = useState(false);
 
   const [isMutating, setIsMutating] = useState(false);
 
@@ -285,6 +289,23 @@ export function InventoryItemDialog({
 
             <section className="inventory-item-dialog__section">
               <div className="inventory-item-dialog__section-header">
+                <div>
+                  <h3>QR codes</h3>
+                  <p>View or share the QR codes for this item</p>
+                </div>
+
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => setShowQrCodes(true)}
+                >
+                  Show QR codes
+                </button>
+              </div>
+            </section>
+
+            <section className="inventory-item-dialog__section">
+              <div className="inventory-item-dialog__section-header">
                 <h3>History</h3>
                 <p>Recent changes to this item's stock</p>
               </div>
@@ -324,6 +345,15 @@ export function InventoryItemDialog({
             </section>
           </>
         ) : null}
+
+        {showQrCodes && (
+          <InventoryItemQrDialog
+            householdId={householdId}
+            itemId={itemId}
+            itemName={item?.name ?? ""}
+            onClose={() => setShowQrCodes(false)}
+          />
+        )}
       </div>
     </dialog>
   );
