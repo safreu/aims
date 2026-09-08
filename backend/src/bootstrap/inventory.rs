@@ -22,6 +22,7 @@ use crate::{
                 SetInventoryStockService, UpdateCategoryService, UpdateInventoryItemService,
             },
         },
+        scanning::adapters::PostgresQrActionRepository,
     },
     shared::api::InventoryItemState,
 };
@@ -38,12 +39,14 @@ pub(super) fn build_inventory_item_state(
     let inventory_stock_repository = Arc::new(PostgresInventoryStockRepository::new(pool.clone()));
     let inventory_stock_history_query =
         Arc::new(PostgresInventoryStockHistoryQuery::new(pool.clone()));
+    let qr_action_repository = Arc::new(PostgresQrActionRepository::new(pool.clone()));
 
     let create_inventory_item_service = Arc::new(CreateInventoryItemService::new(
         household_access_policy.clone(),
         category_repository.clone(),
         inventory_item_repository.clone(),
         household_events_publisher.clone(),
+        qr_action_repository,
     ));
 
     let create_category_service = Arc::new(CreateCategoryService::new(

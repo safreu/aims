@@ -34,6 +34,7 @@ use crate::{
                 UpdateInventoryItemService,
             },
         },
+        scanning::adapters::InMemoryQrActionRepository,
     },
     shared::auth::Sha256TokenHasher,
     test_helpers::FixedSessionTokenGenerator,
@@ -223,12 +224,14 @@ pub fn build_create_inventory_item_service() -> (
 
     let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
     let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+    let qr_actions_repository = Arc::new(InMemoryQrActionRepository::new());
 
     let service = CreateInventoryItemService::new(
         household_access_policy,
         category_repository.clone(),
         inventory_item_repository.clone(),
         household_events_publisher.clone(),
+        qr_actions_repository,
     );
 
     (

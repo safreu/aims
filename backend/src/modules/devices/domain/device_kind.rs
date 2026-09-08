@@ -5,6 +5,7 @@ use std::str::FromStr;
 pub enum DeviceKind {
     Scanner,
     Display,
+    Smartphone,
     Other,
 }
 
@@ -17,6 +18,7 @@ impl DeviceKind {
         match self {
             Self::Scanner => "scanner",
             Self::Display => "display",
+            Self::Smartphone => "smartphone",
             Self::Other => "other",
         }
     }
@@ -35,6 +37,7 @@ impl FromStr for DeviceKind {
         match s {
             "scanner" => Ok(Self::Scanner),
             "display" => Ok(Self::Display),
+            "smartphone" => Ok(Self::Smartphone),
             "other" => Ok(Self::Other),
             _ => Err(DeviceKindError::Invalid),
         }
