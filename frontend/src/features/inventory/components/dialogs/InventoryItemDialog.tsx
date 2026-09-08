@@ -13,6 +13,7 @@ import "./InventoryItemDialog.css";
 import { InventoryItemFields } from "../fields/InventoryItemFields";
 import { useToast } from "../../../../components/toast/ToastContext";
 import { useDangerMode } from "../../../households/danger-mode/DangerModeContext";
+import { useTrackingMode } from "../../../accounts/components/tracking-mode/TrackingModeContext";
 
 type InventoryItemDialogProps = {
   householdId: string;
@@ -31,6 +32,7 @@ export function InventoryItemDialog({
 
   const { showToast } = useToast();
   const { dangerMode } = useDangerMode();
+  const { trackingMode } = useTrackingMode();
 
   const [item, setItem] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,6 +47,8 @@ export function InventoryItemDialog({
   const [historyVersion, setHistoryVersion] = useState(0);
 
   const [isMutating, setIsMutating] = useState(false);
+
+  const showStockControls = dangerMode || trackingMode === "manual";
 
   async function refreshItem() {
     const refreshedItem = await getInventoryItem(householdId, itemId);
@@ -226,7 +230,7 @@ export function InventoryItemDialog({
               </button>
             </form>
 
-            {dangerMode && (
+            {showStockControls && (
               <section className="inventory-item-dialog__section">
                 <h3>Stock</h3>
 

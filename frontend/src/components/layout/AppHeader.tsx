@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./AppHeader.css";
 import { HouseholdSwitcher } from "../../features/households/components/HouseholdSwitcher";
 import {
@@ -16,6 +16,7 @@ type AppHeaderProps = {
 
 export function AppHeader({ householdId }: AppHeaderProps) {
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
   function handleLogout() {
     void logout();
@@ -41,8 +42,19 @@ export function AppHeader({ householdId }: AppHeaderProps) {
               </button>
             }
           >
-            <DangerModeMenuItem />
+            <DropdownMenuItem onSelect={() => navigate("/account")}>
+              <User />
+              <span>Account settings</span>
+            </DropdownMenuItem>
+
             <DropDownMenuSeparator />
+
+            {householdId !== undefined && (
+              <>
+                <DangerModeMenuItem />
+                <DropDownMenuSeparator />
+              </>
+            )}
 
             <DropdownMenuItem onSelect={handleLogout}>
               <LogOut />

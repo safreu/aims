@@ -10,6 +10,8 @@ import { HouseholdsPage } from "./pages/households/HouseholdsPage";
 import { HouseholdLayout } from "./features/households/layouts/HouseholdLayout";
 import { HouseholdSettingsPage } from "./pages/households/HouseholdSettingsPage";
 import { UserEventsLayout } from "./features/households/events/UserEventsLayout";
+import { AccountsPage } from "./pages/accounts/AccountsPage";
+import { SettingsProviderLayout } from "./features/accounts/components/layout/SettingsProviderLayout";
 
 function App() {
   return (
@@ -21,17 +23,20 @@ function App() {
         </Route>
 
         <Route element={<RequireAuth />}>
-          <Route element={<UserEventsLayout />}>
-            <Route path="/households" element={<HouseholdsPage />} />
+          <Route element={<SettingsProviderLayout />}>
+            <Route element={<UserEventsLayout />}>
+              <Route path="/households" element={<HouseholdsPage />} />
+              <Route path="/account" element={<AccountsPage />} />
 
-            <Route
-              path="/households/:householdId"
-              element={<HouseholdLayout />}
-            >
-              <Route index element={<Navigate to="inventory" replace />} />
-              <Route path="inventory" element={<InventoryPage />} />
-              <Route path="shopping" element={<ShoppingPage />} />
-              <Route path="settings" element={<HouseholdSettingsPage />} />
+              <Route
+                path="/households/:householdId"
+                element={<HouseholdLayout />}
+              >
+                <Route index element={<Navigate to="inventory" replace />} />
+                <Route path="inventory" element={<InventoryPage />} />
+                <Route path="shopping" element={<ShoppingPage />} />
+                <Route path="settings" element={<HouseholdSettingsPage />} />
+              </Route>
             </Route>
           </Route>
         </Route>
