@@ -92,10 +92,6 @@ export function InventoryPage() {
     };
   }, [subscribe, refreshInventory]);
 
-  if (isItemsError || isArchivedItemsError) {
-    return <p>Failed to load inventory</p>;
-  }
-
   const activeFilterCount =
     Number(categoryFilter !== "all") + Number(priorityFilter !== "all");
 
