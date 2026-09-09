@@ -54,6 +54,11 @@
   gap: var(--space-sm);
 }
 
+.inventory-item-row--skeleton {
+  cursor: default;
+  pointer-events: none;
+}
+
 @media (max-width: 600px) {
   .inventory-page__header {
     flex-direction: column;

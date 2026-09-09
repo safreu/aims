@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import type { Device, DeviceKind } from "../types";
 import {
   getLocalDeviceCredentials,
@@ -19,6 +19,9 @@ import { ConfirmDialog } from "../../../components/dialogs/ConfirmDialog";
 import { RenameDeviceDialog } from "./Dialogs/RenameDeviceDialog";
 import { RegisterOtherDeviceDialog } from "./Dialogs/RegisterOtherDeviceDialog";
 import { ProvisioningDeviceDialog } from "./Dialogs/ProvisioningDeviceDialog";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Skeleton from "react-loading-skeleton";
+import { queryKeys } from "../../../api/queryKeys";
 
 type Props = {
   householdId: string;
@@ -36,8 +39,6 @@ export function DeviceList({ householdId }: Props) {
   const [showRegisterOtherDeviceDialog, setShowRegisterOtherDeviceDialog] =
     useState(false);
 
-  const [devices, setDevices] = useState<Device[]>([]);
-
   const [deviceToRevoke, setDeviceToRevoke] = useState<Device | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
 
@@ -51,7 +52,6 @@ export function DeviceList({ householdId }: Props) {
     null,
   );
 
-  const [loading, setLoading] = useState(true);
   const [isRegisteringOtherDevice, setIsRegisteringOtherDevice] =
     useState(false);
 
@@ -59,18 +59,20 @@ export function DeviceList({ householdId }: Props) {
 
   const localCredential = getLocalDeviceCredentials(householdId);
 
+  const {
+    data: devices = [],
+    isPending,
+    isError,
+  } = useQuery({
+    queryKey: queryKeys.devices(householdId),
+    queryFn: () => getDevices(householdId),
+  });
+
+  const queryClient = useQueryClient();
+
   const currentDevice = devices.find(
     (device) => device.id === localCredential?.deviceId,
   );
-
-  const refreshDevice = useCallback(async () => {
-    setLoading(true);
-
-    await getDevices(householdId)
-      .then((devices) => setDevices(devices))
-      .catch(() => showToast("Failed to fetch devices", "error"))
-      .finally(() => setLoading(false));
-  }, [householdId, showToast]);
 
   async function handleRevokeDevice() {
     if (deviceToRevoke === null) return;
@@ -82,7 +84,10 @@ export function DeviceList({ householdId }: Props) {
         if (deviceToRevoke.id === localCredential?.deviceId) {
           removeLocalDeviceCredential(householdId);
         }
-        return refreshDevice();
+
+        return queryClient.invalidateQueries({
+          queryKey: queryKeys.devices(householdId),
+        });
       })
       .then(() => {
         showToast("Device revoked", "success");
@@ -100,7 +105,11 @@ export function DeviceList({ householdId }: Props) {
     return renameDevice(householdId, deviceToRename.id, {
       name,
     })
-      .then(() => refreshDevice())
+      .then(() => {
+        return queryClient.invalidateQueries({
+          queryKey: queryKeys.devices(householdId),
+        });
+      })
       .then(() => {
         showToast("Device renamed", "success");
         setDeviceToRename(null);
@@ -123,7 +132,9 @@ export function DeviceList({ householdId }: Props) {
       )
       .then((provisioningData) => {
         setProvisioningDevice(provisioningData);
-        return refreshDevice();
+        return queryClient.invalidateQueries({
+          queryKey: queryKeys.devices(householdId),
+        });
       })
       .then(() => {
         setShowRegisterOtherDeviceDialog(false);
@@ -149,17 +160,6 @@ export function DeviceList({ householdId }: Props) {
       .finally(() => setIsRotatingCredential(false));
   }
 
-  useEffect(() => {
-    void getDevices(householdId)
-      .then((devices) => setDevices(devices))
-      .catch(() => showToast("Failed to fetch devices", "error"))
-      .finally(() => setLoading(false));
-  }, [householdId, showToast]);
-
-  if (loading) {
-    return <p>Loading devices...</p>;
-  }
-
   return (
     <div className="device-list">
       <button
@@ -170,7 +170,11 @@ export function DeviceList({ householdId }: Props) {
         Register another device
       </button>
 
-      {devices.length === 0 ? (
+      {isPending ? (
+        <DeviceRowsSkeleton />
+      ) : isError ? (
+        <p className="device-list__empty">Failed to load devices</p>
+      ) : devices.length === 0 ? (
         <p className="device-list__empty">No devices registered</p>
       ) : (
         devices.map((device) => {
@@ -288,5 +292,25 @@ export function DeviceList({ householdId }: Props) {
         />
       )}
     </div>
+  );
+}
+
+function DeviceRowsSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 2 }).map((_, index) => (
+        <div key={index} className="device-list__item">
+          <div className="device-list__item-info">
+            <Skeleton width="8rem" height="0.95rem" />
+
+            <div className="device-list__item-meta">
+              <Skeleton width="4rem" height="0.75rem" />
+            </div>
+          </div>
+
+          <Skeleton width={34} height={34} borderRadius="var(--radius-sm)" />
+        </div>
+      ))}
+    </>
   );
 }
