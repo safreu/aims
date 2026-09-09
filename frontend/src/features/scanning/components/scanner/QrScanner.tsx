@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
 import "./QrScanner.css";
-import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
+import {
+  BrowserCodeReader,
+  BrowserQRCodeReader,
+  type IScannerControls,
+} from "@zxing/browser";
 
 type Props = {
   paused: boolean;
@@ -11,11 +15,22 @@ type Props = {
 export function QrScanner({ paused, onScan, onError }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
+
   const pauseRef = useRef(paused);
+  const onScanRef = useRef(onScan);
+  const onErrorRef = useRef(onError);
 
   useEffect(() => {
     pauseRef.current = paused;
   }, [paused]);
+
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -23,8 +38,6 @@ export function QrScanner({ paused, onScan, onError }: Props) {
     if (video == null) return;
 
     const reader = new BrowserQRCodeReader();
-
-    let disposed = false;
 
     void reader
       .decodeFromConstraints(
@@ -37,43 +50,28 @@ export function QrScanner({ paused, onScan, onError }: Props) {
         },
         video,
         (result) => {
-          if (result !== undefined && !pauseRef.current && !disposed) {
-            onScan(result.getText());
+          if (result !== undefined && !pauseRef.current) {
+            onScanRef.current(result.getText());
           }
         },
       )
       .then((controls) => {
-        if (disposed) {
-          controls.stop();
-          return;
-        }
-
         controlsRef.current = controls;
       })
       .catch((error: unknown) => {
-        if (disposed) return;
-
         if (error instanceof Error) {
-          onError(error);
+          onErrorRef.current(error);
         } else {
-          onError(new Error("Failed to start QR scanner"));
+          onErrorRef.current(new Error("Failed to start QR scanner"));
         }
       });
     return () => {
-      disposed = true;
-
       controlsRef.current?.stop();
       controlsRef.current = null;
 
-      const stream = video.srcObject;
-
-      if (stream instanceof MediaStream) {
-        for (const track of stream.getTracks()) track.stop();
-      }
-
-      video.srcObject = null;
+      BrowserCodeReader.releaseAllStreams();
     };
-  }, [onScan, onError]);
+  }, []);
 
   return (
     <div className="qr-scanner">
