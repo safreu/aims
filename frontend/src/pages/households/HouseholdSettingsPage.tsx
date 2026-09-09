@@ -20,6 +20,7 @@ import { ConfirmDialog } from "../../components/dialogs/ConfirmDialog";
 import { isHouseholdAccessError } from "../../features/households/errors";
 import { useHouseholdEvents } from "../../features/households/events/HouseholdEventsContext";
 import { DeviceList } from "../../features/devices/components/DeviceList";
+import { useTrackingMode } from "../../features/accounts/components/tracking-mode/TrackingModeContext";
 
 export function HouseholdSettingsPage() {
   const { householdId } = useParams();
@@ -27,6 +28,7 @@ export function HouseholdSettingsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { subscribe } = useHouseholdEvents();
+  const { trackingMode } = useTrackingMode();
 
   if (householdId === undefined) {
     throw new Error("HouseholdSettingsPage requires a householdId");
@@ -302,14 +304,16 @@ export function HouseholdSettingsPage() {
         )}
       </section>
 
-      <section className="household-settings-page__section">
-        <header className="household-settings-page__section-header">
-          <h2>Devices</h2>
-          <p>Manage devices connected to this household</p>
-        </header>
+      {trackingMode === "qr" && (
+        <section className="household-settings-page__section">
+          <header className="household-settings-page__section-header">
+            <h2>Devices</h2>
+            <p>Manage devices connected to this household</p>
+          </header>
 
-        <DeviceList householdId={resolvedHousehold} />
-      </section>
+          <DeviceList householdId={resolvedHousehold} />
+        </section>
+      )}
 
       <section className="household-settings-page__section household-settings-page__danger-zone">
         <header className="household-settings-page__section-header">

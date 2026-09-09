@@ -3,7 +3,6 @@ import type { Device, DeviceKind } from "../types";
 import {
   getLocalDeviceCredentials,
   removeLocalDeviceCredential,
-  saveLocalDeviceCredential,
 } from "../localDevice";
 import {
   getDevices,
@@ -14,7 +13,6 @@ import {
   rotateDeviceCredential,
 } from "../api";
 import { useToast } from "../../../components/toast/ToastContext";
-import { RegisterCurrentDeviceDialog } from "./Dialogs/RegisterCurrentDeviceDialog";
 
 import "./DeviceList.css";
 import { ConfirmDialog } from "../../../components/dialogs/ConfirmDialog";
@@ -35,8 +33,6 @@ type ProvisingDevice = {
 export function DeviceList({ householdId }: Props) {
   const { showToast } = useToast();
 
-  const [showRegisterDeviceDialog, setShowRegisterDeviceDialog] =
-    useState(false);
   const [showRegisterOtherDeviceDialog, setShowRegisterOtherDeviceDialog] =
     useState(false);
 
@@ -56,7 +52,6 @@ export function DeviceList({ householdId }: Props) {
   );
 
   const [loading, setLoading] = useState(true);
-  const [isRegistering, setIsRegistering] = useState(false);
   const [isRegisteringOtherDevice, setIsRegisteringOtherDevice] =
     useState(false);
 
@@ -76,33 +71,6 @@ export function DeviceList({ householdId }: Props) {
       .catch(() => showToast("Failed to fetch devices", "error"))
       .finally(() => setLoading(false));
   }, [householdId, showToast]);
-
-  async function handleRegisterCurrentDevice(name: string) {
-    let deviceId: string;
-
-    setIsRegistering(true);
-
-    return registerDevice(householdId, { name, kind: "smartphone" })
-      .then((registered) => {
-        deviceId = registered.id;
-
-        return issueDeviceCredential(householdId, registered.id);
-      })
-      .then((credential) => {
-        saveLocalDeviceCredential(householdId, {
-          deviceId,
-          token: credential.token,
-        });
-
-        return refreshDevice();
-      })
-      .then(() => {
-        setShowRegisterDeviceDialog(false);
-        showToast("Device registered", "success");
-      })
-      .catch(() => showToast("Failed to register device", "error"))
-      .finally(() => setIsRegistering(false));
-  }
 
   async function handleRevokeDevice() {
     if (deviceToRevoke === null) return;
@@ -277,31 +245,6 @@ export function DeviceList({ householdId }: Props) {
             </div>
           );
         })
-      )}
-
-      {!currentDevice && (
-        <div className="device-list__register">
-          <div className="device-list__register-info">
-            <strong>This device</strong>
-            <p>Register this phone to use QR scanning.</p>
-          </div>
-
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => setShowRegisterDeviceDialog(true)}
-          >
-            Register
-          </button>
-        </div>
-      )}
-
-      {showRegisterDeviceDialog && (
-        <RegisterCurrentDeviceDialog
-          registering={isRegistering}
-          onRegister={handleRegisterCurrentDevice}
-          onClose={() => setShowRegisterDeviceDialog(false)}
-        />
       )}
 
       <ConfirmDialog
