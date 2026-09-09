@@ -12,6 +12,7 @@ import { HouseholdSettingsPage } from "./pages/households/HouseholdSettingsPage"
 import { UserEventsLayout } from "./features/households/events/UserEventsLayout";
 import { AccountsPage } from "./pages/accounts/AccountsPage";
 import { SettingsProviderLayout } from "./features/accounts/components/layout/SettingsProviderLayout";
+import { ScannerPage } from "./pages/scanning/ScannerPage";
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
                 <Route path="inventory" element={<InventoryPage />} />
                 <Route path="shopping" element={<ShoppingPage />} />
                 <Route path="settings" element={<HouseholdSettingsPage />} />
+                <Route path="scanner" element={<ScannerPage />} />
               </Route>
             </Route>
           </Route>

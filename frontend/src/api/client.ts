@@ -16,16 +16,22 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   unauthorizedHandler = handler;
 }
 
+type ApiRequestOptions = RequestInit & {
+  handleUnauthorized?: boolean;
+};
+
 export async function apiRequest(
   path: string,
-  options?: RequestInit,
+  options?: ApiRequestOptions,
 ): Promise<Response> {
+  const { handleUnauthorized = true, ...requestOptions } = options ?? {};
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
+    ...requestOptions,
     credentials: "include",
   });
 
-  if (response.status === 401) {
+  if (response.status === 401 && handleUnauthorized) {
     unauthorizedHandler?.();
   }
 

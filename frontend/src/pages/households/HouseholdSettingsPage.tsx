@@ -19,6 +19,7 @@ import { useAuth } from "../../features/auth/context/AuthContext";
 import { ConfirmDialog } from "../../components/dialogs/ConfirmDialog";
 import { isHouseholdAccessError } from "../../features/households/errors";
 import { useHouseholdEvents } from "../../features/households/events/HouseholdEventsContext";
+import { DeviceList } from "../../features/devices/components/DeviceList";
 
 export function HouseholdSettingsPage() {
   const { householdId } = useParams();
@@ -299,6 +300,15 @@ export function HouseholdSettingsPage() {
             </button>
           </form>
         )}
+      </section>
+
+      <section className="household-settings-page__section">
+        <header className="household-settings-page__section-header">
+          <h2>Devices</h2>
+          <p>Manage devices connected to this household</p>
+        </header>
+
+        <DeviceList householdId={resolvedHousehold} />
       </section>
 
       <section className="household-settings-page__section household-settings-page__danger-zone">

@@ -1,0 +1,90 @@
+.rename-device-dialog {
+  width: min(420px, calc(100% - 2rem));
+  padding: 0;
+
+  color: var(--text);
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.rename-device-dialog::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+
+.rename-device-dialog__content {
+  padding: var(--space-lg);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.rename-device-dialog__header h2 {
+  margin: 0;
+
+  color: var(--text-h);
+
+  font-size: 1.25rem;
+}
+
+.rename-device-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.rename-device-dialog__field label {
+  color: var(--text);
+
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.rename-device-dialog__field input {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+
+  color: var(--text);
+  background: var(--bg);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  font: inherit;
+}
+
+.rename-device-dialog__field input:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.rename-device-dialog__field input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.rename-device-dialog__field input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rename-device-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+@media (max-width: 600px) {
+  .rename-device-dialog {
+    width: calc(100% - 2rem);
+  }
+
+  .rename-device-dialog__actions {
+    flex-direction: column-reverse;
+  }
+
+  .rename-device-dialog__actions .button {
+    width: 100%;
+  }
+}
