@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use tokio_util::sync::CancellationToken;
+
 use crate::{
     bootstrap::{
         accounts::build_accounts_state, devices::build_device_state,
@@ -55,6 +57,8 @@ pub async fn build_app_state(config: &AppConfig) -> Result<AppState, BootstrapEr
     let scanning = build_scanning_state(&pool, household_events_publisher.clone());
     let shopping = build_shopping_state(&pool, household_events_publisher.clone());
 
+    let shutdown = CancellationToken::new();
+
     Ok(AppState {
         accounts,
         households,
@@ -62,6 +66,7 @@ pub async fn build_app_state(config: &AppConfig) -> Result<AppState, BootstrapEr
         device,
         scanning,
         shopping,
+        shutdown,
     })
 }
 
