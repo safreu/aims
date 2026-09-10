@@ -17,9 +17,8 @@ import {
   PriorityFilter,
   type PriorityFilterValue,
 } from "../../components/list-controls/filters/PriorityFilter";
-import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "../../api/queryKeys";
-import { queryClient } from "../../api/queryClient";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Skeleton from "react-loading-skeleton";
 export function InventoryPage() {
   const { householdId } = useParams();
@@ -49,11 +48,13 @@ export function InventoryPage() {
     queryFn: () => getInventoryItems(resolvedHouseholdId, "archived"),
   });
 
+  const queryClient = useQueryClient();
+
   const refreshInventory = useCallback(() => {
     return queryClient.invalidateQueries({
       queryKey: queryKeys.inventory.all(resolvedHouseholdId),
     });
-  }, [resolvedHouseholdId]);
+  }, [resolvedHouseholdId, queryClient]);
 
   const [showCreateItemDialog, setShowCreateItemDialog] = useState(false);
 

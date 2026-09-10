@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./InventoryItemQrDialog.css";
-import type { QrAction, QrActionKind } from "../types";
+import type { QrActionKind } from "../types";
 import { getQrActions } from "../api";
 import { useToast } from "../../../components/toast/ToastContext";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import { shareQrCard } from "../utils/qrShare";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "../../../api/queryKeys";
+import Skeleton from "react-loading-skeleton";
 
 type Props = {
   householdId: string;
@@ -24,12 +27,21 @@ export function InventoryItemQrDialog({
 
   const { showToast } = useToast();
 
-  const [qrActions, setQrActions] = useState<QrAction[]>([]);
+  const {
+    data: qrActions = [],
+    isPending,
+    isError,
+  } = useQuery({
+    queryKey: queryKeys.inventory.qrActions(householdId, itemId),
+    queryFn: async () => {
+      const actions = await getQrActions(householdId);
+      return actions.filter((action) => action.item_id === itemId);
+    },
+  });
+
   const [selectedKind, setSelectedKind] = useState<QrActionKind>("increase");
 
   const [isSharing, setIsSharing] = useState(false);
-
-  const [loading, setLoading] = useState(true);
 
   const selectedAction = useMemo(
     () => qrActions.find((action) => action.kind === selectedKind) ?? null,
@@ -60,16 +72,7 @@ export function InventoryItemQrDialog({
 
   useEffect(() => {
     dialogRef.current?.showModal();
-
-    void getQrActions(householdId)
-      .then((actions) => {
-        setQrActions(actions.filter((action) => action.item_id === itemId));
-      })
-      .catch(() => {
-        showToast("Failed to fetch QR actions", "error");
-      })
-      .finally(() => setLoading(false));
-  }, [householdId, itemId, showToast]);
+  }, []);
 
   return (
     <dialog
@@ -124,8 +127,12 @@ export function InventoryItemQrDialog({
           </button>
         </div>
 
-        {loading ? (
-          <p>Loading QR code...</p>
+        {isPending ? (
+          <InventoryItemQrSkeleton />
+        ) : isError ? (
+          <p className="inventory-item-qr-dialog__error">
+            Failed to load QR codes
+          </p>
         ) : selectedAction === null ? (
           <p className="inventory-item-qr-dialog__error">
             QR code not available
@@ -157,5 +164,16 @@ export function InventoryItemQrDialog({
         )}
       </div>
     </dialog>
+  );
+}
+function InventoryItemQrSkeleton() {
+  return (
+    <div className="inventory-item-qr-dialog__qr">
+      <div className="inventory-item-qr-dialog__qr-placeholder">
+        <Skeleton width={200} height={200} borderRadius="var(--radius-md)" />
+      </div>
+
+      <Skeleton width="8rem" height={40} borderRadius="var(--radius-md)" />
+    </div>
   );
 }

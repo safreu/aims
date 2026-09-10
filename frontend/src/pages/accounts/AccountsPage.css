@@ -164,6 +164,39 @@
   outline-offset: 2px;
 }
 
+.account-diagnostics-actions {
+  display: flex;
+  justify-self: end;
+  gap: var(--space-sm);
+}
+
+.account-action-button {
+  padding: var(--space-sm) var(--space-md);
+
+  color: var(--text);
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  font: inherit;
+  cursor: pointer;
+}
+
+.account-action-button:hover {
+  background: var(--secondary-hover);
+}
+
+.account-action-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .account-diagnostics-actions {
+    justify-self: start;
+  }
+}
+
 @media (max-width: 600px) {
   .account-page {
     padding: var(--space-md);

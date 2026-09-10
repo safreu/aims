@@ -1,46 +1,37 @@
-import { useEffect, useState } from "react";
 import "./InventoryStockHistory.css";
 import type {
   InventoryStockHistoryActor,
   InventoryStockHistoryEntry,
 } from "../../types";
 import { getInventoryStockHistory } from "../../api";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "../../../../api/queryKeys";
+import Skeleton from "react-loading-skeleton";
 
 type InventoryStockHistoryProps = {
   householdId: string;
   itemId: string;
-  version: number;
 };
 
 export function InventoryStockHistory({
   householdId,
   itemId,
-  version,
 }: InventoryStockHistoryProps) {
-  const [history, setHistory] = useState<InventoryStockHistoryEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: history = [],
+    isPending,
+    isError,
+  } = useQuery({
+    queryKey: queryKeys.inventory.history(householdId, itemId),
+    queryFn: () => getInventoryStockHistory(householdId, itemId),
+  });
 
-  useEffect(() => {
-    async function loadHistory() {
-      setLoading(true);
-      setError(null);
+  if (isPending) return <InventoryStockHistorySkeleton />;
 
-      await getInventoryStockHistory(householdId, itemId)
-        .then((history) => setHistory(history))
-        .catch(() => setError("Failed to load stock history"))
-        .finally(() => setLoading(false));
-    }
-
-    void loadHistory();
-  }, [householdId, itemId, version]);
-
-  if (loading) {
-    return <p className="stock-history__message">Loading history...</p>;
-  }
-
-  if (error !== null) {
-    return <p className="stock-history__message">{error}</p>;
+  if (isError) {
+    return (
+      <p className="stock-history__message">Failed to load stock history</p>
+    );
   }
 
   if (history.length === 0) {
@@ -105,4 +96,31 @@ function formatDate(createdAt: string): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function InventoryStockHistorySkeleton() {
+  return (
+    <ul className="stock-history" aria-label="Loading stock history">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <li
+          key={index}
+          className="stock-history__entry stock-history__entry--skeleton"
+        >
+          <div className="stock-history__change">
+            <Skeleton width="2rem" />
+          </div>
+
+          <div className="stock-history__details">
+            <div className="stock-history__transition">
+              <Skeleton width="5rem" />
+            </div>
+
+            <div className="stock-history__meta">
+              <Skeleton width="9rem" />
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
 }

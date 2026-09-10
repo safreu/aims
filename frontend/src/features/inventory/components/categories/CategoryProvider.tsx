@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, type ReactNode } from "react";
 import { CategoryContext } from "./CategoryContex";
-import { useToast } from "../../../../components/toast/ToastContext";
 import { useHouseholdEvents } from "../../../households/events/HouseholdEventsContext";
-import type { InventoryItemCategory } from "../../types";
 import { getInventoryCategories } from "../../api";
-import { isHouseholdAccessError } from "../../../households/errors";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../../../api/queryKeys";
 
 type Props = {
   householdId: string;
@@ -12,23 +11,20 @@ type Props = {
 };
 
 export function CategoryProvider({ householdId, children }: Props) {
-  const { showToast } = useToast();
   const { subscribe } = useHouseholdEvents();
 
-  const [categories, setCategories] = useState<InventoryItemCategory[]>([]);
+  const queryClient = useQueryClient();
 
-  const refreshCategories = useCallback(async () => {
-    await getInventoryCategories(householdId)
-      .then((categories) => setCategories(categories))
-      .catch((error) => {
-        if (isHouseholdAccessError(error)) return;
-        showToast("Failed to fetch categories", "error");
-      });
-  }, [householdId, showToast]);
+  const { data: categories = [] } = useQuery({
+    queryKey: queryKeys.categories(householdId),
+    queryFn: () => getInventoryCategories(householdId),
+  });
 
-  useEffect(() => {
-    void refreshCategories();
-  }, [refreshCategories]);
+  const refreshCategories = useCallback(() => {
+    return queryClient.invalidateQueries({
+      queryKey: queryKeys.categories(householdId),
+    });
+  }, [queryClient, householdId]);
 
   useEffect(() => {
     const unsubscribeCategories = subscribe(
