@@ -32,6 +32,8 @@ mod shopping;
 pub async fn build_app_state(config: &AppConfig) -> Result<AppState, BootstrapError> {
     let pool = create_pool(&config.database).await?;
 
+    sqlx::migrate!("./migrations").run(&pool).await?;
+
     let user_events = Arc::new(BroadcastUserEvents::new(64));
     let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
     let user_events_subscriber: Arc<dyn UserEventSubscriber> = user_events.clone();
@@ -74,4 +76,7 @@ pub async fn build_app_state(config: &AppConfig) -> Result<AppState, BootstrapEr
 pub enum BootstrapError {
     #[error("Failed to initialize database connection pool")]
     Database(#[from] sqlx::Error),
+
+    #[error("Failed to run database migrations")]
+    Migration(#[from] sqlx::migrate::MigrateError),
 }

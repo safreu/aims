@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aims
+      POSTGRES_USER: aims
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - aims_prod_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --username=aims --dbname=aims"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: aims-backend:dev
+    restart: unless-stopped
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 3000
+      DATABASE_URL: postgres://aims:${POSTGRES_PASSWORD}@postgres:5432/aims
+      DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS}
+      SESSION_LIFETIME_DAYS: ${SESSION_LIFETIME_DAYS}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    image: aims-frontend:dev
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  aims_prod_postgres_data:
+    name: aims_prod_postgres_data
+
+        
