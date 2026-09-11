@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use tokio_util::sync::CancellationToken;
+
 use crate::{
     bootstrap::{
         accounts::build_accounts_state, devices::build_device_state,
@@ -30,6 +32,8 @@ mod shopping;
 pub async fn build_app_state(config: &AppConfig) -> Result<AppState, BootstrapError> {
     let pool = create_pool(&config.database).await?;
 
+    sqlx::migrate!("./migrations").run(&pool).await?;
+
     let user_events = Arc::new(BroadcastUserEvents::new(64));
     let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
     let user_events_subscriber: Arc<dyn UserEventSubscriber> = user_events.clone();
@@ -55,6 +59,8 @@ pub async fn build_app_state(config: &AppConfig) -> Result<AppState, BootstrapEr
     let scanning = build_scanning_state(&pool, household_events_publisher.clone());
     let shopping = build_shopping_state(&pool, household_events_publisher.clone());
 
+    let shutdown = CancellationToken::new();
+
     Ok(AppState {
         accounts,
         households,
@@ -62,6 +68,7 @@ pub async fn build_app_state(config: &AppConfig) -> Result<AppState, BootstrapEr
         device,
         scanning,
         shopping,
+        shutdown,
     })
 }
 
@@ -69,4 +76,7 @@ pub async fn build_app_state(config: &AppConfig) -> Result<AppState, BootstrapEr
 pub enum BootstrapError {
     #[error("Failed to initialize database connection pool")]
     Database(#[from] sqlx::Error),
+
+    #[error("Failed to run database migrations")]
+    Migration(#[from] sqlx::migrate::MigrateError),
 }

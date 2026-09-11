@@ -1,13 +1,15 @@
 import { NavLink, Outlet, useParams } from "react-router-dom";
 import "./HouseholdLayout.css";
-import { Boxes, ShoppingCart } from "lucide-react";
+import { Boxes, ScanLine, ShoppingCart } from "lucide-react";
 import { AppHeader } from "../../../components/layout/AppHeader";
 import { HouseholdEventsProvider } from "../events/HouseholdEventsProvider";
 import { CategoryProvider } from "../../inventory/components/categories/CategoryProvider";
 import { DangerModeProvider } from "../danger-mode/DangerModeProvider";
+import { useTrackingMode } from "../../accounts/components/tracking-mode/TrackingModeContext";
 
 export function HouseholdLayout() {
   const { householdId } = useParams();
+  const { trackingMode } = useTrackingMode();
 
   if (householdId === undefined) {
     throw new Error("HouseholdLayout requires a HouseholdId");
@@ -39,6 +41,18 @@ export function HouseholdLayout() {
                   <Boxes className="household-navigation__icon" />
                   <span>Inventory</span>
                 </NavLink>
+
+                {trackingMode === "qr" && (
+                  <NavLink
+                    to={`/households/${householdId}/scanner`}
+                    className={({ isActive }) =>
+                      `household-navigation__scan${isActive ? " active" : ""}`
+                    }
+                    aria-label="Scan QR code"
+                  >
+                    <ScanLine className="household-navigation__scan-icon" />
+                  </NavLink>
+                )}
 
                 <NavLink
                   to={`/households/${householdId}/shopping`}

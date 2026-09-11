@@ -1,16 +1,5 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { AuthGuard } from "./AuthGuard";
 
 export function RequireAuth() {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return <p>loading...</p>;
-  }
-
-  if (user === null) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <Outlet />;
+  return <AuthGuard mode="authenticated" />;
 }

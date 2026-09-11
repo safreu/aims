@@ -32,27 +32,50 @@ pub async fn subscribe_user_events(
         .await
         .map_err(ApiError::from)?;
 
-    let stream = stream::unfold(receiver, |mut receiver| async move {
-        match receiver.receive().await {
-            Ok(event) => {
-                let event = match event {
-                    UserEvent::HouseholdMembershipChanged => Event::default()
-                        .event("household_memberships_changed")
-                        .data("{}"),
-                };
-                Some((Ok::<_, Infallible>(event), receiver))
-            }
-            Err(UserEventReceiverError::Lagged) => {
-                let event = Event::default()
-                    .event("household_memberships_changed")
-                    .data("{}");
+    let shutdown = state.shutdown.clone();
 
-                Some((Ok::<_, Infallible>(event), receiver))
-            }
+    let stream = stream::unfold(
+        (receiver, shutdown),
+        |(mut receiver, shutdown)| async move {
+            tokio::select! {
+                _ = shutdown.cancelled() => {
+                    None
+                }
 
-            Err(UserEventReceiverError::Closed) => None,
-        }
-    });
+                result = receiver.receive() => {
+                    match result {
+                        Ok(event) => {
+                            let event = match event {
+                                UserEvent::HouseholdMembershipChanged => {
+                                    Event::default()
+                                        .event("household_memberships_changed")
+                                        .data("{}")
+                                }
+                            };
+
+                            Some((
+                                Ok::<_, Infallible>(event),
+                                (receiver, shutdown),
+                            ))
+                        }
+
+                        Err(UserEventReceiverError::Lagged) => {
+                            let event = Event::default()
+                                .event("household_memberships_changed")
+                                .data("{}");
+
+                            Some((
+                                Ok::<_, Infallible>(event),
+                                (receiver, shutdown),
+                            ))
+                        }
+
+                        Err(UserEventReceiverError::Closed) => None,
+                    }
+                }
+            }
+        },
+    );
 
     Ok(Sse::new(stream).keep_alive(
         KeepAlive::new()

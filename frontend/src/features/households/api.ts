@@ -43,7 +43,7 @@ export async function getHouseholdMembers(
   return apiJson<HouseholdMember[]>(`/households/${householdId}/members`);
 }
 
-export async function addHouseholdMembers(
+export async function addHouseholdMember(
   householdId: string,
   request: AddHouseholdMemberRequest,
 ): Promise<void> {

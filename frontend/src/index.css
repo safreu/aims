@@ -215,3 +215,7 @@ p {
 .button--danger:hover:not(:disabled) {
   background: var(--danger);
 }
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}

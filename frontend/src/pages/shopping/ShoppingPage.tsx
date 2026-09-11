@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import type { ShoppingList } from "../../features/shopping/types";
 import { getShoppingList } from "../../features/shopping/api";
 import { InventoryShoppingEntryRow } from "../../features/shopping/components/rows/InventoryShoppingEntryRow";
 import { CustomShoppingEntryRow } from "../../features/shopping/components/rows/CustomShoppingEntryRow";
@@ -23,6 +22,9 @@ import {
   OrderBy,
   type OrderByValue,
 } from "../../components/list-controls/OderBy";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../api/queryKeys";
+import Skeleton from "react-loading-skeleton";
 
 export function ShoppingPage() {
   const { householdId } = useParams();
@@ -34,9 +36,22 @@ export function ShoppingPage() {
 
   const resolvedHouseholdId = householdId;
 
-  const [shoppingList, setShoppingList] = useState<ShoppingList | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const {
+    data: shoppingList,
+    isPending,
+    isError,
+  } = useQuery({
+    queryKey: queryKeys.shopping(resolvedHouseholdId),
+    queryFn: () => getShoppingList(resolvedHouseholdId),
+  });
+
+  const refreshShoppingList = useCallback(() => {
+    return queryClient.invalidateQueries({
+      queryKey: queryKeys.shopping(resolvedHouseholdId),
+    });
+  }, [queryClient, resolvedHouseholdId]);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
@@ -69,18 +84,6 @@ export function ShoppingPage() {
 
   const orderedItems = orderShoppingEntries(visibleItems, orderBy);
 
-  const refreshShoppingList = useCallback(async () => {
-    const shoppingList = await getShoppingList(resolvedHouseholdId);
-    setShoppingList(shoppingList);
-  }, [resolvedHouseholdId]);
-
-  useEffect(() => {
-    void getShoppingList(resolvedHouseholdId)
-      .then((shoppingList) => setShoppingList(shoppingList))
-      .catch(() => setError("Failed to load shopping list"))
-      .finally(() => setLoading(false));
-  }, [resolvedHouseholdId]);
-
   useEffect(() => {
     const unsubscribeCategories = subscribe(
       "inventory_categories_changed",
@@ -98,25 +101,12 @@ export function ShoppingPage() {
     };
   }, [subscribe, refreshShoppingList]);
 
-  if (loading) {
-    return <p>Loading shopping list...</p>;
-  }
+  const remainingInventoryCount =
+    shoppingList?.inventory_entries.filter((entry) => !entry.checked).length ??
+    0;
 
-  if (error !== null) {
-    return <p>{error}</p>;
-  }
-
-  if (shoppingList === null) {
-    return null;
-  }
-
-  const remainingInventoryCount = shoppingList.inventory_entries.filter(
-    (entry) => !entry.checked,
-  ).length;
-
-  const remainingCustomCount = shoppingList.custom_entries.filter(
-    (entry) => !entry.checked,
-  ).length;
+  const remainingCustomCount =
+    shoppingList?.custom_entries.filter((entry) => !entry.checked).length ?? 0;
 
   const activeFilterCount =
     Number(categoryFilter !== "all") + Number(priorityFilter !== "all");
@@ -159,12 +149,18 @@ export function ShoppingPage() {
         <div className="shopping-page__section-header">
           <h2>Inventory items</h2>
 
-          <span className="shopping-page__count">
-            {remainingInventoryCount}
-          </span>
+          {!isPending && !isError && (
+            <span className="shopping-page__count">
+              {remainingInventoryCount}
+            </span>
+          )}
         </div>
 
-        {orderedItems.inventory_entries.length === 0 ? (
+        {isPending ? (
+          <ShoppingEntriesSkeleton />
+        ) : isError ? (
+          <p className="shopping-page__empty">Failed to load shopping list</p>
+        ) : orderedItems.inventory_entries.length === 0 ? (
           <p className="shopping-page__empty">
             No inventory items need to be bought :)
           </p>
@@ -185,10 +181,16 @@ export function ShoppingPage() {
       <section className="shopping-page__section">
         <div className="shopping-page__section-header">
           <h2>custom items</h2>
-          <span className="shopping-page__count">{remainingCustomCount}</span>
+          {!isPending && !isError && (
+            <span className="shopping-page__count">{remainingCustomCount}</span>
+          )}
         </div>
 
-        {orderedItems.custom_entries.length === 0 ? (
+        {isPending ? (
+          <ShoppingEntriesSkeleton />
+        ) : isError ? (
+          <p className="shopping-page__empty">Failed to load shopping list</p>
+        ) : orderedItems.custom_entries.length === 0 ? (
           <p className="shopping-page__empty">
             No custom items need to be bought :)
           </p>
@@ -214,5 +216,31 @@ export function ShoppingPage() {
         />
       )}
     </main>
+  );
+}
+
+function ShoppingEntriesSkeleton() {
+  return (
+    <ul className="shopping-list" aria-label="Loading shopping list">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <li key={index} className="shopping-entry shopping-entry--skeleton">
+          <Skeleton width={20} height={20} borderRadius="4px" />
+
+          <div className="shopping-entry__open">
+            <div className="shopping-entry__main">
+              <div className="shopping-entry__title">
+                <Skeleton width="9rem" height="0.9rem" />
+              </div>
+
+              <Skeleton width="2rem" height="0.9rem" />
+            </div>
+
+            <div className="shopping-entry__meta">
+              <Skeleton width="5rem" height="0.8rem" />
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

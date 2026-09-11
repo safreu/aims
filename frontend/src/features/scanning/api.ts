@@ -13,8 +13,15 @@ export async function createQrAction(householdId: string): Promise<void> {
   });
 }
 
-export async function executeQrAction(action_id: string): Promise<void> {
-  await apiRequest(`/device/qr/${action_id}/execute`, {
+export async function executeQrAction(
+  actionId: string,
+  deviceToken: string,
+): Promise<void> {
+  await apiRequest(`/device/qr/${actionId}/execute`, {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${deviceToken}`,
+    },
+    handleUnauthorized: false,
   });
 }

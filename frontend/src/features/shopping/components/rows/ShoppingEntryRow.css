@@ -141,6 +141,14 @@
   height: 1.05rem;
 }
 
+.shopping-entry--skeleton {
+  pointer-events: none;
+}
+
+.shopping-entry--skeleton .shopping-entry__open {
+  cursor: default;
+}
+
 @media (hover: hover) {
   .shopping-entry:hover {
     background: var(--surface-hover);

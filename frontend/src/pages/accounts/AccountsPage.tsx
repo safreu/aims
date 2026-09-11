@@ -1,4 +1,5 @@
 import { AppHeader } from "../../components/layout/AppHeader";
+import { exportDiagnostics } from "../../diagnostics/exportDiagnostics";
 import { useTrackingMode } from "../../features/accounts/components/tracking-mode/TrackingModeContext";
 import { useAuth } from "../../features/auth/context/AuthContext";
 import "./AccountsPage.css";
@@ -91,6 +92,27 @@ export function AccountsPage() {
                 onClick={() => setTrackingMode("manual")}
               >
                 Manual
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="account-section">
+          <div className="account-field">
+            <div>
+              <span className="account-field__label">Diagnostics</span>
+              <p className="account-field__description">
+                Export recent technical logs to help diagnose problems with Aims
+              </p>
+            </div>
+
+            <div className="account-diagnostics-actions">
+              <button
+                type="button"
+                className="account-action-button"
+                onClick={exportDiagnostics}
+              >
+                Export Diagnostics
               </button>
             </div>
           </div>
