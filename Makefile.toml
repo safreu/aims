@@ -65,26 +65,32 @@ args = ["prepare", "--workspace", "--", "--all-targets", "--all-features"]
 [tasks.rust-check]
 env = { SQLX_OFFLINE = "true" }
 command = "cargo"
-args = ["clippy", "-p", "backend", "--all-targets", "--all-features", "--", "-D", "warnings"]
+args = ["clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"]
 
 [tasks.release-check]
 dependencies = [
     "release-rust",
-    "release-front",
+    "release-frontend",
     "release-docker",
 ]
 
 [tasks.release-rust]
 private = true
-dependencies = ["sqlx-check"]
+run_task = { name = ["db-migrate", "release-rust-inner"], fork = true, cleanup_task = "db-down" }
+
+[tasks.release-rust-inner]
+private = true
 env = { SQLX_OFFLINE = "true" }
+env_files = ["${DEV_ENV_FILE}"]
 script = '''
+export DATABASE_URL="postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}"
+
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-targets --all-features
 '''
 
-[task.release-frontend]
+[tasks.release-frontend]
 private = true
 cwd = "frontend"
 script = '''
@@ -93,7 +99,7 @@ npm run lint
 npm run build
 '''
 
-[task.release-docker]
+[tasks.release-docker]
 private = true
 script = '''
 docker build \

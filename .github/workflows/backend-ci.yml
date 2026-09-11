@@ -7,10 +7,22 @@ on:
       - dev
     paths:
       - "backend/**"
+      - "updater/**"
+      - "scanner/**"
+      - ".sqlx/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
       - ".github/workflows/backend-ci.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "updater/**"
+      - "scanner/**"
+      - ".sqlx/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
       - ".github/workflows/backend-ci.yml"
     
 concurrency:
