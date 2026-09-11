@@ -4,8 +4,6 @@ use backend::{app::Application, config::AppConfig, shared::observability::init_t
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    let _ = dotenvy::dotenv();
-
     init_tracing();
     if let Err(error) = run().await {
         tracing::error!(error = ?error, "application startup failed");

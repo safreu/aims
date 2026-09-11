@@ -15,10 +15,27 @@ pub struct ServerConfig {
     pub address: SocketAddr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DatabaseConfig {
-    pub url: String,
+    pub host: String,
+    pub port: u16,
+    pub name: String,
+    pub user: String,
+    pub password: String,
     pub max_connections: u32,
+}
+
+impl std::fmt::Debug for DatabaseConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DatabaseConfig")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("name", &self.name)
+            .field("user", &self.user)
+            .field("password", &"[REDACTED]")
+            .field("max_connections", &self.max_connections)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -36,15 +53,25 @@ pub struct SessionCookieConfig {
 
 impl AppConfig {
     pub fn from_env() -> Result<Self, ConfigError> {
-        let host = required_variable("APP_HOST")?
+        let app_host = required_variable("APP_HOST")?
             .parse::<IpAddr>()
             .map_err(ConfigError::InvalidHost)?;
 
-        let port = required_variable("APP_PORT")?
+        let app_port = required_variable("APP_PORT")?
             .parse::<u16>()
-            .map_err(ConfigError::InvalidPort)?;
+            .map_err(ConfigError::InvalidAppPort)?;
 
-        let database_url = required_variable("DATABASE_URL")?;
+        let database_host = required_variable("DATABASE_HOST")?;
+
+        let database_port = required_variable("DATABASE_PORT")?
+            .parse::<u16>()
+            .map_err(ConfigError::InvalidDatabasePort)?;
+
+        let database_name = required_variable("DATABASE_NAME")?;
+
+        let database_user = required_variable("DATABASE_USER")?;
+
+        let database_password = required_variable("DATABASE_PASSWORD")?;
 
         let max_connections = required_variable("DATABASE_MAX_CONNECTIONS")?
             .parse::<u32>()
@@ -70,10 +97,14 @@ impl AppConfig {
 
         Ok(Self {
             server: ServerConfig {
-                address: SocketAddr::new(host, port),
+                address: SocketAddr::new(app_host, app_port),
             },
             database: DatabaseConfig {
-                url: database_url,
+                host: database_host,
+                port: database_port,
+                name: database_name,
+                user: database_user,
+                password: database_password,
                 max_connections,
             },
             session: SessionConfig {
@@ -98,7 +129,10 @@ pub enum ConfigError {
     InvalidHost(#[source] std::net::AddrParseError),
 
     #[error("APP_PORT is invalid")]
-    InvalidPort(#[source] std::num::ParseIntError),
+    InvalidAppPort(#[source] std::num::ParseIntError),
+
+    #[error("DATABASE_PORT is invalid")]
+    InvalidDatabasePort(#[source] std::num::ParseIntError),
 
     #[error("DATABASE_MAX_CONNECTIONS is invalid")]
     InvalidMaxConnections(#[source] std::num::ParseIntError),

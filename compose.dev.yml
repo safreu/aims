@@ -2,19 +2,15 @@ services:
   postgres:
     image: postgres:17
     environment:
-      POSTGRES_DB: aims
-      POSTGRES_USER: aims
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - aims_postgres_data:/var/lib/postgresql/data
+      - aims_dev_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready --username=aims --dbname=aims",
-        ]
+      test: ["CMD-SHELL", "pg_isready --username=${DATABASE_USER} --dbname=${DATABASE_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -27,5 +23,7 @@ services:
       postgres:
         condition: service_healthy
 
+
 volumes:
-  aims_postgres_data:
+  aims_dev_postgres_data:
+    name: aims_dev_postgres_data
