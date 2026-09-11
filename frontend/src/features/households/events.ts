@@ -1,13 +1,7 @@
-export function subscribeToHouseholdEvents(
-  householdId: string,
-  onShoppingListChanged: () => void,
-): EventSource {
-  const eventSource = new EventSource(
-    `/api/v1/households/${householdId}/events`,
-  );
-  eventSource.addEventListener("shopping_list_changed", () => {
-    onShoppingListChanged();
-  });
+export function createHouseholdEventSource(householdId: string): EventSource {
+  return new EventSource(`/api/v1/households/${householdId}/events`);
+}
 
-  return eventSource;
+export function createUserEventSource(): EventSource {
+  return new EventSource(`/api/v1/auth/me/events`);
 }

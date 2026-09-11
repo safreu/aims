@@ -160,6 +160,19 @@ impl ExecuteQrActionService {
                 ExecuteQrActionError::Internal(InternalError::Failed)
             })?;
 
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::InventoryItemsChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    qr_action_id = %command.qr_action_id,
+                    item_id = %action.item_id(),
+                    "Failed to publish inventory list changed event"
+                );
+                ExecuteQrActionError::Internal(InternalError::Failed)
+            })?;
+
         Ok(())
     }
 }

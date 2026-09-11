@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { CustomShoppingEntry } from "../../types";
 import { setCustomShoppingChecked } from "../../api";
 import { CustomShoppingEntryDialog } from "../dialogs/CustomShoppingEntryDialog";
+import { PriorityIndicator } from "../../../inventory/components/priority/PriorityIndicator";
 
 type CustomShoppingEntryRowProps = {
   householdId: string;
@@ -47,15 +48,15 @@ export function CustomShoppingEntryRow({
         onClick={() => setIsDialogOpen(true)}
       >
         <div className="shopping-entry__main">
-          <strong className="shopping-entry__name">{entry.title}</strong>
+          <div className="shopping-entry__title">
+            <strong className="shopping-entry__name">{entry.title}</strong>
+
+            <PriorityIndicator priority={entry.priority} />
+          </div>
 
           <strong className="shopping-entry__quantity">
             ×{entry.quantity}
           </strong>
-        </div>
-
-        <div className="shopping-entry__meta">
-          <span>{formatPriority(entry.priority)}</span>
         </div>
 
         {entry.note !== null && (
@@ -75,12 +76,4 @@ export function CustomShoppingEntryRow({
       )}
     </li>
   );
-}
-
-function formatPriority(priority: string) {
-  if (priority === "default") {
-    return "Normal";
-  }
-
-  return priority.charAt(0).toUpperCase() + priority.slice(1);
 }

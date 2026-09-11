@@ -1,0 +1,36 @@
+.auth-status {
+  min-height: 100dvh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: var(--space-lg);
+
+  background: var(--bg);
+}
+
+.auth-status__content {
+  width: 100%;
+  max-width: 420px;
+
+  padding: var(--space-xl);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.auth-status__content h1,
+.auth-status__content p {
+  margin: 0;
+}
+
+.auth-status__content p {
+  color: var(--text-muted);
+}

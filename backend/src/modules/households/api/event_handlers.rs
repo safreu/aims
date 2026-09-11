@@ -39,25 +39,47 @@ pub async fn subscribe_household_events(
         .await
         .map_err(ApiError::from)?;
 
-    let stream = stream::unfold(receiver, |mut receiver| async move {
-        match receiver.receive().await {
-            Ok(event) => {
-                let event = match event {
-                    HouseholdEvent::ShoppingListChanged => {
-                        Event::default().event("shopping_list_changed").data("{}")
+    let shutdown = state.shutdown.clone();
+
+    let stream = stream::unfold(
+        (receiver, shutdown),
+        |(mut receiver, shutdown)| async move {
+            tokio::select! {
+                _ = shutdown.cancelled() => { None }
+
+            result = receiver.receive() => {
+                match result {
+                    Ok(event) => {
+                        let event = match event {
+                            HouseholdEvent::ShoppingListChanged => {
+                                Event::default().event("shopping_list_changed").data("{}")
+                            }
+                            HouseholdEvent::InventoryCategoriesChanged => Event::default()
+                                .event("inventory_categories_changed")
+                                .data("{}"),
+                            HouseholdEvent::InventoryItemsChanged => {
+                                Event::default().event("inventory_items_changed").data("{}")
+                            }
+                            HouseholdEvent::HouseholdChanged => {
+                                Event::default().event("household_changed").data("{}")
+                            }
+                        };
+                        Some((Ok::<_, Infallible>(event), (receiver, shutdown)))
                     }
-                };
-                Some((Ok::<_, Infallible>(event), receiver))
-            }
-            Err(HouseholdEventReceiverError::Lagged) => {
-                let event = Event::default().event("shopping_list_changed").data("{}");
+                    Err(HouseholdEventReceiverError::Lagged) => {
+                        let event = Event::default()
+                            .event("household_resync_required")
+                            .data("{}");
 
-                Some((Ok::<_, Infallible>(event), receiver))
-            }
+                        Some((Ok::<_, Infallible>(event), (receiver, shutdown)))
+                    }
 
-            Err(HouseholdEventReceiverError::Closed) => None,
-        }
-    });
+                    Err(HouseholdEventReceiverError::Closed) => None,
+                }
+            }
+            }
+        },
+    );
 
     Ok(Sse::new(stream).keep_alive(
         KeepAlive::new()

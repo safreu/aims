@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
-import { type InventoryItemPriority, type InventoryItem } from "../../types";
-import {
-  archiveInventoryItem,
-  decreaseInventoryStock,
-  getInventoryItem,
-  increaseInventoryStock,
-  setInventoryStock,
-  updateInventoryItem,
-} from "../../api";
+import { useEffect, useRef, useState } from "react";
+import { getInventoryItem } from "../../api";
 import { InventoryStockHistory } from "../history/InventoryStockHistory";
 import "./InventoryItemDialog.css";
-import { InventoryItemFields } from "../fields/InventoryItemFields";
+import { useDangerMode } from "../../../households/danger-mode/DangerModeContext";
+import { useTrackingMode } from "../../../accounts/components/tracking-mode/TrackingModeContext";
+import { InventoryItemQrDialog } from "../../../scanning/components/InventoryItemQrDialog";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../../../api/queryKeys";
+import Skeleton from "react-loading-skeleton";
+import { InventoryItemDetails } from "./InventoryItemDetails";
+import { InventoryStockControls } from "./InventoryStockControls";
+import { InventoryItemArchive } from "./InventoryItemArchive";
 
 type InventoryItemDialogProps = {
   householdId: string;
@@ -27,30 +27,25 @@ export function InventoryItemDialog({
 }: InventoryItemDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const [item, setItem] = useState<InventoryItem | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { dangerMode } = useDangerMode();
+  const { trackingMode } = useTrackingMode();
 
-  const [name, setName] = useState("");
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [reorderThreshold, setReorderThreshold] = useState(0);
-  const [priority, setPriority] = useState<InventoryItemPriority>("default");
-  const [newStock, setNewStock] = useState("");
+  const queryClient = useQueryClient();
+
+  const {
+    data: item,
+    isPending,
+    isError,
+  } = useQuery({
+    queryKey: queryKeys.inventory.item(householdId, itemId),
+    queryFn: () => getInventoryItem(householdId, itemId),
+  });
+
   const [showHistory, setShowHistory] = useState(false);
-  const [historyVersion, setHistoryVersion] = useState(0);
 
-  const [isMutating, setIsMutating] = useState(false);
-  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [showQrCodes, setShowQrCodes] = useState(false);
 
-  async function refreshItem() {
-    const refreshedItem = await getInventoryItem(householdId, itemId);
-
-    setItem(refreshedItem);
-    setName(refreshedItem.name);
-    setCategoryId(refreshedItem.category?.id ?? null);
-    setReorderThreshold(refreshedItem.reorder_threshold);
-    setPriority(refreshedItem.priority);
-  }
+  const showStockControls = dangerMode || trackingMode === "manual";
 
   function handleClose() {
     void onChanged().finally(() => onClose());
@@ -58,81 +53,27 @@ export function InventoryItemDialog({
 
   useEffect(() => {
     dialogRef.current?.showModal();
+  }, []);
 
-    async function loadItem() {
-      await getInventoryItem(householdId, itemId)
-        .then((loadedItem) => {
-          setItem(loadedItem);
-          setName(loadedItem.name);
-          setCategoryId(loadedItem.category?.id ?? null);
-          setReorderThreshold(loadedItem.reorder_threshold);
-          setPriority(loadedItem.priority);
-        })
-        .catch(() => setLoadError("Failed to load inventory item"))
-        .finally(() => setLoading(false));
-    }
-
-    void loadItem();
-  }, [householdId, itemId]);
-
-  function runMutation(operation: () => Promise<void>) {
-    setIsMutating(true);
-    setMutationError(null);
-
-    void operation()
-      .then(async () => {
-        await refreshItem();
-        await onChanged();
-      })
-      .catch(() => setMutationError("Failed to mutate item"))
-      .finally(() => setIsMutating(false));
+  async function refreshItem() {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.inventory.item(householdId, itemId),
+      }),
+      onChanged(),
+    ]);
   }
 
-  function handleIncreaseStock() {
-    runMutation(async () => {
-      await increaseInventoryStock(householdId, itemId, { amount: 1 });
-
-      setHistoryVersion((current) => current + 1);
-    });
-  }
-
-  function handleDecreaseStock() {
-    runMutation(async () => {
-      await decreaseInventoryStock(householdId, itemId, { amount: 1 });
-      setHistoryVersion((current) => current + 1);
-    });
-  }
-
-  function handleSetStock() {
-    if (newStock === "") return;
-
-    runMutation(async () => {
-      await setInventoryStock(householdId, itemId, {
-        stock: Number(newStock),
-      });
-      setNewStock("");
-      setHistoryVersion((current) => current + 1);
-    });
-  }
-
-  function handleArchive() {
-    void archiveInventoryItem(householdId, itemId)
-      .then(() => dialogRef.current?.close())
-      .catch(() => setMutationError("Failed to archive item"))
-      .finally(() => setIsMutating(false));
-  }
-
-  function handleUpdate(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    runMutation(async () => {
-      await updateInventoryItem(householdId, itemId, {
-        name,
-        category_id: categoryId,
-        reorder_threshold: reorderThreshold,
-        priority,
-      });
-    });
+  async function refreshStock() {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.inventory.item(householdId, itemId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.inventory.history(householdId, itemId),
+      }),
+      onChanged(),
+    ]);
   }
 
   return (
@@ -162,88 +103,41 @@ export function InventoryItemDialog({
           </button>
         </header>
 
-        {loading ? (
-          <p>Loading item...</p>
-        ) : loadError !== null ? (
-          <p className="inventory-item-dialog__error">{loadError}</p>
-        ) : item !== null ? (
+        {isPending ? (
+          <InventoryItemDialogSkeleton />
+        ) : isError ? (
+          <p className="inventory-item-dialog__error">
+            Failed to load inventory item
+          </p>
+        ) : (
           <>
-            <form
-              className="inventory-item-dialog__section"
-              onSubmit={handleUpdate}
-            >
-              <h3>Details</h3>
-
-              <InventoryItemFields
+            <InventoryItemDetails
+              householdId={householdId}
+              item={item}
+              onChanged={refreshItem}
+            />
+            {showStockControls && (
+              <InventoryStockControls
                 householdId={householdId}
-                name={name}
-                categoryId={categoryId}
-                reorderThreshold={reorderThreshold}
-                priority={priority}
-                onNameChange={setName}
-                onReorderThresholdChange={setReorderThreshold}
-                onPriorityChange={setPriority}
-                onCategoryChange={setCategoryId}
-                disabled={isMutating}
+                item={item}
+                onChanged={refreshStock}
               />
-
-              <button
-                type="submit"
-                className="button button--primary"
-                disabled={isMutating}
-              >
-                {isMutating ? "Saving..." : "Save changes"}
-              </button>
-            </form>
+            )}
 
             <section className="inventory-item-dialog__section">
-              <h3>Stock</h3>
-
-              <div className="inventory-item-dialog__stock-controls">
-                <button
-                  type="button"
-                  className="inventory-item-dialog__stock-button"
-                  onClick={handleDecreaseStock}
-                  disabled={item.current_stock === 0 || isMutating}
-                  aria-label="Decrease stock by one"
-                >
-                  -
-                </button>
-
-                <button
-                  type="button"
-                  className="inventory-item-dialog__stock-button"
-                  onClick={handleIncreaseStock}
-                  disabled={isMutating}
-                  aria-label="Increase stock by one"
-                >
-                  +
-                </button>
-              </div>
-
-              <div className="inventory-item-dialog__set-stock">
-                <label className="inventory-item-dialog__field">
-                  <span>Set exact stock</span>
-                </label>
-
-                <div className="inventory-item-dialog__set-stock-controls">
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder={String(item.current_stock)}
-                    value={newStock}
-                    onChange={(event) => setNewStock(event.target.value)}
-                  />
-
-                  <button
-                    type="button"
-                    className="button button--primary"
-                    onClick={handleSetStock}
-                    disabled={isMutating || newStock === ""}
-                  >
-                    Set stock
-                  </button>
+              <div className="inventory-item-dialog__section-header">
+                <div>
+                  <h3>QR codes</h3>
+                  <p>View or share the QR codes for this item</p>
                 </div>
+
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => setShowQrCodes(true)}
+                >
+                  Show QR codes
+                </button>
               </div>
             </section>
 
@@ -256,7 +150,6 @@ export function InventoryItemDialog({
               <button
                 type="button"
                 className="button button--secondary"
-                disabled={isMutating}
                 onClick={() => setShowHistory((current) => !current)}
               >
                 {showHistory ? "Hide history" : "Show history"}
@@ -267,32 +160,49 @@ export function InventoryItemDialog({
                   <InventoryStockHistory
                     householdId={householdId}
                     itemId={itemId}
-                    version={historyVersion}
                   />
                 </div>
               )}
             </section>
 
-            <section className="inventory-item-dialog__section inventory-item-dialog__danger">
-              <h3>Archive item</h3>
-              <p>The item will disappear from the active inventory</p>
-
-              <button
-                type="button"
-                className="button button--danger"
-                onClick={handleArchive}
-                disabled={isMutating}
-              >
-                Archive item
-              </button>
-            </section>
-
-            {mutationError !== null && (
-              <p className="inventory-item-dialog__error">{mutationError}</p>
-            )}
+            <InventoryItemArchive
+              householdId={householdId}
+              item={item}
+              onArchived={() => dialogRef.current?.close()}
+            />
           </>
-        ) : null}
+        )}
+
+        {showQrCodes && (
+          <InventoryItemQrDialog
+            householdId={householdId}
+            itemId={itemId}
+            itemName={item?.name ?? ""}
+            onClose={() => setShowQrCodes(false)}
+          />
+        )}
       </div>
     </dialog>
+  );
+}
+
+function InventoryItemDialogSkeleton() {
+  return (
+    <>
+      <section className="inventory-item-dialog__section">
+        <h3>Details</h3>
+
+        <div className="inventory-item-dialog__fields">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="inventory-item-dialog__field">
+              <Skeleton width="6rem" height="0.85rem" />
+              <Skeleton height={44} borderRadius="var(--radius-sm)" />
+            </div>
+          ))}
+        </div>
+
+        <Skeleton width="8rem" height={40} borderRadius="var(--radius-md)" />
+      </section>
+    </>
   );
 }

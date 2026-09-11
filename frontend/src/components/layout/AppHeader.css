@@ -232,3 +232,28 @@
     height: 1.1rem;
   }
 }
+
+.app-header__account-button {
+  min-width: 38px;
+  min-height: 38px;
+
+  padding: 0.45rem 0.6rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+
+  color: var(--text);
+
+  background: var(--surface-hover);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  cursor: pointer;
+}
+.app-header__account-button svg {
+  width: 1rem;
+  height: 1rem;
+}

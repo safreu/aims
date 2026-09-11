@@ -106,6 +106,18 @@ impl ArchiveInventoryItemService {
                 ArchiveInventoryItemError::Internal(InternalError::Failed)
             })?;
 
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::InventoryItemsChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    item_id = %item.id(),
+                    "Failed to publish inventory items changed event"
+                );
+                ArchiveInventoryItemError::Internal(InternalError::Failed)
+            })?;
+
         Ok(())
     }
 }

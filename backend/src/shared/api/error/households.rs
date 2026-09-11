@@ -1,8 +1,8 @@
 use crate::{
     modules::households::application::{
-        AddHouseholdMemberError, CreateHouseholdError, GetHouseholdError,
-        ListHouseholdMembersError, RemoveHouseholdMemberError, RenameHouseholdError,
-        SubscribeHouseholdEventsError,
+        AddHouseholdMemberError, CreateHouseholdError, DeleteHouseholdError, GetHouseholdError,
+        LeaveHouseholdError, ListHouseholdMembersError, RemoveHouseholdMemberError,
+        RenameHouseholdError, SubscribeHouseholdEventsError,
     },
     shared::api::error::ApiError,
 };
@@ -109,6 +109,32 @@ impl From<RenameHouseholdError> for ApiError {
                 ApiError::not_found("household_not_found", "The household was not found")
             }
             RenameHouseholdError::Internal(_) => ApiError::internal_error(),
+        }
+    }
+}
+
+impl From<LeaveHouseholdError> for ApiError {
+    fn from(error: LeaveHouseholdError) -> Self {
+        match error {
+            LeaveHouseholdError::HouseholdAccess(error) => error.into(),
+            LeaveHouseholdError::OwnerCannotLeave => ApiError::conflict(
+                "household_owner_cannot_leave",
+                "The household owner cannot leave",
+            ),
+            LeaveHouseholdError::Internal(_) => ApiError::internal_error(),
+        }
+    }
+}
+
+impl From<DeleteHouseholdError> for ApiError {
+    fn from(error: DeleteHouseholdError) -> Self {
+        match error {
+            DeleteHouseholdError::HouseholdAccess(error) => error.into(),
+            DeleteHouseholdError::HouseholdHasOtherMembers => ApiError::conflict(
+                "household_owner_cannot_delete_when_not_alone",
+                "The household owner cannot leave as long as other members are part of the household",
+            ),
+            DeleteHouseholdError::Internal(_) => ApiError::internal_error(),
         }
     }
 }

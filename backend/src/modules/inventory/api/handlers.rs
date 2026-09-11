@@ -14,14 +14,16 @@ use crate::{
                 ChangeInventoryStockRequest, CreateCategoryRequest, CreateCategoryResponse,
                 CreateInventoryItemRequest, CreateInventoryItemResponse, InventoryItemResponse,
                 InventoryItemStatusParam, InventoryStockHistoryResponse, ListCategoriesResponse,
-                ListInventoryItemsParams, SetInventoryStockRequest, UpdateInventoryItemRequest,
+                ListInventoryItemsParams, SetInventoryStockRequest, UpdateCategoryRequest,
+                UpdateInventoryItemRequest,
             },
             application::{
                 ArchiveInventoryItemCommand, CreateCategoryCommand, CreateInventoryItemCommand,
                 DecreaseInventoryStockCommand, DeleteCategoryCommand, GetInventoryItemCommand,
                 IncreaseInventoryStockCommand, InventoryItemStatus, ListCategoriesCommand,
                 ListInventoryItemsCommand, ListInventoryStockHistoryCommand,
-                RestoreInventoryItemCommand, SetInventoryStockCommand, UpdateInventoryItemCommand,
+                RestoreInventoryItemCommand, SetInventoryStockCommand, UpdateCategoryCommand,
+                UpdateInventoryItemCommand,
             },
             domain::{CategoryId, InventoryItemId, InventoryPriority},
         },
@@ -97,6 +99,29 @@ pub async fn create_category(
             id: category_id.into_uuid(),
         }),
     ))
+}
+
+pub async fn update_category(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Path((household_id, category_id)): Path<(Uuid, Uuid)>,
+    Json(request): Json<UpdateCategoryRequest>,
+) -> Result<StatusCode, ApiError> {
+    let command = UpdateCategoryCommand {
+        requester_id: current_user.user_id(),
+        household_id: HouseholdId::from_uuid(household_id),
+        category_id: CategoryId::from_uuid(category_id),
+        name: request.name,
+    };
+
+    state
+        .inventory
+        .update_category
+        .execute(command)
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn list_categories(

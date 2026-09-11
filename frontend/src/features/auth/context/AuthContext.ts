@@ -4,6 +4,8 @@ import type { CurrentUser } from "../types";
 type AuthContextValue = {
   user: CurrentUser | null;
   loading: boolean;
+  initializationError: boolean;
+  retryInitialization: () => Promise<void>;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 };

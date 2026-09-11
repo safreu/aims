@@ -25,6 +25,11 @@ pub struct CreateCategoryRequest {
     pub name: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateCategoryRequest {
+    pub name: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct CreateCategoryResponse {
     pub id: Uuid,

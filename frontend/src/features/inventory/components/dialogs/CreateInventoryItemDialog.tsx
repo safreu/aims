@@ -5,6 +5,12 @@ import "./InventoryItemDialog.css";
 import { InventoryItemFields } from "../fields/InventoryItemFields";
 import { useToast } from "../../../../components/toast/ToastContext";
 
+type InventoryItemFieldErrors = {
+  name?: string;
+  currentStock?: string;
+  reorderThreshold?: string;
+};
+
 type CreateInventoryItemDialogProps = {
   householdId: string;
   onCreated: () => Promise<void>;
@@ -21,11 +27,13 @@ export function CreateInventoryItemDialog({
 
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [currentStock, setCurrentStock] = useState(0);
-  const [reorderThreshold, setReorderThreshold] = useState(0);
+  const [currentStock, setCurrentStock] = useState<number | "">(0);
+  const [reorderThreshold, setReorderThreshold] = useState<number | "">(0);
   const [priority, setPriority] = useState<InventoryItemPriority>("default");
 
   const [isCreating, setIsCreating] = useState(false);
+
+  const [fieldErrors, setFieldErrors] = useState<InventoryItemFieldErrors>({});
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -33,6 +41,22 @@ export function CreateInventoryItemDialog({
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const errors: InventoryItemFieldErrors = {};
+
+    if (name.trim() === "") errors.name = "Name is required";
+    if (currentStock === "") errors.currentStock = "Current stock is required";
+    if (reorderThreshold === "")
+      errors.reorderThreshold = "Reorder threshold is required";
+
+    setFieldErrors(errors);
+    if (
+      Object.keys(errors).length > 0 ||
+      currentStock === "" ||
+      reorderThreshold === ""
+    ) {
+      return;
+    }
 
     setIsCreating(true);
 
@@ -92,21 +116,30 @@ export function CreateInventoryItemDialog({
             onCategoryChange={setCategoryId}
             onReorderThresholdChange={setReorderThreshold}
             onPriorityChange={setPriority}
+            nameError={fieldErrors.name}
+            reorderThresholdError={fieldErrors.reorderThreshold}
             disabled={isCreating}
           >
-            <label className="inventory-item-dialog__field">
+            <label
+              className={`inventory-item-dialog__field ${fieldErrors.currentStock ? "inventory-item-dialog__field--error" : ""}`}
+            >
               <span>Current stock</span>
 
               <input
                 type="number"
                 min="0"
                 value={currentStock}
-                onChange={(event) =>
-                  setCurrentStock(Number(event.target.value))
-                }
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setCurrentStock(value === "" ? "" : Number(value));
+                }}
                 disabled={isCreating}
-                required
               />
+              {fieldErrors.currentStock && (
+                <span className="inventory-item-dialog__field-error">
+                  {fieldErrors.currentStock}
+                </span>
+              )}
             </label>
           </InventoryItemFields>
 

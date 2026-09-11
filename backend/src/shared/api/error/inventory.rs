@@ -4,7 +4,7 @@ use crate::{
         DecreaseInventoryStockError, DeleteCategoryError, GetInventoryItemError,
         IncreaseInventoryStockError, ListCategoriesError, ListInventoryItemsError,
         ListInventoryStockHistoryError, RestoreInventoryItemError, SetInventoryStockError,
-        UpdateInventoryItemError,
+        UpdateCategoryError, UpdateInventoryItemError,
     },
     shared::api::ApiError,
 };
@@ -41,6 +41,21 @@ impl From<CreateCategoryError> for ApiError {
                 ApiError::bad_request("invalid_category_name", "The category name is invalid")
             }
             CreateCategoryError::Internal(_) => ApiError::internal_error(),
+        }
+    }
+}
+
+impl From<UpdateCategoryError> for ApiError {
+    fn from(error: UpdateCategoryError) -> Self {
+        match error {
+            UpdateCategoryError::HouseholdAccess(error) => error.into(),
+            UpdateCategoryError::CategoryNotFound => {
+                ApiError::not_found("category_not_found", "No category was found")
+            }
+            UpdateCategoryError::InvalidName => {
+                ApiError::bad_request("invalid_category_name", "The category name is invalid")
+            }
+            UpdateCategoryError::Internal(_) => ApiError::internal_error(),
         }
     }
 }

@@ -1,13 +1,27 @@
-import { Link } from "react-router-dom";
-import { LogoutButton } from "../../features/auth/components/LogoutButton";
+import { Link, useNavigate } from "react-router-dom";
 import "./AppHeader.css";
 import { HouseholdSwitcher } from "../../features/households/components/HouseholdSwitcher";
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropDownMenuSeparator,
+} from "../dropdown-menu/DropdownMenu";
+import { ChevronDown, LogOut, User } from "lucide-react";
+import { useAuth } from "../../features/auth/context/AuthContext";
+import { DangerModeMenuItem } from "../dropdown-menu/DangerModeMenuItem";
 
 type AppHeaderProps = {
   householdId?: string;
 };
 
 export function AppHeader({ householdId }: AppHeaderProps) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    void logout();
+  }
+
   return (
     <header className="app-header">
       <div className="app-header__container">
@@ -20,7 +34,33 @@ export function AppHeader({ householdId }: AppHeaderProps) {
         </div>
 
         <div className="app-header__actions">
-          <LogoutButton />
+          <DropdownMenu
+            trigger={
+              <button type="button" className="app-header__account-button">
+                <User />
+                <ChevronDown />
+              </button>
+            }
+          >
+            <DropdownMenuItem onSelect={() => navigate("/account")}>
+              <User />
+              <span>Account settings</span>
+            </DropdownMenuItem>
+
+            <DropDownMenuSeparator />
+
+            {householdId !== undefined && (
+              <>
+                <DangerModeMenuItem />
+                <DropDownMenuSeparator />
+              </>
+            )}
+
+            <DropdownMenuItem onSelect={handleLogout}>
+              <LogOut />
+              <span>Logout</span>
+            </DropdownMenuItem>
+          </DropdownMenu>
         </div>
       </div>
     </header>

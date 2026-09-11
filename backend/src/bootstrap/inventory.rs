@@ -19,9 +19,10 @@ use crate::{
                 DecreaseInventoryStockService, DeleteCategoryService, GetInventoryItemService,
                 IncreaseInventoryStockService, ListCategoriesService, ListInventoryItemsService,
                 ListInventoryStockHistoryService, RestoreInventoryItemService,
-                SetInventoryStockService, UpdateInventoryItemService,
+                SetInventoryStockService, UpdateCategoryService, UpdateInventoryItemService,
             },
         },
+        scanning::adapters::PostgresQrActionRepository,
     },
     shared::api::InventoryItemState,
 };
@@ -38,17 +39,26 @@ pub(super) fn build_inventory_item_state(
     let inventory_stock_repository = Arc::new(PostgresInventoryStockRepository::new(pool.clone()));
     let inventory_stock_history_query =
         Arc::new(PostgresInventoryStockHistoryQuery::new(pool.clone()));
+    let qr_action_repository = Arc::new(PostgresQrActionRepository::new(pool.clone()));
 
     let create_inventory_item_service = Arc::new(CreateInventoryItemService::new(
         household_access_policy.clone(),
         category_repository.clone(),
         inventory_item_repository.clone(),
         household_events_publisher.clone(),
+        qr_action_repository,
     ));
 
     let create_category_service = Arc::new(CreateCategoryService::new(
         household_access_policy.clone(),
         category_repository.clone(),
+        household_events_publisher.clone(),
+    ));
+
+    let update_category_service = Arc::new(UpdateCategoryService::new(
+        household_access_policy.clone(),
+        category_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     let list_categories_service = Arc::new(ListCategoriesService::new(
@@ -59,6 +69,7 @@ pub(super) fn build_inventory_item_state(
     let delete_category_service = Arc::new(DeleteCategoryService::new(
         household_access_policy.clone(),
         category_repository.clone(),
+        household_events_publisher.clone(),
     ));
 
     let list_inventory_items_service = Arc::new(ListInventoryItemsService::new(
@@ -117,6 +128,7 @@ pub(super) fn build_inventory_item_state(
     InventoryItemState {
         create_inventory_item: create_inventory_item_service,
         create_category: create_category_service,
+        update_category: update_category_service,
         list_categories: list_categories_service,
         delete_category: delete_category_service,
         list_inventory_items: list_inventory_items_service,

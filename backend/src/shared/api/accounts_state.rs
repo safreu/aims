@@ -4,7 +4,7 @@ use crate::{
     config::SessionCookieConfig,
     modules::accounts::application::{
         AuthenticateSessionService, CreateSessionService, GetUserService, LoginUserService,
-        LogoutUserService, RegisterUserService,
+        LogoutUserService, RegisterUserService, SubscribeUserEventsService,
     },
 };
 
@@ -17,4 +17,6 @@ pub struct AccountsState {
     pub authenticate_session: Arc<AuthenticateSessionService>,
     pub session_cookie: SessionCookieConfig,
     pub get_user: Arc<GetUserService>,
+
+    pub subscribe_user_events: Arc<SubscribeUserEventsService>,
 }

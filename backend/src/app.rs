@@ -9,6 +9,7 @@ use crate::{
 use axum::{Json, Router, routing::get};
 use serde::Serialize;
 use tokio::net::TcpListener;
+use tokio_util::sync::CancellationToken;
 use tower_http::trace::TraceLayer;
 
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
@@ -16,17 +17,23 @@ use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetReques
 pub struct Application {
     listener: TcpListener,
     router: Router,
+    shutdown: CancellationToken,
 }
 
 impl Application {
     pub async fn build(config: AppConfig) -> Result<Self, ApplicationError> {
         let state = build_app_state(&config).await?;
+        let shutdown = state.shutdown.clone();
 
         let router = build_router(state);
 
         let listener = TcpListener::bind(config.server.address).await?;
 
-        Ok(Self { listener, router })
+        Ok(Self {
+            listener,
+            router,
+            shutdown,
+        })
     }
 
     pub async fn run(self) -> Result<(), std::io::Error> {
@@ -35,7 +42,7 @@ impl Application {
         tracing::info!(%address, "aims backend started");
 
         axum::serve(self.listener, self.router)
-            .with_graceful_shutdown(shutdown_signal())
+            .with_graceful_shutdown(shutdown_signal(self.shutdown))
             .await
     }
 }
@@ -60,13 +67,16 @@ struct HealthResponse {
 
 async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
-        status: "im still alive",
+        status: "still alive",
     })
 }
 
-async fn shutdown_signal() {
+async fn shutdown_signal(shutdown: CancellationToken) {
     match tokio::signal::ctrl_c().await {
-        Ok(()) => tracing::info!("shutdown signal received"),
+        Ok(()) => {
+            tracing::info!("shutdown signal received");
+            shutdown.cancel();
+        }
         Err(error) => tracing::error!(%error, "could not listen for shutdown signal"),
     }
 }

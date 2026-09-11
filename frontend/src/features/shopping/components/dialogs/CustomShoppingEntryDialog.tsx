@@ -4,6 +4,10 @@ import {
   deleteCustomShoppingEntry,
   updateCustomShoppingEntry,
 } from "../../api";
+import {
+  Select,
+  type SelectOption,
+} from "../../../../components/select/Select";
 
 type CustomShoppingEntryDialogProps = {
   householdId: string;
@@ -11,6 +15,13 @@ type CustomShoppingEntryDialogProps = {
   onChanged: () => Promise<void>;
   onClose: () => void;
 };
+
+const PriorityOptions: SelectOption<ShoppingPriority>[] = [
+  { value: "default", label: "Default" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+];
 
 export function CustomShoppingEntryDialog({
   householdId,
@@ -129,18 +140,14 @@ export function CustomShoppingEntryDialog({
               <label className="inventory-item-dialog__field">
                 <span>Priority</span>
 
-                <select
+                <Select
                   value={priority}
+                  options={PriorityOptions}
+                  onValueChange={(value) => setPriority(value)}
+                  portal={false}
                   disabled={isMutating}
-                  onChange={(event) =>
-                    setPriority(event.target.value as ShoppingPriority)
-                  }
-                >
-                  <option value="default">Default</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
+                  ariaLabel="Priority"
+                />
               </label>
 
               <label className="inventory-item-dialog__field">

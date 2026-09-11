@@ -3,6 +3,8 @@ import type { InventoryShoppingEntry } from "../../types";
 import { setShoppingChecked } from "../../api";
 import "./ShoppingEntryRow.css";
 import { InventoryShoppingEntryDialog } from "../dialogs/InventoryShoppingEntryDialog";
+import { PriorityIndicator } from "../../../inventory/components/priority/PriorityIndicator";
+import { useToast } from "../../../../components/toast/ToastContext";
 
 type InventoryShoppingEntryRowProps = {
   householdId: string;
@@ -15,18 +17,18 @@ export function InventoryShoppingEntryRow({
   entry,
   onChange,
 }: InventoryShoppingEntryRowProps) {
+  const { showToast } = useToast();
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const [isMutating, setIsMutating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleCheckedUpdate(checked: boolean) {
     setIsMutating(true);
-    setError(null);
 
     await setShoppingChecked(householdId, entry.item_id, { checked })
       .then(() => onChange())
-      .catch(() => setError("Failed ti update shopping list"))
+      .catch(() => showToast("Failed to update shopping list", "error"))
       .finally(() => setIsMutating(false));
   }
 
@@ -49,7 +51,11 @@ export function InventoryShoppingEntryRow({
         onClick={() => setIsDialogOpen(true)}
       >
         <div className="shopping-entry__main">
-          <strong className="shopping-entry__name">{entry.name}</strong>
+          <div className="shopping-entry__title">
+            <strong className="shopping-entry__name">{entry.name}</strong>
+
+            <PriorityIndicator priority={entry.priority} />
+          </div>
 
           <strong className="shopping-entry__quantity">
             ×{entry.quantity}
@@ -57,19 +63,17 @@ export function InventoryShoppingEntryRow({
         </div>
 
         <div className="shopping-entry__meta">
-          {entry.category !== null && <span>{entry.category.name}</span>}
-
-          {entry.category !== null && <span aria-hidden="true">·</span>}
-
-          <span>{formatPriority(entry.priority)}</span>
+          {entry.category !== null && (
+            <span className="shopping-entry__category">
+              {entry.category.name}
+            </span>
+          )}
         </div>
 
         {entry.note !== null && (
           <p className="shopping-entry__note">{entry.note}</p>
         )}
       </button>
-
-      {error !== null && <p className="shopping-entry__error">{error}</p>}
 
       {isDialogOpen && (
         <InventoryShoppingEntryDialog
@@ -81,12 +85,4 @@ export function InventoryShoppingEntryRow({
       )}
     </li>
   );
-}
-
-function formatPriority(priority: string) {
-  if (priority === "default") {
-    return "Normal";
-  }
-
-  return priority.charAt(0).toUpperCase() + priority.slice(1);
 }

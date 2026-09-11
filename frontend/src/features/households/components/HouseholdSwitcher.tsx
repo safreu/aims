@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../../components/toast/ToastContext";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Household } from "../types";
 import { getHouseholds } from "../api";
 import {
@@ -8,10 +8,11 @@ import {
   DropdownMenuItem,
   DropDownMenuSeparator,
 } from "../../../components/dropdown-menu/DropdownMenu";
-import { Check, ChevronDown, Plus, User, Users } from "lucide-react";
+import { Check, ChevronDown, Plus, Settings, User, Users } from "lucide-react";
 
 import "./HouseholdSwitcher.css";
 import { CreateHouseholdDialog } from "./CreateHouseholdDialog";
+import { useUserEvents } from "../events/UserEventsContext";
 
 type HouseholdSwitcherProps = {
   householdId?: string;
@@ -20,14 +21,15 @@ type HouseholdSwitcherProps = {
 export function HouseholdSwitcher({ householdId }: HouseholdSwitcherProps) {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { subscribe } = useUserEvents();
 
   const [households, setHouseholds] = useState<Household[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  async function refreshHouseholds() {
+  const refreshHouseholds = useCallback(async () => {
     const households = await getHouseholds();
     setHouseholds(households);
-  }
+  }, []);
 
   useEffect(() => {
     async function loadHouseholds() {
@@ -39,6 +41,14 @@ export function HouseholdSwitcher({ householdId }: HouseholdSwitcherProps) {
       showToast("Failed to load households", "error"),
     );
   }, [showToast]);
+
+  useEffect(() => {
+    return subscribe("household_memberships_changed", () => {
+      void refreshHouseholds().catch(() =>
+        showToast("Failed to refresh households", "error"),
+      );
+    });
+  }, [showToast, subscribe, refreshHouseholds]);
 
   const currentHousehold = households.find(
     (household) => household.id === householdId,
@@ -98,6 +108,15 @@ export function HouseholdSwitcher({ householdId }: HouseholdSwitcherProps) {
 
           <span>Create household</span>
         </DropdownMenuItem>
+
+        {householdId !== undefined && (
+          <DropdownMenuItem
+            onSelect={() => navigate(`/households/${householdId}/settings`)}
+          >
+            <Settings />
+            <span>Manage household</span>
+          </DropdownMenuItem>
+        )}
       </DropdownMenu>
 
       {showCreateDialog && (

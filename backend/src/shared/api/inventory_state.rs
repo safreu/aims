@@ -5,13 +5,14 @@ use crate::modules::inventory::application::{
     DecreaseInventoryStockService, DeleteCategoryService, GetInventoryItemService,
     IncreaseInventoryStockService, ListCategoriesService, ListInventoryItemsService,
     ListInventoryStockHistoryService, RestoreInventoryItemService, SetInventoryStockService,
-    UpdateInventoryItemService,
+    UpdateCategoryService, UpdateInventoryItemService,
 };
 
 #[derive(Clone)]
 pub struct InventoryItemState {
     pub create_inventory_item: Arc<CreateInventoryItemService>,
     pub create_category: Arc<CreateCategoryService>,
+    pub update_category: Arc<UpdateCategoryService>,
     pub list_categories: Arc<ListCategoriesService>,
     pub delete_category: Arc<DeleteCategoryService>,
     pub list_inventory_items: Arc<ListInventoryItemsService>,

@@ -1,0 +1,110 @@
+.register-other-device-dialog {
+  width: min(440px, calc(100% - 2rem));
+  padding: 0;
+
+  color: var(--text);
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.register-other-device-dialog::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+
+.register-other-device-dialog__content {
+  padding: var(--space-lg);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.register-other-device-dialog__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.register-other-device-dialog__header h2 {
+  margin: 0;
+
+  color: var(--text-h);
+
+  font-size: 1.25rem;
+}
+
+.register-other-device-dialog__header p {
+  margin: 0;
+
+  color: var(--text-muted);
+
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.register-other-device-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.register-other-device-dialog__field label {
+  color: var(--text);
+
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.register-other-device-dialog__field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+
+  color: var(--text);
+  background: var(--bg);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.register-other-device-dialog__field input:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.register-other-device-dialog__field input:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.register-other-device-dialog__field input:disabled {
+  opacity: 0.5;
+
+  cursor: not-allowed;
+}
+
+.register-other-device-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+@media (max-width: 600px) {
+  .register-other-device-dialog {
+    width: calc(100% - 2rem);
+  }
+
+  .register-other-device-dialog__actions {
+    flex-direction: column-reverse;
+  }
+
+  .register-other-device-dialog__actions .button {
+    width: 100%;
+  }
+}

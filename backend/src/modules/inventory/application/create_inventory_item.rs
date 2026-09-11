@@ -15,6 +15,10 @@ use crate::{
             },
             ports::{CategoryRepository, InventoryItemRepository, InventoryItemRepositoryError},
         },
+        scanning::{
+            domain::{QrAction, QrActionId, QrActionKind},
+            ports::QrActionRepository,
+        },
     },
     shared::application::InternalError,
 };
@@ -34,6 +38,7 @@ pub struct CreateInventoryItemService {
     category_repository: Arc<dyn CategoryRepository>,
     inventory_item_repository: Arc<dyn InventoryItemRepository>,
     household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+    qr_actions_repository: Arc<dyn QrActionRepository>,
 }
 
 impl CreateInventoryItemService {
@@ -42,12 +47,14 @@ impl CreateInventoryItemService {
         category_repository: Arc<dyn CategoryRepository>,
         inventory_item_repository: Arc<dyn InventoryItemRepository>,
         household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+        qr_actions_repository: Arc<dyn QrActionRepository>,
     ) -> Self {
         Self {
             household_access_policy,
             category_repository,
             inventory_item_repository,
             household_events_publisher,
+            qr_actions_repository,
         }
     }
 
@@ -140,6 +147,80 @@ impl CreateInventoryItemService {
                     household_id = %command.household_id,
                     item_id = %item.id(),
                     "Failed to publish shopping list changed event"
+                );
+                CreateInventoryItemError::Internal(InternalError::Failed)
+            })?;
+
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::InventoryItemsChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    item_id = %item.id(),
+                    "Failed to publish inventory items changed event"
+                );
+                CreateInventoryItemError::Internal(InternalError::Failed)
+            })?;
+
+        let increase_action = QrAction::new(
+            QrActionId::new(),
+            command.household_id,
+            item.id(),
+            QrActionKind::Increase,
+            1,
+            now,
+        )
+        .map_err(|error| {
+            tracing::error!(
+                error = ?error,
+                household_id = %command.household_id,
+                item_id = %item.id(),
+                "Failed to create increase QR action"
+            );
+            CreateInventoryItemError::Internal(InternalError::Failed)
+        })?;
+
+        let decrease_action = QrAction::new(
+            QrActionId::new(),
+            command.household_id,
+            item.id(),
+            QrActionKind::Decrease,
+            1,
+            now,
+        )
+        .map_err(|error| {
+            tracing::error!(
+                error = ?error,
+                household_id = %command.household_id,
+                item_id = %item.id(),
+                "Failed to create decrease QR action"
+            );
+            CreateInventoryItemError::Internal(InternalError::Failed)
+        })?;
+
+        self.qr_actions_repository
+            .insert(&increase_action)
+            .await
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    item_id = %item.id(),
+                    "Failed to persist increase QR action"
+                );
+                CreateInventoryItemError::Internal(InternalError::Failed)
+            })?;
+
+        self.qr_actions_repository
+            .insert(&decrease_action)
+            .await
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    item_id = %item.id(),
+                    "Failed to persist decrease QR action"
                 );
                 CreateInventoryItemError::Internal(InternalError::Failed)
             })?;

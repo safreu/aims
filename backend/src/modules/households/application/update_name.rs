@@ -6,8 +6,8 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::{HouseholdId, HouseholdKind, HouseholdName, HouseholdRole},
-            ports::{HouseholdRepository, HouseholdRepositoryError},
+            domain::{HouseholdEvent, HouseholdId, HouseholdKind, HouseholdName, HouseholdRole},
+            ports::{HouseholdEventPublisher, HouseholdRepository, HouseholdRepositoryError},
         },
     },
     shared::application::InternalError,
@@ -21,12 +21,17 @@ pub struct RenameHouseholdCommand {
 
 pub struct RenameHouseholdService {
     household_repository: Arc<dyn HouseholdRepository>,
+    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl RenameHouseholdService {
-    pub fn new(household_repository: Arc<dyn HouseholdRepository>) -> Self {
+    pub fn new(
+        household_repository: Arc<dyn HouseholdRepository>,
+        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
+    ) -> Self {
         Self {
             household_repository,
+            household_events_publisher,
         }
     }
 
@@ -87,6 +92,17 @@ impl RenameHouseholdService {
                 }
             })?;
 
+        self.household_events_publisher
+            .publish(command.household_id, HouseholdEvent::HouseholdChanged)
+            .map_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    household_id = %command.household_id,
+                    "Failed to publish household changed event"
+                );
+                RenameHouseholdError::Internal(InternalError::Failed)
+            })?;
+
         Ok(())
     }
 }
@@ -107,7 +123,7 @@ pub enum RenameHouseholdError {
 mod tests {
 
     use crate::{
-        modules::households::adapters::InMemoryHouseholdRepository,
+        modules::households::adapters::{BroadcastHouseholdEvents, InMemoryHouseholdRepository},
         test_helpers::{
             FailingHouseholdRepository, MissingOnUpdateHouseholdRepository,
             build_rename_household_service, create_owned_household, insert_member,
@@ -265,7 +281,9 @@ mod tests {
     #[tokio::test]
     async fn repository_failure_returns_internal() {
         let repository = Arc::new(FailingHouseholdRepository);
-        let service = RenameHouseholdService::new(repository);
+        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+        let service = RenameHouseholdService::new(repository, household_events_publisher);
 
         let result = service
             .execute(RenameHouseholdCommand {
@@ -289,7 +307,10 @@ mod tests {
             inner: inner.clone(),
         });
 
-        let service = RenameHouseholdService::new(repository);
+        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+
+        let service = RenameHouseholdService::new(repository, household_events_publisher);
 
         let owner_id = UserId::new();
 

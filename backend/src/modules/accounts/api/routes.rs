@@ -4,7 +4,10 @@ use axum::{
 };
 
 use crate::{
-    modules::accounts::api::handlers::{get_user, login_user, logout_user, register_user},
+    modules::accounts::api::{
+        event_handlers::subscribe_user_events,
+        handlers::{get_user, login_user, logout_user, register_user},
+    },
     shared::api::AppState,
 };
 
@@ -14,4 +17,5 @@ pub fn accounts_router() -> Router<AppState> {
         .route("/login", post(login_user))
         .route("/logout", post(logout_user))
         .route("/me", get(get_user))
+        .route("/me/events", get(subscribe_user_events))
 }

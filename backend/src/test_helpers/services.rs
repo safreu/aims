@@ -5,11 +5,15 @@ use chrono::Duration;
 use crate::{
     modules::{
         accounts::{
-            adapters::{Argon2PasswordHasher, InMemorySessionRepository, InMemoryUserRepository},
+            adapters::{
+                Argon2PasswordHasher, BroadcastUserEvents, InMemorySessionRepository,
+                InMemoryUserRepository,
+            },
             application::{
                 AuthenticateSessionService, CreateSessionService, LoginUserService,
                 RegisterUserService,
             },
+            ports::UserEventPublisher,
         },
         households::{
             adapters::{
@@ -30,6 +34,7 @@ use crate::{
                 UpdateInventoryItemService,
             },
         },
+        scanning::adapters::InMemoryQrActionRepository,
     },
     shared::auth::Sha256TokenHasher,
     test_helpers::FixedSessionTokenGenerator,
@@ -133,9 +138,17 @@ pub fn build_add_member_service() -> (
 ) {
     let household_repository = Arc::new(InMemoryHouseholdRepository::new());
     let user_repository = Arc::new(InMemoryUserRepository::new());
+    let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+    let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+    let user_events = Arc::new(BroadcastUserEvents::new(64));
+    let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
-    let service =
-        AddHouseholdMemberService::new(household_repository.clone(), user_repository.clone());
+    let service = AddHouseholdMemberService::new(
+        household_repository.clone(),
+        user_repository.clone(),
+        household_events_publisher,
+        user_events_publisher,
+    );
 
     (service, household_repository, user_repository)
 }
@@ -170,8 +183,17 @@ pub fn build_remove_household_member_service() -> (
         household_repository.clone(),
     ));
     let user_repository = Arc::new(InMemoryUserRepository::new());
+    let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+    let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+    let user_events = Arc::new(BroadcastUserEvents::new(64));
+    let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
-    let service = RemoveHouseholdMemberService::new(household_repository.clone(), policy);
+    let service = RemoveHouseholdMemberService::new(
+        household_repository.clone(),
+        policy,
+        household_events_publisher,
+        user_events_publisher,
+    );
 
     (service, household_repository, user_repository)
 }
@@ -179,8 +201,10 @@ pub fn build_remove_household_member_service() -> (
 pub fn build_rename_household_service() -> (RenameHouseholdService, Arc<InMemoryHouseholdRepository>)
 {
     let repository = Arc::new(InMemoryHouseholdRepository::new());
+    let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+    let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
 
-    let service = RenameHouseholdService::new(repository.clone());
+    let service = RenameHouseholdService::new(repository.clone(), household_events_publisher);
 
     (service, repository)
 }
@@ -200,12 +224,14 @@ pub fn build_create_inventory_item_service() -> (
 
     let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
     let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
+    let qr_actions_repository = Arc::new(InMemoryQrActionRepository::new());
 
     let service = CreateInventoryItemService::new(
         household_access_policy,
         category_repository.clone(),
         inventory_item_repository.clone(),
         household_events_publisher.clone(),
+        qr_actions_repository,
     );
 
     (
@@ -225,9 +251,15 @@ pub fn build_create_category_service() -> (
     let household_access_policy = Arc::new(DefaultHouseholdAccessPolicy::new(
         household_repository.clone(),
     ));
+    let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+    let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
     let category_repository = Arc::new(InMemoryCategoryRepository::new());
 
-    let service = CreateCategoryService::new(household_access_policy, category_repository.clone());
+    let service = CreateCategoryService::new(
+        household_access_policy,
+        category_repository.clone(),
+        household_events_publisher.clone(),
+    );
 
     (service, category_repository, household_repository)
 }
@@ -257,9 +289,15 @@ pub fn build_delete_category_service() -> (
     let household_access_policy = Arc::new(DefaultHouseholdAccessPolicy::new(
         household_repository.clone(),
     ));
+    let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
+    let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
     let category_repository = Arc::new(InMemoryCategoryRepository::new());
 
-    let service = DeleteCategoryService::new(household_access_policy, category_repository.clone());
+    let service = DeleteCategoryService::new(
+        household_access_policy,
+        category_repository.clone(),
+        household_events_publisher.clone(),
+    );
 
     (service, category_repository, household_repository)
 }

@@ -1,2 +1,5 @@
 mod postgres_qr_action_repository;
 pub use postgres_qr_action_repository::PostgresQrActionRepository;
+
+mod in_memory_qr_action_repository;
+pub use in_memory_qr_action_repository::InMemoryQrActionRepository;

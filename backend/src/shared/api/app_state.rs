@@ -1,3 +1,5 @@
+use tokio_util::sync::CancellationToken;
+
 use crate::shared::api::{
     AccountsState, DeviceState, HouseholdsState, InventoryItemState, ScanningState, ShoppingState,
 };
@@ -10,4 +12,5 @@ pub struct AppState {
     pub device: DeviceState,
     pub scanning: ScanningState,
     pub shopping: ShoppingState,
+    pub shutdown: CancellationToken,
 }

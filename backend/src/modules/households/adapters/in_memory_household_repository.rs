@@ -190,6 +190,10 @@ impl HouseholdRepository for InMemoryHouseholdRepository {
 
         Ok(())
     }
+
+    async fn delete(&self, _household_id: &HouseholdId) -> Result<(), HouseholdRepositoryError> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
