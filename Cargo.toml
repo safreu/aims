@@ -1,3 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["backend", "scanner", "updater"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
