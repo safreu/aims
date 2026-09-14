@@ -8,6 +8,7 @@ on:
     paths:
       - "backend/**"
       - "updater/**"
+      - "installer/**"
       - "scanner/**"
       - ".sqlx/**"
       - "Cargo.toml"
@@ -18,6 +19,7 @@ on:
     paths:
       - "backend/**"
       - "updater/**"
+      - "installer/**"
       - "scanner/**"
       - ".sqlx/**"
       - "Cargo.toml"

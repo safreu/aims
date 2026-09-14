@@ -1,5 +1,6 @@
 use std::{
-    fs,
+    fs::{self, File},
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -71,7 +72,21 @@ impl Installation {
             return Err(InstallationError::MissingVersion);
         }
 
-        fs::write(path, format!("{updated}\n")).map_err(InstallationError::WriteEnv)?;
+        let temp_path = path.with_extension("prod.tmp");
+
+        let mut temp_file = File::create(&temp_path).map_err(InstallationError::WriteEnv)?;
+
+        temp_file
+            .write_all(format!("{updated}\n").as_bytes())
+            .map_err(InstallationError::WriteEnv)?;
+
+        temp_file.sync_all().map_err(InstallationError::WriteEnv)?;
+
+        fs::rename(&temp_path, &path).map_err(InstallationError::WriteEnv)?;
+
+        let directory = File::open(self.root()).map_err(InstallationError::WriteEnv)?;
+
+        directory.sync_all().map_err(InstallationError::WriteEnv)?;
 
         Ok(())
     }

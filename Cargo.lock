@@ -1458,6 +1458,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "installer"
+version = "0.1.1"
+dependencies = [
+ "clap",
+ "rand 0.10.2",
+ "reqwest",
+ "semver",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
