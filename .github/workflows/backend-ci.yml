@@ -7,10 +7,24 @@ on:
       - dev
     paths:
       - "backend/**"
+      - "updater/**"
+      - "installer/**"
+      - "scanner/**"
+      - ".sqlx/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
       - ".github/workflows/backend-ci.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "updater/**"
+      - "installer/**"
+      - "scanner/**"
+      - ".sqlx/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
       - ".github/workflows/backend-ci.yml"
     
 concurrency:
@@ -46,7 +60,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -93,7 +107,7 @@ jobs:
       
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1

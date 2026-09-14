@@ -4,91 +4,147 @@ on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  backend:
-    name: Backend image
+  prepare:
+    name: Prepare release
     runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      minor: ${{ steps.version.outputs.minor }}
+      sha_tag: ${{ steps.version.outputs.sha_tag }}
+
+    steps:
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid semantic version: $VERSION"
+            exit 1
+          fi
+
+          MINOR="${VERSION%.*}"
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "minor=$MINOR" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+
+          echo "Publishing Aims $VERSION"
+
+  build:
+    name: ${{ matrix.image }} (${{ matrix.architecture.arch }})
+    needs: prepare
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - backend
+          - frontend
+
+        architecture:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.architecture.runner }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/aims-backend
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
+      - name: Build and push architecture image
+        uses: docker/build-push-action@v7
         with:
           context: .
-          file: backend/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          file: ${{ matrix.image }}/Dockerfile
+          platforms: ${{ matrix.architecture.platform }}
 
-  frontend:
-    name: Frontend image
+          push: true
+
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/aims-${{ matrix.image }}:build-${{ github.run_id }}-${{ matrix.architecture.arch }}
+
+          cache-from: |
+            type=gha,scope=${{ matrix.image }}-${{ matrix.architecture.arch }}
+
+          cache-to: |
+            type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.architecture.arch }}
+
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+
+  manifest:
+    name: ${{ matrix.image }} multi-arch manifest
+    needs:
+      - prepare
+      - build
+
+    strategy:
+      matrix:
+        image:
+          - backend
+          - frontend
+
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/aims-frontend
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
+      - name: Create multi-arch image
+        shell: bash
+        run: |
+          set -euo pipefail
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: frontend/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          IMAGE="ghcr.io/${{ github.repository_owner }}/aims-${{ matrix.image }}"
+
+          AMD64_IMAGE="${IMAGE}:build-${{ github.run_id }}-amd64"
+          ARM64_IMAGE="${IMAGE}:build-${{ github.run_id }}-arm64"
+
+          docker buildx imagetools create \
+            --tag "${IMAGE}:${{ needs.prepare.outputs.version }}" \
+            --tag "${IMAGE}:${{ needs.prepare.outputs.minor }}" \
+            --tag "${IMAGE}:${{ needs.prepare.outputs.sha_tag }}" \
+            "${AMD64_IMAGE}" \
+            "${ARM64_IMAGE}"
+
+      - name: Inspect multi-arch image
+        shell: bash
+        run: |
+          docker buildx imagetools inspect \
+            "ghcr.io/${{ github.repository_owner }}/aims-${{ matrix.image }}:${{ needs.prepare.outputs.version }}"

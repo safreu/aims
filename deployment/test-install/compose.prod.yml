@@ -1,4 +1,4 @@
-name: aims-updater-test
+name: ${AIMS_COMPOSE_PROJECT:-aims-prod}
 services:
   postgres:
     image: postgres:17
@@ -39,12 +39,12 @@ services:
     image: ghcr.io/safreu/aims-frontend:${AIMS_VERSION}
     restart: unless-stopped
     ports:
-      - "18080:80"
+      - "${AIMS_HTTP_PORT:-8080}:80" 
     depends_on:
       - backend
 
 volumes:
-  aims_test_postgres_data:
-    name: aims_test_postgres_data
+  aims_prod_postgres_data:
+    name: ${AIMS_POSTGRES_VOLUME:-aims_prod_postgres_data}
 
         
