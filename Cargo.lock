@@ -276,7 +276,7 @@ dependencies = [
 
 [[package]]
 name = "backend"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "argon2",
@@ -1459,7 +1459,7 @@ dependencies = [
 
 [[package]]
 name = "installer"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "rand 0.10.2",
@@ -2428,7 +2428,7 @@ dependencies = [
 
 [[package]]
 name = "scanner"
-version = "0.1.1"
+version = "0.1.2"
 
 [[package]]
 name = "schannel"
@@ -3368,7 +3368,7 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "updater"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "reqwest",
