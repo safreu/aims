@@ -10,11 +10,13 @@ COPY .sqlx .sqlx
 COPY backend/Cargo.toml backend/Cargo.toml
 COPY scanner/Cargo.toml scanner/Cargo.toml
 COPY updater/Cargo.toml updater/Cargo.toml
+COPY installer/Cargo.toml installer/Cargo.toml
 
-RUN mkdir -p backend/src scanner/src updater/src \
+RUN mkdir -p backend/src scanner/src updater/src installer/src \
     && echo "fn main() {}" > backend/src/main.rs \
     && echo "fn main() {}" > scanner/src/main.rs \
-    && echo "fn main() {}" > updater/src/main.rs
+    && echo "fn main() {}" > updater/src/main.rs \
+    && echo "fn main() {}" > installer/src/main.rs
 
 RUN cargo build --release -p backend
 
