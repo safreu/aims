@@ -5,6 +5,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::version::Version;
+
 #[derive(Debug, Clone)]
 pub struct Installation {
     root: PathBuf,
@@ -52,6 +54,50 @@ impl Installation {
     }
 
     pub fn write_environment(&self, content: &str) -> Result<(), InstallationError> {
+        self.write_environment_file(content)
+    }
+
+    pub fn remove(&self) -> Result<(), InstallationError> {
+        std::fs::remove_dir_all(&self.root).map_err(InstallationError::RemoveDirectory)
+    }
+
+    pub fn current_version(&self) -> Result<Version, InstallationError> {
+        let content = fs::read_to_string(self.env_file()).map_err(InstallationError::ReadEnv)?;
+
+        let value = content
+            .lines()
+            .find_map(|line| line.strip_prefix("AIMS_VERSION="))
+            .ok_or(InstallationError::MissingVersion)?;
+
+        Version::parse(value).map_err(InstallationError::InvalidVersion)
+    }
+
+    pub fn set_version(&self, version: &Version) -> Result<(), InstallationError> {
+        let content = fs::read_to_string(self.env_file()).map_err(InstallationError::ReadEnv)?;
+
+        let mut found = false;
+
+        let updated = content
+            .lines()
+            .map(|line| {
+                if line.starts_with("AIMS_VERSION=") {
+                    found = true;
+                    format!("AIMS_VERSION={version}")
+                } else {
+                    line.to_owned()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        if !found {
+            return Err(InstallationError::MissingVersion);
+        }
+
+        self.write_environment_file(&format!("{updated}\n"))
+    }
+
+    fn write_environment_file(&self, content: &str) -> Result<(), InstallationError> {
         let path = self.env_file();
         let temp_path = path.with_extension("prod.tmp");
 
@@ -74,10 +120,6 @@ impl Installation {
 
         Ok(())
     }
-
-    pub fn remove(&self) -> Result<(), InstallationError> {
-        std::fs::remove_dir_all(&self.root).map_err(InstallationError::RemoveDirectory)
-    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -94,6 +136,12 @@ pub enum InstallationError {
     WriteEnv(#[source] std::io::Error),
     #[error("failed to set environment file permissions")]
     SetPermissions(#[source] std::io::Error),
+    #[error("failed to read environment file")]
+    ReadEnv(#[source] std::io::Error),
+    #[error("AIMS_VERSION is missing from environment file")]
+    MissingVersion,
+    #[error("AIMS_VERSION in environment file is invalid")]
+    InvalidVersion(#[source] crate::version::VersionParseError),
 }
 
 #[cfg(test)]
@@ -175,6 +223,78 @@ mod tests {
         installation
             .write_environment("AIMS_VERSION=0.1.1\n")
             .unwrap();
+
+        let metadata = std::fs::metadata(installation.env_file()).unwrap();
+
+        assert_eq!(metadata.permissions().mode() & 0o777, 0o600);
+    }
+
+    #[test]
+    fn version_can_be_updated() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        let env_file = temp_dir.path().join(".env.prod");
+
+        std::fs::write(&env_file, "AIMS_VERSION=0.1.0\nAPP_PORT=3000\n").unwrap();
+
+        let installation = Installation::new(temp_dir.path(), "");
+        let version = Version::parse("0.2.0").unwrap();
+
+        installation.set_version(&version).unwrap();
+
+        let content = std::fs::read_to_string(env_file).unwrap();
+
+        assert_eq!(content, "AIMS_VERSION=0.2.0\nAPP_PORT=3000\n");
+    }
+
+    #[test]
+    fn missing_version_is_rejected() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        std::fs::write(temp_dir.path().join(".env.prod"), "APP_PORT=3000\n").unwrap();
+
+        let installation = Installation::new(temp_dir.path(), "");
+        let version = Version::parse("0.2.0").unwrap();
+
+        let result = installation.set_version(&version);
+
+        assert!(matches!(result, Err(InstallationError::MissingVersion)));
+    }
+
+    #[test]
+    fn current_version_can_be_read() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        std::fs::write(
+            temp_dir.path().join(".env.prod"),
+            "AIMS_VERSION=0.1.0\nAPP_PORT=3000\n",
+        )
+        .unwrap();
+
+        let installation = Installation::new(temp_dir.path(), "");
+
+        let version = installation.current_version().unwrap();
+
+        assert_eq!(version, Version::parse("0.1.0").unwrap());
+    }
+
+    #[test]
+    fn updated_environment_file_has_restricted_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let installation_root = temp_dir.path().join("aims");
+
+        let installation = Installation::new(&installation_root, "");
+        installation.create().unwrap();
+
+        installation
+            .write_environment("AIMS_VERSION=0.1.1\n")
+            .unwrap();
+
+        let version = Version::parse("0.1.2").unwrap();
+
+        installation.set_version(&version).unwrap();
 
         let metadata = std::fs::metadata(installation.env_file()).unwrap();
 

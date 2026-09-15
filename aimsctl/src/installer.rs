@@ -1,26 +1,34 @@
 use crate::{
     docker::ContainerRuntime, environment::EnvironmentConfig, health::HealthChecker,
-    installation::Installation, version::Version,
+    installation::Installation, progress::ProgressReporter, version::Version,
 };
 
-pub struct Installer<D, H> {
+pub struct Installer<D, H, P>
+where
+    D: ContainerRuntime,
+    H: HealthChecker,
+    P: ProgressReporter,
+{
     installation: Installation,
     docker: D,
     health_checker: H,
+    progress: P,
     compose_project: String,
     http_port: u16,
     postgres_volume: String,
 }
 
-impl<D, H> Installer<D, H>
+impl<D, H, P> Installer<D, H, P>
 where
     D: ContainerRuntime,
     H: HealthChecker,
+    P: ProgressReporter,
 {
     pub fn new(
         installation: Installation,
         docker: D,
         health_checker: H,
+        progress: P,
         compose_project: String,
         http_port: u16,
         postgres_volume: String,
@@ -29,6 +37,7 @@ where
             installation,
             docker,
             health_checker,
+            progress,
             compose_project,
             http_port,
             postgres_volume,
@@ -36,8 +45,18 @@ where
     }
 
     pub fn install(&self, version: &Version) -> Result<(), InstallerError> {
+        const TOTAL_STEPS: usize = 5;
+
+        self.progress.header(&format!("Aims {version} installer"));
+
+        self.progress.step(1, TOTAL_STEPS, "Preparing installation");
+
         self.installation.create()?;
         self.installation.write_compose_file()?;
+
+        self.progress.detail("Installation directory created");
+
+        self.progress.step(2, TOTAL_STEPS, "Writing configuration");
 
         let database_password = crate::environment::generate_database_password();
 
@@ -53,16 +72,29 @@ where
 
         self.installation.write_environment(&environment)?;
 
-        if let Err(error) = self.docker.pull(&self.installation) {
+        self.progress.detail("Configuration written");
+
+        self.progress
+            .step(3, TOTAL_STEPS, &format!("Downloading Aims {version}"));
+
+        if let Err(error) = self.docker.pull(&self.installation, version) {
             let installation_error = InstallerError::Docker(error);
             return Err(self.cleanup_after_failure(installation_error, self.cleanup_files()));
         }
 
-        if let Err(error) = self.docker.up(&self.installation) {
+        self.progress.detail("Docker images downloaded");
+
+        self.progress.step(4, TOTAL_STEPS, "Starting services");
+
+        if let Err(error) = self.docker.apply(&self.installation) {
             let installation_error = InstallerError::Docker(error);
             return Err(self
                 .cleanup_after_failure(installation_error, self.cleanup_running_installations()));
         }
+
+        self.progress.detail("Services started");
+
+        self.progress.step(5, TOTAL_STEPS, "Checking health");
 
         if let Err(error) = self.health_checker.wait_until_healthy(&self.installation) {
             let installation_error = InstallerError::Health(error);
@@ -70,6 +102,11 @@ where
             return Err(self
                 .cleanup_after_failure(installation_error, self.cleanup_running_installations()));
         }
+
+        self.progress.detail("Aims is healthy");
+
+        self.progress
+            .success(&format!("Aims {version} installed successfully"));
 
         Ok(())
     }
@@ -121,15 +158,24 @@ mod tests {
 
     use super::*;
     use crate::{
-        docker::DockerComposeError,
+        docker::{DockerComposeError, ServiceStatus},
         health::{HealthCheckError, HealthChecker},
     };
+    struct TestProgressReporter;
+
+    impl ProgressReporter for TestProgressReporter {
+        fn header(&self, _message: &str) {}
+        fn step(&self, _current: usize, _total: usize, _message: &str) {}
+        fn detail(&self, _message: &str) {}
+        fn phase(&self, _name: &str, _message: &str) {}
+        fn success(&self, _message: &str) {}
+    }
 
     fn test_installer<D, H>(
         installation: Installation,
         docker: D,
         health_checker: H,
-    ) -> Installer<D, H>
+    ) -> Installer<D, H, TestProgressReporter>
     where
         D: ContainerRuntime,
         H: HealthChecker,
@@ -138,6 +184,7 @@ mod tests {
             installation,
             docker,
             health_checker,
+            TestProgressReporter,
             "aims-installer-test".to_string(),
             18081,
             "aims_installer_test_postgres_data".to_string(),
@@ -150,19 +197,38 @@ mod tests {
     }
 
     impl ContainerRuntime for FakeDocker {
-        fn pull(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+        fn pull(
+            &self,
+            _installation: &Installation,
+            _version: &Version,
+        ) -> Result<(), DockerComposeError> {
             self.calls.borrow_mut().push("pull");
             Ok(())
         }
 
-        fn up(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-            self.calls.borrow_mut().push("up");
+        fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            self.calls.borrow_mut().push("apply");
             Ok(())
+        }
+
+        fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            panic!("start must not be called by installer");
+        }
+
+        fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            panic!("stop must not be called by installer");
         }
 
         fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
             self.calls.borrow_mut().push("down");
             Ok(())
+        }
+
+        fn service_statuses(
+            &self,
+            _installation: &Installation,
+        ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
+            Ok(Vec::new())
         }
     }
 
@@ -175,6 +241,10 @@ mod tests {
         fn wait_until_healthy(&self, _installation: &Installation) -> Result<(), HealthCheckError> {
             self.calls.borrow_mut().push("health");
             Ok(())
+        }
+
+        fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
+            Ok(true)
         }
     }
 
@@ -206,7 +276,7 @@ mod tests {
         assert!(installation_root.join("compose.prod.yml").is_file());
         assert!(installation_root.join(".env.prod").is_file());
 
-        assert_eq!(calls.borrow().as_slice(), ["pull", "up", "health"],);
+        assert_eq!(calls.borrow().as_slice(), ["pull", "apply", "health"],);
     }
 
     #[test]
@@ -216,7 +286,11 @@ mod tests {
         }
 
         impl ContainerRuntime for FailingDocker {
-            fn pull(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            fn pull(
+                &self,
+                _installation: &Installation,
+                _version: &Version,
+            ) -> Result<(), DockerComposeError> {
                 self.calls.borrow_mut().push("pull");
 
                 Err(DockerComposeError::CommandFailed {
@@ -226,13 +300,28 @@ mod tests {
                 })
             }
 
-            fn up(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("up must not be called after pull failure");
+            fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("apply must not be called after pull failure");
+            }
+
+            fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("start must not be called by installer");
+            }
+
+            fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("stop must not be called by installer");
             }
 
             fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
                 self.calls.borrow_mut().push("down");
                 Ok(())
+            }
+
+            fn service_statuses(
+                &self,
+                _installation: &Installation,
+            ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
+                Ok(Vec::new())
             }
         }
 
@@ -245,6 +334,10 @@ mod tests {
             ) -> Result<(), HealthCheckError> {
                 panic!("health check must not run after pull failure");
             }
+
+            fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
+                Ok(true)
+            }
         }
 
         let temp_dir = tempfile::tempdir().unwrap();
@@ -268,37 +361,54 @@ mod tests {
         let result = installer.install(&version);
 
         assert!(matches!(result, Err(InstallerError::Docker(_))));
-
         assert_eq!(calls.borrow().as_slice(), ["pull"]);
-
         assert!(!installation_root.exists());
     }
 
     #[test]
-    fn up_failure_is_returned_and_running_installation_is_cleaned_up() {
+    fn apply_failure_is_returned_and_running_installation_is_cleaned_up() {
         struct FailingDocker {
             calls: Rc<RefCell<Vec<&'static str>>>,
         }
 
         impl ContainerRuntime for FailingDocker {
-            fn pull(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            fn pull(
+                &self,
+                _installation: &Installation,
+                _version: &Version,
+            ) -> Result<(), DockerComposeError> {
                 self.calls.borrow_mut().push("pull");
                 Ok(())
             }
 
-            fn up(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                self.calls.borrow_mut().push("up");
+            fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                self.calls.borrow_mut().push("apply");
 
                 Err(DockerComposeError::CommandFailed {
                     exit_code: Some(1),
                     stdout: String::new(),
-                    stderr: "up failed".to_string(),
+                    stderr: "apply failed".to_string(),
                 })
+            }
+
+            fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("start must not be called by installer");
+            }
+
+            fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("stop must not be called by installer");
             }
 
             fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
                 self.calls.borrow_mut().push("down");
                 Ok(())
+            }
+
+            fn service_statuses(
+                &self,
+                _installation: &Installation,
+            ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
+                Ok(Vec::new())
             }
         }
 
@@ -309,7 +419,11 @@ mod tests {
                 &self,
                 _installation: &Installation,
             ) -> Result<(), HealthCheckError> {
-                panic!("health check must not run after up failure");
+                panic!("health check must not run after apply failure");
+            }
+
+            fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
+                Ok(true)
             }
         }
 
@@ -334,9 +448,7 @@ mod tests {
         let result = installer.install(&version);
 
         assert!(matches!(result, Err(InstallerError::Docker(_))));
-
-        assert_eq!(calls.borrow().as_slice(), ["pull", "up", "down"],);
-
+        assert_eq!(calls.borrow().as_slice(), ["pull", "apply", "down"],);
         assert!(!installation_root.exists());
     }
 
@@ -347,19 +459,38 @@ mod tests {
         }
 
         impl ContainerRuntime for FakeDocker {
-            fn pull(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            fn pull(
+                &self,
+                _installation: &Installation,
+                _version: &Version,
+            ) -> Result<(), DockerComposeError> {
                 self.calls.borrow_mut().push("pull");
                 Ok(())
             }
 
-            fn up(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                self.calls.borrow_mut().push("up");
+            fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                self.calls.borrow_mut().push("apply");
                 Ok(())
+            }
+
+            fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("start must not be called by installer");
+            }
+
+            fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("stop must not be called by installer");
             }
 
             fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
                 self.calls.borrow_mut().push("down");
                 Ok(())
+            }
+
+            fn service_statuses(
+                &self,
+                _installation: &Installation,
+            ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
+                Ok(Vec::new())
             }
         }
 
@@ -374,6 +505,10 @@ mod tests {
             ) -> Result<(), HealthCheckError> {
                 self.calls.borrow_mut().push("health");
                 Err(HealthCheckError::TimedOut)
+            }
+
+            fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
+                Ok(true)
             }
         }
 
@@ -400,9 +535,10 @@ mod tests {
         let result = installer.install(&version);
 
         assert!(matches!(result, Err(InstallerError::Health(_))));
-
-        assert_eq!(calls.borrow().as_slice(), ["pull", "up", "health", "down"],);
-
+        assert_eq!(
+            calls.borrow().as_slice(),
+            ["pull", "apply", "health", "down"],
+        );
         assert!(!installation_root.exists());
     }
 
@@ -411,12 +547,24 @@ mod tests {
         struct FailingDocker;
 
         impl ContainerRuntime for FailingDocker {
-            fn pull(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            fn pull(
+                &self,
+                _installation: &Installation,
+                _version: &Version,
+            ) -> Result<(), DockerComposeError> {
                 Ok(())
             }
 
-            fn up(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
                 Ok(())
+            }
+
+            fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("start must not be called by installer");
+            }
+
+            fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("stop must not be called by installer");
             }
 
             fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
@@ -425,6 +573,13 @@ mod tests {
                     stdout: String::new(),
                     stderr: "down failed".to_string(),
                 })
+            }
+
+            fn service_statuses(
+                &self,
+                _installation: &Installation,
+            ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
+                Ok(Vec::new())
             }
         }
 
@@ -436,6 +591,10 @@ mod tests {
                 _installation: &Installation,
             ) -> Result<(), HealthCheckError> {
                 Err(HealthCheckError::TimedOut)
+            }
+
+            fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
+                Ok(true)
             }
         }
 
@@ -473,16 +632,35 @@ mod tests {
         struct FakeDocker;
 
         impl ContainerRuntime for FakeDocker {
-            fn pull(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            fn pull(
+                &self,
+                _installation: &Installation,
+                _version: &Version,
+            ) -> Result<(), DockerComposeError> {
                 Ok(())
             }
 
-            fn up(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
                 Ok(())
+            }
+
+            fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("start must not be called by installer");
+            }
+
+            fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+                panic!("stop must not be called by installer");
             }
 
             fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
                 Ok(())
+            }
+
+            fn service_statuses(
+                &self,
+                _installation: &Installation,
+            ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
+                Ok(Vec::new())
             }
         }
 
@@ -494,6 +672,10 @@ mod tests {
                 _installation: &Installation,
             ) -> Result<(), HealthCheckError> {
                 Ok(())
+            }
+
+            fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
+                Ok(true)
             }
         }
 
