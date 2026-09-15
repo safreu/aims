@@ -20,6 +20,8 @@ mod uninstaller;
 mod updater;
 mod version;
 
+const AIMSCTL_INSTALL_PATH: &str = "/usr/local/bin/aimsctl";
+
 #[derive(Parser)]
 #[command(name = "aimsctl")]
 #[command(about = "Management tool for Aims installations")]
@@ -248,6 +250,8 @@ fn uninstall(
     let uninstaller = Uninstaller::new(installation, DockerCompose, ConsoleReporter);
 
     uninstaller.uninstall()?;
+
+    std::fs::remove_file(AIMSCTL_INSTALL_PATH)?;
 
     Ok(())
 }
