@@ -9,8 +9,7 @@ COPY .sqlx .sqlx
 
 COPY backend/Cargo.toml backend/Cargo.toml
 COPY scanner/Cargo.toml scanner/Cargo.toml
-COPY updater/Cargo.toml updater/Cargo.toml
-COPY installer/Cargo.toml installer/Cargo.toml
+COPY aimsctl/Cargo.toml aimsctl/Cargo.toml
 
 RUN mkdir -p backend/src scanner/src aimsctl/src \
     && echo "fn main() {}" > backend/src/main.rs \
