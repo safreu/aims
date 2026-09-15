@@ -165,16 +165,19 @@ fn run_command_with_output(command: &mut Command) -> Result<String, DockerCompos
 }
 
 fn parse_service_statuses(output: &str) -> Result<Vec<ServiceStatus>, DockerComposeError> {
-    let services: Vec<DockerComposeService> =
-        serde_json::from_str(output).map_err(DockerComposeError::InvalidOutput)?;
+    output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            let service: DockerComposeService =
+                serde_json::from_str(line).map_err(DockerComposeError::InvalidOutput)?;
 
-    Ok(services
-        .into_iter()
-        .map(|service| ServiceStatus {
-            name: service.service,
-            state: service.state,
+            Ok(ServiceStatus {
+                name: service.service,
+                state: service.state,
+            })
         })
-        .collect())
+        .collect()
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -199,21 +202,11 @@ mod tests {
 
     #[test]
     fn service_statuses_can_be_parsed() {
-        let output = r#"[
-            {
-                "Service": "postgres",
-                "State": "running"
-            },
-            {
-                "Service": "backend",
-                "State": "running"
-            },
-            {
-                "Service": "frontend",
-                "State": "exited"
-            }
-        ]"#;
-
+        let output = r#"
+        {"Service":"postgres","State":"running"}
+        {"Service":"backend","State":"restarting"}
+        {"Service":"frontend","State":"running"}
+        "#;
         let statuses = parse_service_statuses(output).unwrap();
 
         assert_eq!(
@@ -225,11 +218,11 @@ mod tests {
                 },
                 ServiceStatus {
                     name: "backend".to_owned(),
-                    state: "running".to_owned(),
+                    state: "restarting".to_owned(),
                 },
                 ServiceStatus {
                     name: "frontend".to_owned(),
-                    state: "exited".to_owned(),
+                    state: "running".to_owned(),
                 },
             ]
         );
@@ -237,7 +230,7 @@ mod tests {
 
     #[test]
     fn empty_service_statuses_can_be_parsed() {
-        let statuses = parse_service_statuses("[]").unwrap();
+        let statuses = parse_service_statuses("").unwrap();
 
         assert!(statuses.is_empty());
     }
@@ -251,12 +244,9 @@ mod tests {
 
     #[test]
     fn service_status_output_with_missing_fields_is_rejected() {
-        let output = r#"[
-            {
-                "Service": "backend"
-            }
-        ]"#;
-
+        let output = r#"
+        {"Service":"backend"}
+        "#;
         let result = parse_service_statuses(output);
 
         assert!(matches!(result, Err(DockerComposeError::InvalidOutput(_))));

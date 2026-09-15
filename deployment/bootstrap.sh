@@ -5,6 +5,14 @@ set -euo pipefail
 readonly AIMS_REPOSITORY="safreu/aims"
 readonly AIMS_INSTALL_PATH="/usr/local/bin/aimsctl"
 
+TEMPORARY_DIRECTORY=""
+
+cleanup() {
+    if [[ -n "$TEMPORARY_DIRECTORY" && -d "$TEMPORARY_DIRECTORY" ]]; then
+        rm -rf "$TEMPORARY_DIRECTORY"
+    fi
+}
+
 fail() {
     echo "Error: $*" >&2
     exit 1
@@ -200,7 +208,6 @@ main() {
     local requested_version
     local architecture
     local distribution
-    local temporary_directory
     local installed_version
 
     requested_version="$(parse_version "$@")"
@@ -217,21 +224,21 @@ main() {
 
     echo "Docker:       available"
 
-    temporary_directory="$(mktemp -d)"
-    trap 'rm -rf "$temporary_directory"' EXIT
+    TEMPORARY_DIRECTORY="$(mktemp -d)"
+    trap cleanup EXIT
 
     download_aimsctl \
         "$requested_version" \
         "$architecture" \
-        "$temporary_directory"
+        "$TEMPORARY_DIRECTORY"
 
     verify_aimsctl \
         "$architecture" \
-        "$temporary_directory"
+        "$TEMPORARY_DIRECTORY"
 
     install_aimsctl \
         "$architecture" \
-        "$temporary_directory"
+        "$TEMPORARY_DIRECTORY"
 
     verify_installed_aimsctl "$requested_version"
 
