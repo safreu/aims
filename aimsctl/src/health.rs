@@ -34,7 +34,9 @@ impl HealthChecker for HttpHealthChecker {
             .build()
             .map_err(|_| HealthCheckError::Client)?;
 
-        match client.get(installation.health_url()).send() {
+        let health_url = installation.health_url()?;
+
+        match client.get(health_url).send() {
             Ok(response) => Ok(response.status().is_success()),
             Err(_) => Ok(false),
         }
@@ -47,4 +49,6 @@ pub enum HealthCheckError {
     TimedOut,
     #[error("failed to create HTTP client")]
     Client,
+    #[error("failed to determine Aims health URL")]
+    Installation(#[from] crate::installation::InstallationError),
 }

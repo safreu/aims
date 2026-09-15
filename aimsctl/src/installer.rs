@@ -154,35 +154,20 @@ pub enum InstallerError {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc};
-
     use super::*;
-    use crate::{
-        docker::{DockerComposeError, ServiceStatus},
-        health::{HealthCheckError, HealthChecker},
+
+    use crate::test_support::{
+        FakeHealthChecker, FakeRuntime, TestProgressReporter, docker_failure,
     };
-    struct TestProgressReporter;
 
-    impl ProgressReporter for TestProgressReporter {
-        fn header(&self, _message: &str) {}
-        fn step(&self, _current: usize, _total: usize, _message: &str) {}
-        fn detail(&self, _message: &str) {}
-        fn phase(&self, _name: &str, _message: &str) {}
-        fn success(&self, _message: &str) {}
-    }
-
-    fn test_installer<D, H>(
+    fn test_installer(
         installation: Installation,
-        docker: D,
-        health_checker: H,
-    ) -> Installer<D, H, TestProgressReporter>
-    where
-        D: ContainerRuntime,
-        H: HealthChecker,
-    {
+        runtime: FakeRuntime,
+        health_checker: FakeHealthChecker,
+    ) -> Installer<FakeRuntime, FakeHealthChecker, TestProgressReporter> {
         Installer::new(
             installation,
-            docker,
+            runtime,
             health_checker,
             TestProgressReporter,
             "aims-installer-test".to_string(),
@@ -191,82 +176,15 @@ mod tests {
         )
     }
 
-    #[derive(Clone)]
-    struct FakeDocker {
-        calls: Rc<RefCell<Vec<&'static str>>>,
-    }
-
-    impl ContainerRuntime for FakeDocker {
-        fn pull(
-            &self,
-            _installation: &Installation,
-            _version: &Version,
-        ) -> Result<(), DockerComposeError> {
-            self.calls.borrow_mut().push("pull");
-            Ok(())
-        }
-
-        fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-            self.calls.borrow_mut().push("apply");
-            Ok(())
-        }
-
-        fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-            panic!("start must not be called by installer");
-        }
-
-        fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-            panic!("stop must not be called by installer");
-        }
-
-        fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-            self.calls.borrow_mut().push("down");
-            Ok(())
-        }
-
-        fn service_statuses(
-            &self,
-            _installation: &Installation,
-        ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
-            Ok(Vec::new())
-        }
-    }
-
-    #[derive(Clone)]
-    struct FakeHealthChecker {
-        calls: Rc<RefCell<Vec<&'static str>>>,
-    }
-
-    impl HealthChecker for FakeHealthChecker {
-        fn wait_until_healthy(&self, _installation: &Installation) -> Result<(), HealthCheckError> {
-            self.calls.borrow_mut().push("health");
-            Ok(())
-        }
-
-        fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
-            Ok(true)
-        }
-    }
-
     #[test]
     fn installation_runs_all_steps() {
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let calls = Rc::new(RefCell::new(Vec::new()));
+        let installation = Installation::new(&installation_root);
+        let runtime = FakeRuntime::new();
 
-        let installation =
-            Installation::new(&installation_root, "http://127.0.0.1:18081/api/v1/health");
-
-        let installer = test_installer(
-            installation,
-            FakeDocker {
-                calls: Rc::clone(&calls),
-            },
-            FakeHealthChecker {
-                calls: Rc::clone(&calls),
-            },
-        );
+        let installer = test_installer(installation, runtime.clone(), FakeHealthChecker::healthy());
 
         let version = Version::parse("0.1.1").unwrap();
 
@@ -276,335 +194,86 @@ mod tests {
         assert!(installation_root.join("compose.prod.yml").is_file());
         assert!(installation_root.join(".env.prod").is_file());
 
-        assert_eq!(calls.borrow().as_slice(), ["pull", "apply", "health"],);
+        assert_eq!(runtime.calls(), ["pull:0.1.1", "apply"]);
     }
 
     #[test]
     fn pull_failure_is_returned_and_files_are_cleaned_up() {
-        struct FailingDocker {
-            calls: Rc<RefCell<Vec<&'static str>>>,
-        }
-
-        impl ContainerRuntime for FailingDocker {
-            fn pull(
-                &self,
-                _installation: &Installation,
-                _version: &Version,
-            ) -> Result<(), DockerComposeError> {
-                self.calls.borrow_mut().push("pull");
-
-                Err(DockerComposeError::CommandFailed {
-                    exit_code: Some(1),
-                    stdout: String::new(),
-                    stderr: "pull failed".to_string(),
-                })
-            }
-
-            fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("apply must not be called after pull failure");
-            }
-
-            fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("start must not be called by installer");
-            }
-
-            fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("stop must not be called by installer");
-            }
-
-            fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                self.calls.borrow_mut().push("down");
-                Ok(())
-            }
-
-            fn service_statuses(
-                &self,
-                _installation: &Installation,
-            ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
-                Ok(Vec::new())
-            }
-        }
-
-        struct FakeHealthChecker;
-
-        impl HealthChecker for FakeHealthChecker {
-            fn wait_until_healthy(
-                &self,
-                _installation: &Installation,
-            ) -> Result<(), HealthCheckError> {
-                panic!("health check must not run after pull failure");
-            }
-
-            fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
-                Ok(true)
-            }
-        }
-
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let calls = Rc::new(RefCell::new(Vec::new()));
+        let installation = Installation::new(&installation_root);
+        let runtime = FakeRuntime::new();
 
-        let installation =
-            Installation::new(&installation_root, "http://127.0.0.1:18081/api/v1/health");
+        runtime.push_pull_result(Err(docker_failure()));
 
-        let installer = test_installer(
-            installation,
-            FailingDocker {
-                calls: Rc::clone(&calls),
-            },
-            FakeHealthChecker,
-        );
+        let installer = test_installer(installation, runtime.clone(), FakeHealthChecker::healthy());
 
         let version = Version::parse("0.1.1").unwrap();
 
         let result = installer.install(&version);
 
         assert!(matches!(result, Err(InstallerError::Docker(_))));
-        assert_eq!(calls.borrow().as_slice(), ["pull"]);
+
+        assert_eq!(runtime.calls(), ["pull:0.1.1"]);
         assert!(!installation_root.exists());
     }
 
     #[test]
     fn apply_failure_is_returned_and_running_installation_is_cleaned_up() {
-        struct FailingDocker {
-            calls: Rc<RefCell<Vec<&'static str>>>,
-        }
-
-        impl ContainerRuntime for FailingDocker {
-            fn pull(
-                &self,
-                _installation: &Installation,
-                _version: &Version,
-            ) -> Result<(), DockerComposeError> {
-                self.calls.borrow_mut().push("pull");
-                Ok(())
-            }
-
-            fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                self.calls.borrow_mut().push("apply");
-
-                Err(DockerComposeError::CommandFailed {
-                    exit_code: Some(1),
-                    stdout: String::new(),
-                    stderr: "apply failed".to_string(),
-                })
-            }
-
-            fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("start must not be called by installer");
-            }
-
-            fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("stop must not be called by installer");
-            }
-
-            fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                self.calls.borrow_mut().push("down");
-                Ok(())
-            }
-
-            fn service_statuses(
-                &self,
-                _installation: &Installation,
-            ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
-                Ok(Vec::new())
-            }
-        }
-
-        struct FakeHealthChecker;
-
-        impl HealthChecker for FakeHealthChecker {
-            fn wait_until_healthy(
-                &self,
-                _installation: &Installation,
-            ) -> Result<(), HealthCheckError> {
-                panic!("health check must not run after apply failure");
-            }
-
-            fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
-                Ok(true)
-            }
-        }
-
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let calls = Rc::new(RefCell::new(Vec::new()));
+        let installation = Installation::new(&installation_root);
+        let runtime = FakeRuntime::new();
 
-        let installation =
-            Installation::new(&installation_root, "http://127.0.0.1:18081/api/v1/health");
+        runtime.push_apply_result(Err(docker_failure()));
 
-        let installer = test_installer(
-            installation,
-            FailingDocker {
-                calls: Rc::clone(&calls),
-            },
-            FakeHealthChecker,
-        );
+        let installer = test_installer(installation, runtime.clone(), FakeHealthChecker::healthy());
 
         let version = Version::parse("0.1.1").unwrap();
 
         let result = installer.install(&version);
 
         assert!(matches!(result, Err(InstallerError::Docker(_))));
-        assert_eq!(calls.borrow().as_slice(), ["pull", "apply", "down"],);
+
+        assert_eq!(runtime.calls(), ["pull:0.1.1", "apply", "down"]);
+
         assert!(!installation_root.exists());
     }
 
     #[test]
     fn health_failure_is_returned_and_running_installation_is_cleaned_up() {
-        struct FakeDocker {
-            calls: Rc<RefCell<Vec<&'static str>>>,
-        }
-
-        impl ContainerRuntime for FakeDocker {
-            fn pull(
-                &self,
-                _installation: &Installation,
-                _version: &Version,
-            ) -> Result<(), DockerComposeError> {
-                self.calls.borrow_mut().push("pull");
-                Ok(())
-            }
-
-            fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                self.calls.borrow_mut().push("apply");
-                Ok(())
-            }
-
-            fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("start must not be called by installer");
-            }
-
-            fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("stop must not be called by installer");
-            }
-
-            fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                self.calls.borrow_mut().push("down");
-                Ok(())
-            }
-
-            fn service_statuses(
-                &self,
-                _installation: &Installation,
-            ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
-                Ok(Vec::new())
-            }
-        }
-
-        struct FailingHealthChecker {
-            calls: Rc<RefCell<Vec<&'static str>>>,
-        }
-
-        impl HealthChecker for FailingHealthChecker {
-            fn wait_until_healthy(
-                &self,
-                _installation: &Installation,
-            ) -> Result<(), HealthCheckError> {
-                self.calls.borrow_mut().push("health");
-                Err(HealthCheckError::TimedOut)
-            }
-
-            fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
-                Ok(true)
-            }
-        }
-
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let calls = Rc::new(RefCell::new(Vec::new()));
+        let installation = Installation::new(&installation_root);
+        let runtime = FakeRuntime::new();
 
-        let installation =
-            Installation::new(&installation_root, "http://127.0.0.1:18081/api/v1/health");
-
-        let installer = test_installer(
-            installation,
-            FakeDocker {
-                calls: Rc::clone(&calls),
-            },
-            FailingHealthChecker {
-                calls: Rc::clone(&calls),
-            },
-        );
+        let installer = test_installer(installation, runtime.clone(), FakeHealthChecker::failing());
 
         let version = Version::parse("0.1.1").unwrap();
 
         let result = installer.install(&version);
 
         assert!(matches!(result, Err(InstallerError::Health(_))));
-        assert_eq!(
-            calls.borrow().as_slice(),
-            ["pull", "apply", "health", "down"],
-        );
+
+        assert_eq!(runtime.calls(), ["pull:0.1.1", "apply", "down"]);
+
         assert!(!installation_root.exists());
     }
 
     #[test]
     fn cleanup_failure_preserves_installation_failure() {
-        struct FailingDocker;
-
-        impl ContainerRuntime for FailingDocker {
-            fn pull(
-                &self,
-                _installation: &Installation,
-                _version: &Version,
-            ) -> Result<(), DockerComposeError> {
-                Ok(())
-            }
-
-            fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                Ok(())
-            }
-
-            fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("start must not be called by installer");
-            }
-
-            fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("stop must not be called by installer");
-            }
-
-            fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                Err(DockerComposeError::CommandFailed {
-                    exit_code: Some(1),
-                    stdout: String::new(),
-                    stderr: "down failed".to_string(),
-                })
-            }
-
-            fn service_statuses(
-                &self,
-                _installation: &Installation,
-            ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
-                Ok(Vec::new())
-            }
-        }
-
-        struct FailingHealthChecker;
-
-        impl HealthChecker for FailingHealthChecker {
-            fn wait_until_healthy(
-                &self,
-                _installation: &Installation,
-            ) -> Result<(), HealthCheckError> {
-                Err(HealthCheckError::TimedOut)
-            }
-
-            fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
-                Ok(true)
-            }
-        }
-
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let installation =
-            Installation::new(&installation_root, "http://127.0.0.1:18081/api/v1/health");
+        let installation = Installation::new(&installation_root);
+        let runtime = FakeRuntime::new();
 
-        let installer = test_installer(installation, FailingDocker, FailingHealthChecker);
+        runtime.push_down_result(Err(docker_failure()));
+
+        let installer = test_installer(installation, runtime.clone(), FakeHealthChecker::failing());
 
         let version = Version::parse("0.1.1").unwrap();
 
@@ -616,9 +285,17 @@ mod tests {
                 installation_error,
                 cleanup_error,
             })
-                if matches!(*installation_error, InstallerError::Health(_))
-                    && matches!(*cleanup_error, InstallerError::Docker(_))
+                if matches!(
+                    *installation_error,
+                    InstallerError::Health(_)
+                )
+                    && matches!(
+                        *cleanup_error,
+                        InstallerError::Docker(_)
+                    )
         ));
+
+        assert_eq!(runtime.calls(), ["pull:0.1.1", "apply", "down"]);
     }
 
     #[test]
@@ -626,60 +303,10 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let installation =
-            Installation::new(&installation_root, "http://127.0.0.1:18081/api/v1/health");
+        let installation = Installation::new(&installation_root);
+        let runtime = FakeRuntime::new();
 
-        struct FakeDocker;
-
-        impl ContainerRuntime for FakeDocker {
-            fn pull(
-                &self,
-                _installation: &Installation,
-                _version: &Version,
-            ) -> Result<(), DockerComposeError> {
-                Ok(())
-            }
-
-            fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                Ok(())
-            }
-
-            fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("start must not be called by installer");
-            }
-
-            fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                panic!("stop must not be called by installer");
-            }
-
-            fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-                Ok(())
-            }
-
-            fn service_statuses(
-                &self,
-                _installation: &Installation,
-            ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
-                Ok(Vec::new())
-            }
-        }
-
-        struct FakeHealthChecker;
-
-        impl HealthChecker for FakeHealthChecker {
-            fn wait_until_healthy(
-                &self,
-                _installation: &Installation,
-            ) -> Result<(), HealthCheckError> {
-                Ok(())
-            }
-
-            fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
-                Ok(true)
-            }
-        }
-
-        let installer = test_installer(installation, FakeDocker, FakeHealthChecker);
+        let installer = test_installer(installation, runtime, FakeHealthChecker::healthy());
 
         let version = Version::parse("0.1.1").unwrap();
 

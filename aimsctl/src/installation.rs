@@ -10,17 +10,18 @@ use crate::version::Version;
 #[derive(Debug, Clone)]
 pub struct Installation {
     root: PathBuf,
-    health_url: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnvironmentSnapshot {
+    content: String,
 }
 
 const COMPOSE_FILE_CONTENT: &str = include_str!("../../compose.prod.yml");
 
 impl Installation {
-    pub fn new(root: impl Into<PathBuf>, health_url: impl Into<String>) -> Self {
-        Self {
-            root: root.into(),
-            health_url: health_url.into(),
-        }
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+        Self { root: root.into() }
     }
 
     pub fn env_file(&self) -> PathBuf {
@@ -36,8 +37,10 @@ impl Installation {
         &self.root
     }
 
-    pub fn health_url(&self) -> &str {
-        &self.health_url
+    pub fn health_url(&self) -> Result<String, InstallationError> {
+        let port = self.environment_value("AIMS_HTTP_PORT")?;
+
+        Ok(format!("http://127.0.0.1:{port}/api/v1/health"))
     }
 
     pub fn create(&self) -> Result<(), InstallationError> {
@@ -67,34 +70,15 @@ impl Installation {
         let value = content
             .lines()
             .find_map(|line| line.strip_prefix("AIMS_VERSION="))
-            .ok_or(InstallationError::MissingVersion)?;
+            .ok_or(InstallationError::MissingEnvironmentVariable(
+                "AIMS_VERSION".to_string(),
+            ))?;
 
         Version::parse(value).map_err(InstallationError::InvalidVersion)
     }
 
     pub fn set_version(&self, version: &Version) -> Result<(), InstallationError> {
-        let content = fs::read_to_string(self.env_file()).map_err(InstallationError::ReadEnv)?;
-
-        let mut found = false;
-
-        let updated = content
-            .lines()
-            .map(|line| {
-                if line.starts_with("AIMS_VERSION=") {
-                    found = true;
-                    format!("AIMS_VERSION={version}")
-                } else {
-                    line.to_owned()
-                }
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        if !found {
-            return Err(InstallationError::MissingVersion);
-        }
-
-        self.write_environment_file(&format!("{updated}\n"))
+        self.set_environment_value("AIMS_VERSION", &version.to_string())
     }
 
     fn write_environment_file(&self, content: &str) -> Result<(), InstallationError> {
@@ -120,6 +104,62 @@ impl Installation {
 
         Ok(())
     }
+
+    pub fn environment_snapshot(&self) -> Result<EnvironmentSnapshot, InstallationError> {
+        let content = fs::read_to_string(self.env_file()).map_err(InstallationError::ReadEnv)?;
+
+        Ok(EnvironmentSnapshot { content })
+    }
+
+    pub fn restore_environment(
+        &self,
+        snapshot: &EnvironmentSnapshot,
+    ) -> Result<(), InstallationError> {
+        self.write_environment_file(&snapshot.content)
+    }
+    pub(crate) fn environment_value(&self, key: &str) -> Result<String, InstallationError> {
+        let content = fs::read_to_string(self.env_file()).map_err(InstallationError::ReadEnv)?;
+
+        let prefix = format!("{key}=");
+
+        content
+            .lines()
+            .find_map(|line| line.strip_prefix(&prefix))
+            .map(str::to_owned)
+            .ok_or_else(|| InstallationError::MissingEnvironmentVariable(key.to_owned()))
+    }
+
+    pub(crate) fn set_environment_value(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> Result<(), InstallationError> {
+        let content = fs::read_to_string(self.env_file()).map_err(InstallationError::ReadEnv)?;
+
+        let prefix = format!("{key}=");
+        let mut found = false;
+
+        let updated = content
+            .lines()
+            .map(|line| {
+                if line.starts_with(&prefix) {
+                    found = true;
+                    format!("{prefix}{value}")
+                } else {
+                    line.to_owned()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        if !found {
+            return Err(InstallationError::MissingEnvironmentVariable(
+                key.to_owned(),
+            ));
+        }
+
+        self.write_environment_file(&format!("{updated}\n"))
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -138,8 +178,8 @@ pub enum InstallationError {
     SetPermissions(#[source] std::io::Error),
     #[error("failed to read environment file")]
     ReadEnv(#[source] std::io::Error),
-    #[error("AIMS_VERSION is missing from environment file")]
-    MissingVersion,
+    #[error("environment variable {0} is missing")]
+    MissingEnvironmentVariable(String),
     #[error("AIMS_VERSION in environment file is invalid")]
     InvalidVersion(#[source] crate::version::VersionParseError),
 }
@@ -153,7 +193,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let installation = Installation::new(&installation_root, "");
+        let installation = Installation::new(&installation_root);
 
         installation.create().unwrap();
 
@@ -167,7 +207,7 @@ mod tests {
 
         std::fs::create_dir(&installation_root).unwrap();
 
-        let installation = Installation::new(&installation_root, "");
+        let installation = Installation::new(&installation_root);
 
         let result = installation.create();
 
@@ -183,7 +223,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let installation = Installation::new(&installation_root, "");
+        let installation = Installation::new(&installation_root);
 
         installation.create().unwrap();
         installation.write_compose_file().unwrap();
@@ -198,7 +238,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let installation = Installation::new(&installation_root, "");
+        let installation = Installation::new(&installation_root);
         installation.create().unwrap();
 
         installation
@@ -217,7 +257,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let installation = Installation::new(&installation_root, "");
+        let installation = Installation::new(&installation_root);
         installation.create().unwrap();
 
         installation
@@ -237,7 +277,7 @@ mod tests {
 
         std::fs::write(&env_file, "AIMS_VERSION=0.1.0\nAPP_PORT=3000\n").unwrap();
 
-        let installation = Installation::new(temp_dir.path(), "");
+        let installation = Installation::new(temp_dir.path());
         let version = Version::parse("0.2.0").unwrap();
 
         installation.set_version(&version).unwrap();
@@ -253,12 +293,16 @@ mod tests {
 
         std::fs::write(temp_dir.path().join(".env.prod"), "APP_PORT=3000\n").unwrap();
 
-        let installation = Installation::new(temp_dir.path(), "");
+        let installation = Installation::new(temp_dir.path());
         let version = Version::parse("0.2.0").unwrap();
 
         let result = installation.set_version(&version);
 
-        assert!(matches!(result, Err(InstallationError::MissingVersion)));
+        assert!(matches!(
+            result,
+            Err(InstallationError::MissingEnvironmentVariable(key))
+                if key == "AIMS_VERSION"
+        ));
     }
 
     #[test]
@@ -271,7 +315,7 @@ mod tests {
         )
         .unwrap();
 
-        let installation = Installation::new(temp_dir.path(), "");
+        let installation = Installation::new(temp_dir.path());
 
         let version = installation.current_version().unwrap();
 
@@ -285,7 +329,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
-        let installation = Installation::new(&installation_root, "");
+        let installation = Installation::new(&installation_root);
         installation.create().unwrap();
 
         installation
@@ -299,5 +343,101 @@ mod tests {
         let metadata = std::fs::metadata(installation.env_file()).unwrap();
 
         assert_eq!(metadata.permissions().mode() & 0o777, 0o600);
+    }
+
+    #[test]
+    fn environment_value_can_be_read() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        std::fs::write(
+            temp_dir.path().join(".env.prod"),
+            "AIMS_VERSION=0.1.4\nAIMS_HTTP_PORT=8080\n",
+        )
+        .unwrap();
+
+        let installation = Installation::new(temp_dir.path());
+
+        let value = installation.environment_value("AIMS_HTTP_PORT").unwrap();
+
+        assert_eq!(value, "8080");
+    }
+
+    #[test]
+    fn environment_value_can_be_updated() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        std::fs::write(
+            temp_dir.path().join(".env.prod"),
+            "AIMS_VERSION=0.1.4\nAIMS_HTTP_PORT=8080\n",
+        )
+        .unwrap();
+
+        let installation = Installation::new(temp_dir.path());
+
+        installation
+            .set_environment_value("AIMS_HTTP_PORT", "80")
+            .unwrap();
+
+        let content = std::fs::read_to_string(installation.env_file()).unwrap();
+
+        assert_eq!(content, "AIMS_VERSION=0.1.4\nAIMS_HTTP_PORT=80\n");
+    }
+
+    #[test]
+    fn environment_snapshot_can_be_restored() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        let original = "AIMS_VERSION=0.1.4\nAIMS_HTTP_PORT=8080\nDATABASE_USER=aims\n";
+
+        std::fs::write(temp_dir.path().join(".env.prod"), original).unwrap();
+
+        let installation = Installation::new(temp_dir.path());
+
+        let snapshot = installation.environment_snapshot().unwrap();
+
+        installation
+            .set_environment_value("AIMS_VERSION", "0.1.5")
+            .unwrap();
+
+        installation
+            .set_environment_value("AIMS_HTTP_PORT", "80")
+            .unwrap();
+
+        installation.restore_environment(&snapshot).unwrap();
+
+        let content = std::fs::read_to_string(installation.env_file()).unwrap();
+
+        assert_eq!(content, original);
+    }
+
+    #[test]
+    fn health_url_is_derived_from_environment() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        std::fs::write(temp_dir.path().join(".env.prod"), "AIMS_HTTP_PORT=80\n").unwrap();
+
+        let installation = Installation::new(temp_dir.path());
+
+        assert_eq!(
+            installation.health_url().unwrap(),
+            "http://127.0.0.1:80/api/v1/health"
+        );
+    }
+
+    #[test]
+    fn missing_http_port_is_rejected_when_building_health_url() {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        std::fs::write(temp_dir.path().join(".env.prod"), "AIMS_VERSION=0.1.5\n").unwrap();
+
+        let installation = Installation::new(temp_dir.path());
+
+        let result = installation.health_url();
+
+        assert!(matches!(
+            result,
+            Err(InstallationError::MissingEnvironmentVariable(key))
+                if key == "AIMS_HTTP_PORT"
+        ));
     }
 }

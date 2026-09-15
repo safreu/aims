@@ -65,74 +65,7 @@ pub enum UninstallerError {
 mod tests {
     use super::*;
 
-    use std::{cell::RefCell, rc::Rc};
-
-    use crate::{docker::ServiceStatus, version::Version};
-
-    struct FakeRuntime {
-        calls: Rc<RefCell<Vec<String>>>,
-        down_result: Result<(), DockerComposeError>,
-    }
-
-    impl ContainerRuntime for FakeRuntime {
-        fn pull(
-            &self,
-            _installation: &Installation,
-            _version: &Version,
-        ) -> Result<(), DockerComposeError> {
-            panic!("pull must not be called by uninstaller");
-        }
-
-        fn apply(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-            panic!("apply must not be called by uninstaller");
-        }
-
-        fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-            panic!("start must not be called by uninstaller");
-        }
-
-        fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-            panic!("stop must not be called by uninstaller");
-        }
-
-        fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
-            self.calls.borrow_mut().push("down".to_string());
-
-            match &self.down_result {
-                Ok(()) => Ok(()),
-                Err(_) => Err(DockerComposeError::CommandFailed {
-                    exit_code: Some(1),
-                    stdout: "test stdout".to_string(),
-                    stderr: "test failure".to_string(),
-                }),
-            }
-        }
-
-        fn service_statuses(
-            &self,
-            _installation: &Installation,
-        ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
-            Ok(Vec::new())
-        }
-    }
-
-    fn docker_failure() -> DockerComposeError {
-        DockerComposeError::CommandFailed {
-            exit_code: Some(1),
-            stdout: "test stdout".to_string(),
-            stderr: "test failure".to_string(),
-        }
-    }
-
-    struct TestProgressReporter;
-
-    impl ProgressReporter for TestProgressReporter {
-        fn header(&self, _message: &str) {}
-        fn step(&self, _current: usize, _total: usize, _message: &str) {}
-        fn detail(&self, _message: &str) {}
-        fn phase(&self, _name: &str, _message: &str) {}
-        fn success(&self, _message: &str) {}
-    }
+    use crate::test_support::{FakeRuntime, TestProgressReporter, docker_failure};
 
     #[test]
     fn uninstall_stops_services_and_removes_installation() {
@@ -141,23 +74,14 @@ mod tests {
 
         std::fs::create_dir_all(&installation_root).unwrap();
 
-        let installation =
-            Installation::new(&installation_root, "http://127.0.0.1:8080/api/v1/health");
+        let installation = Installation::new(&installation_root);
+        let runtime = FakeRuntime::new();
 
-        let calls = Rc::new(RefCell::new(Vec::new()));
-
-        let uninstaller = Uninstaller::new(
-            installation,
-            FakeRuntime {
-                calls: calls.clone(),
-                down_result: Ok(()),
-            },
-            TestProgressReporter,
-        );
+        let uninstaller = Uninstaller::new(installation, runtime.clone(), TestProgressReporter);
 
         uninstaller.uninstall().unwrap();
 
-        assert_eq!(calls.borrow().as_slice(), ["down"]);
+        assert_eq!(runtime.calls(), ["down"]);
         assert!(!installation_root.exists());
     }
 
@@ -168,24 +92,18 @@ mod tests {
 
         std::fs::create_dir_all(&installation_root).unwrap();
 
-        let installation =
-            Installation::new(&installation_root, "http://127.0.0.1:8080/api/v1/health");
+        let installation = Installation::new(&installation_root);
+        let runtime = FakeRuntime::new();
 
-        let calls = Rc::new(RefCell::new(Vec::new()));
+        runtime.push_down_result(Err(docker_failure()));
 
-        let uninstaller = Uninstaller::new(
-            installation,
-            FakeRuntime {
-                calls: calls.clone(),
-                down_result: Err(docker_failure()),
-            },
-            TestProgressReporter,
-        );
+        let uninstaller = Uninstaller::new(installation, runtime.clone(), TestProgressReporter);
 
         let result = uninstaller.uninstall();
 
         assert!(matches!(result, Err(UninstallerError::Docker(_))));
-        assert_eq!(calls.borrow().as_slice(), ["down"]);
+
+        assert_eq!(runtime.calls(), ["down"]);
         assert!(installation_root.exists());
     }
 }

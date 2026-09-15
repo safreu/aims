@@ -54,7 +54,7 @@ mod tests {
 
     use std::{cell::RefCell, rc::Rc};
 
-    use crate::{docker::ServiceStatus, version::Version};
+    use crate::{docker::ServiceStatus, test_support::TestProgressReporter, version::Version};
 
     struct FakeRuntime {
         calls: Rc<RefCell<Vec<String>>>,
@@ -94,19 +94,9 @@ mod tests {
             Ok(Vec::new())
         }
     }
-    struct TestProgressReporter;
-
-    impl ProgressReporter for TestProgressReporter {
-        fn header(&self, _message: &str) {}
-        fn step(&self, _current: usize, _total: usize, _message: &str) {}
-        fn detail(&self, _message: &str) {}
-        fn phase(&self, _name: &str, _message: &str) {}
-        fn success(&self, _message: &str) {}
-    }
 
     fn test_manager(calls: Rc<RefCell<Vec<String>>>) -> Manager<FakeRuntime, TestProgressReporter> {
-        let installation =
-            Installation::new("/tmp/aims-test", "http://127.0.0.1:8080/api/v1/health");
+        let installation = Installation::new("/tmp/aims-test");
 
         Manager::new(installation, FakeRuntime { calls }, TestProgressReporter)
     }

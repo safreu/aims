@@ -14,11 +14,15 @@ mod health;
 mod installation;
 mod installer;
 mod manager;
+mod migration;
 mod progress;
 mod status;
 mod uninstaller;
 mod updater;
 mod version;
+
+#[cfg(test)]
+mod test_support;
 
 const AIMSCTL_INSTALL_PATH: &str = "/usr/local/bin/aimsctl";
 
@@ -38,16 +42,12 @@ enum Commands {
         #[arg(long, default_value = "/opt/aims")]
         installation_root: PathBuf,
 
-        /// URL used to check whether Aims is healthy.
-        #[arg(long, default_value = "http://127.0.0.1:8080/api/v1/health")]
-        health_url: String,
-
         /// Docker Compose project name.
         #[arg(long, default_value = "aims-prod")]
         compose_project: String,
 
         /// HTTP port used to expose Aims.
-        #[arg(long, default_value_t = 8080)]
+        #[arg(long, default_value_t = 80)]
         http_port: u16,
 
         /// Docker volume used for PostgreSQL data.
@@ -63,10 +63,6 @@ enum Commands {
         /// Directory containing the Aims installation.
         #[arg(long, default_value = "/opt/aims")]
         installation_root: PathBuf,
-
-        /// URL used to check whether Aims is healthy after the update.
-        #[arg(long, default_value = "http://127.0.0.1:8080/api/v1/health")]
-        health_url: String,
     },
 
     /// Show the aimsctl version.
@@ -77,10 +73,6 @@ enum Commands {
         /// Directory containing the Aims installation.
         #[arg(long, default_value = "/opt/aims")]
         installation_root: PathBuf,
-
-        /// URL used by the Aims installation.
-        #[arg(long, default_value = "http://127.0.0.1:8080/api/v1/health")]
-        health_url: String,
     },
 
     /// Show the current Aims installation status.
@@ -88,10 +80,6 @@ enum Commands {
         /// Directory containing the Aims installation.
         #[arg(long, default_value = "/opt/aims")]
         installation_root: PathBuf,
-
-        /// URL used to check whether Aims is healthy.
-        #[arg(long, default_value = "http://127.0.0.1:8080/api/v1/health")]
-        health_url: String,
     },
 
     /// Stop Aims services.
@@ -99,10 +87,6 @@ enum Commands {
         /// Directory containing the Aims installation.
         #[arg(long, default_value = "/opt/aims")]
         installation_root: PathBuf,
-
-        /// URL used by the Aims installation.
-        #[arg(long, default_value = "http://127.0.0.1:8080/api/v1/health")]
-        health_url: String,
     },
 
     /// Stop and remove Aims while preserving database data.
@@ -114,10 +98,6 @@ enum Commands {
         /// Directory containing the Aims installation.
         #[arg(long, default_value = "/opt/aims")]
         installation_root: PathBuf,
-
-        /// URL used by the Aims installation.
-        #[arg(long, default_value = "http://127.0.0.1:8080/api/v1/health")]
-        health_url: String,
     },
 }
 fn main() {
@@ -126,13 +106,11 @@ fn main() {
     let result = match cli.command {
         Commands::Install {
             installation_root,
-            health_url,
             compose_project,
             http_port,
             postgres_volume,
         } => install(
             installation_root,
-            health_url,
             compose_project,
             http_port,
             postgres_volume,
@@ -141,31 +119,18 @@ fn main() {
         Commands::Update {
             version,
             installation_root,
-            health_url,
-        } => update(&version, installation_root, health_url),
+        } => update(&version, installation_root),
 
         Commands::Version => {
             println!("{}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
 
-        Commands::Start {
-            installation_root,
-            health_url,
-        } => start(installation_root, health_url),
-        Commands::Status {
-            installation_root,
-            health_url,
-        } => status(installation_root, health_url),
-        Commands::Stop {
-            installation_root,
-            health_url,
-        } => stop(installation_root, health_url),
+        Commands::Start { installation_root } => start(installation_root),
+        Commands::Status { installation_root } => status(installation_root),
+        Commands::Stop { installation_root } => stop(installation_root),
 
-        Commands::Uninstall {
-            installation_root,
-            health_url,
-        } => uninstall(installation_root, health_url),
+        Commands::Uninstall { installation_root } => uninstall(installation_root),
     };
 
     if let Err(error) = result {
@@ -176,14 +141,13 @@ fn main() {
 
 fn install(
     installation_root: PathBuf,
-    health_url: String,
     compose_project: String,
     http_port: u16,
     postgres_volume: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let version = Version::parse(env!("CARGO_PKG_VERSION"))?;
 
-    let installation = Installation::new(installation_root, health_url);
+    let installation = Installation::new(installation_root);
 
     let installer = Installer::new(
         installation,
@@ -200,14 +164,10 @@ fn install(
     Ok(())
 }
 
-fn update(
-    version: &str,
-    installation_root: PathBuf,
-    health_url: String,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn update(version: &str, installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let version = Version::parse(version)?;
 
-    let installation = Installation::new(installation_root, health_url);
+    let installation = Installation::new(installation_root);
 
     let updater = Updater::new(
         installation,
@@ -221,8 +181,8 @@ fn update(
     Ok(())
 }
 
-fn start(installation_root: PathBuf, health_url: String) -> Result<(), Box<dyn std::error::Error>> {
-    let installation = Installation::new(installation_root, health_url);
+fn start(installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let installation = Installation::new(installation_root);
 
     let manager = Manager::new(installation, DockerCompose, ConsoleReporter);
 
@@ -231,8 +191,8 @@ fn start(installation_root: PathBuf, health_url: String) -> Result<(), Box<dyn s
     Ok(())
 }
 
-fn stop(installation_root: PathBuf, health_url: String) -> Result<(), Box<dyn std::error::Error>> {
-    let installation = Installation::new(installation_root, health_url);
+fn stop(installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let installation = Installation::new(installation_root);
 
     let manager = Manager::new(installation, DockerCompose, ConsoleReporter);
 
@@ -241,11 +201,8 @@ fn stop(installation_root: PathBuf, health_url: String) -> Result<(), Box<dyn st
     Ok(())
 }
 
-fn uninstall(
-    installation_root: PathBuf,
-    health_url: String,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let installation = Installation::new(installation_root, health_url);
+fn uninstall(installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let installation = Installation::new(installation_root);
 
     let uninstaller = Uninstaller::new(installation, DockerCompose, ConsoleReporter);
 
@@ -256,11 +213,8 @@ fn uninstall(
     Ok(())
 }
 
-fn status(
-    installation_root: PathBuf,
-    health_url: String,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let installation = Installation::new(installation_root, health_url);
+fn status(installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let installation = Installation::new(installation_root);
 
     let checker = StatusChecker::new(installation, DockerCompose, HttpHealthChecker);
 
