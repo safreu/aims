@@ -7,8 +7,7 @@ on:
       - dev
     paths:
       - "backend/**"
-      - "updater/**"
-      - "installer/**"
+      - "aimsctl/**"
       - "scanner/**"
       - ".sqlx/**"
       - "Cargo.toml"
@@ -18,8 +17,7 @@ on:
   pull_request:
     paths:
       - "backend/**"
-      - "updater/**"
-      - "installer/**"
+      - "aimsctl/**"
       - "scanner/**"
       - ".sqlx/**"
       - "Cargo.toml"

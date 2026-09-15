@@ -12,11 +12,10 @@ COPY scanner/Cargo.toml scanner/Cargo.toml
 COPY updater/Cargo.toml updater/Cargo.toml
 COPY installer/Cargo.toml installer/Cargo.toml
 
-RUN mkdir -p backend/src scanner/src updater/src installer/src \
+RUN mkdir -p backend/src scanner/src aimsctl/src \
     && echo "fn main() {}" > backend/src/main.rs \
     && echo "fn main() {}" > scanner/src/main.rs \
-    && echo "fn main() {}" > updater/src/main.rs \
-    && echo "fn main() {}" > installer/src/main.rs
+    && echo "fn main() {}" > aimsctl/src/main.rs
 
 RUN cargo build --release -p backend
 
