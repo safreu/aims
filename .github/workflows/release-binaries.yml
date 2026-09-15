@@ -17,14 +17,10 @@ env:
 
 jobs:
   build:
-    name: ${{ matrix.binary }} (${{ matrix.architecture.arch }})
+    name: aimsctl (${{ matrix.architecture.arch }})
     strategy:
       fail-fast: false
       matrix:
-        binary:
-          - installer
-          - updater
-
         architecture:
           - arch: amd64
             runner: ubuntu-24.04
@@ -51,7 +47,7 @@ jobs:
           shared-key: release-${{ matrix.architecture.arch }}
 
       - name: Build release binary
-        run: cargo build --release -p ${{ matrix.binary }}
+        run: cargo build --release -p aimsctl
 
       - name: Prepare release asset
         shell: bash
@@ -59,14 +55,14 @@ jobs:
           set -euo pipefail
 
           cp \
-            "target/release/${{ matrix.binary }}" \
-            "aims-${{ matrix.binary }}-linux-${{ matrix.architecture.arch }}"
+            "target/release/aimsctl" \
+            "aimsctl-linux-${{ matrix.architecture.arch }}"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: aims-${{ matrix.binary }}-linux-${{ matrix.architecture.arch }}
-          path: aims-${{ matrix.binary }}-linux-${{ matrix.architecture.arch }}
+          name: aimsctl-linux-${{ matrix.architecture.arch }}
+          path: aimsctl-linux-${{ matrix.architecture.arch }}
           if-no-files-found: error
           
   release:
@@ -83,12 +79,24 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v8
         with:
-          pattern: aims-*
+          pattern: aimsctl-*
           merge-multiple: true
   
       - name: List downloaded artifacts
         run: ls -lah
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          set -euo pipefail
   
+          sha256sum \
+            aimsctl-linux-amd64 \
+            aimsctl-linux-arm64 \
+            > SHA256SUMS
+  
+          cat SHA256SUMS
+        
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -96,20 +104,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-  
+
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             gh release upload "${RELEASE_TAG}" \
-              aims-installer-linux-amd64 \
-              aims-installer-linux-arm64 \
-              aims-updater-linux-amd64 \
-              aims-updater-linux-arm64 \
+              aimsctl-linux-amd64 \
+              aimsctl-linux-arm64 \
+              SHA256SUMS \
               --clobber
           else
             gh release create "${RELEASE_TAG}" \
-              aims-installer-linux-amd64 \
-              aims-installer-linux-arm64 \
-              aims-updater-linux-amd64 \
-              aims-updater-linux-arm64 \
+              aimsctl-linux-amd64 \
+              aimsctl-linux-arm64 \
+              SHA256SUMS \
               --verify-tag \
               --generate-notes \
               --title "Aims ${RELEASE_TAG#v}"
