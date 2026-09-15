@@ -40,7 +40,7 @@ where
         self.progress.detail("Services removed");
 
         self.progress
-            .step(2, TOTAL_STEPS, "Stopping and removing services");
+            .step(2, TOTAL_STEPS, "Removing installation files");
 
         self.installation.remove()?;
 
