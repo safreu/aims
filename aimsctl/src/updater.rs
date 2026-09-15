@@ -2,34 +2,44 @@ use crate::{
     docker::{ContainerRuntime, DockerComposeError},
     health::{HealthCheckError, HealthChecker},
     installation::{Installation, InstallationError},
+    progress::ProgressReporter,
     version::Version,
 };
 
-pub struct Updater<R, H>
+pub struct Updater<R, H, P>
 where
     R: ContainerRuntime,
     H: HealthChecker,
+    P: ProgressReporter,
 {
     installation: Installation,
     runtime: R,
     health_checker: H,
+    progress: P,
 }
 
-impl<R, H> Updater<R, H>
+impl<R, H, P> Updater<R, H, P>
 where
     R: ContainerRuntime,
     H: HealthChecker,
+    P: ProgressReporter,
 {
-    pub fn new(installation: Installation, runtime: R, health_checker: H) -> Self {
+    pub fn new(installation: Installation, runtime: R, health_checker: H, progress: P) -> Self {
         Self {
             installation,
             runtime,
             health_checker,
+            progress,
         }
     }
 
     pub fn update(&self, version: &Version) -> Result<(), UpdateError> {
+        const TOTAL_STEPS: usize = 3;
+
         let previous_version = self.installation.current_version()?;
+
+        self.progress
+            .header(&format!("Aims updater\n{previous_version} -> {version}"));
 
         if version == &previous_version {
             return Err(UpdateError::AlreadyInstalled(version.clone()));
@@ -42,7 +52,14 @@ where
             });
         }
 
+        self.progress
+            .step(1, TOTAL_STEPS, &format!("Downloading Aims {version}"));
+
         self.runtime.pull(&self.installation, version)?;
+
+        self.progress.detail("Docker images downloaded");
+
+        self.progress.step(2, TOTAL_STEPS, "Applying update");
 
         self.installation.set_version(version)?;
 
@@ -50,9 +67,19 @@ where
             return Err(self.recover(&previous_version, error.into()));
         }
 
+        self.progress.detail("Updated services started");
+
+        self.progress.step(3, TOTAL_STEPS, "Checking health");
+
         if let Err(error) = self.health_checker.wait_until_healthy(&self.installation) {
             return Err(self.recover(&previous_version, error.into()));
         }
+
+        self.progress.detail("Aims is healthy");
+
+        self.progress.success(&format!(
+            "Aims updated successfully\n{previous_version} -> {version}"
+        ));
 
         Ok(())
     }
@@ -65,12 +92,17 @@ where
     }
 
     fn recover(&self, previous_version: &Version, original_error: UpdateError) -> UpdateError {
+        self.progress
+            .phase("Recovery", &format!("Restoring Aims {previous_version}"));
         match self.restore_version(previous_version) {
             Ok(()) => original_error,
-            Err(recovery_error) => UpdateError::RecoveryFailed {
-                update: Box::new(original_error),
-                recovery: Box::new(recovery_error),
-            },
+            Err(recovery_error) => {
+                self.progress.detail("Failed to restore previous version");
+                UpdateError::RecoveryFailed {
+                    update: Box::new(original_error),
+                    recovery: Box::new(recovery_error),
+                }
+            }
         }
     }
 }
@@ -102,6 +134,8 @@ pub enum UpdateError {
 #[cfg(test)]
 mod tests {
 
+    use crate::docker::ServiceStatus;
+
     use super::*;
 
     use std::{cell::RefCell, rc::Rc};
@@ -112,6 +146,28 @@ mod tests {
             stdout: "test stdout".to_string(),
             stderr: "test failure".to_string(),
         }
+    }
+
+    struct TestProgressReporter;
+
+    impl ProgressReporter for TestProgressReporter {
+        fn header(&self, _message: &str) {}
+        fn step(&self, _current: usize, _total: usize, _message: &str) {}
+        fn detail(&self, _message: &str) {}
+        fn phase(&self, _name: &str, _message: &str) {}
+        fn success(&self, _message: &str) {}
+    }
+
+    fn test_updater<R, H>(
+        installation: Installation,
+        runtime: R,
+        health_checker: H,
+    ) -> Updater<R, H, TestProgressReporter>
+    where
+        R: ContainerRuntime,
+        H: HealthChecker,
+    {
+        Updater::new(installation, runtime, health_checker, TestProgressReporter)
     }
 
     struct FakeRuntime {
@@ -165,6 +221,25 @@ mod tests {
 
             self.apply_results.borrow_mut().remove(0)
         }
+
+        fn start(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            panic!("start must not be called by updater");
+        }
+
+        fn stop(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            panic!("stop must not be called by updater");
+        }
+
+        fn down(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+            panic!("down must not be called by updater");
+        }
+
+        fn service_statuses(
+            &self,
+            _installation: &Installation,
+        ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
+            Ok(Vec::new())
+        }
     }
 
     struct FakeHealthChecker {
@@ -197,6 +272,10 @@ mod tests {
                 Err(_) => Err(HealthCheckError::TimedOut),
             }
         }
+
+        fn is_healthy(&self, _installation: &Installation) -> Result<bool, HealthCheckError> {
+            Ok(true)
+        }
     }
 
     fn create_installation(version: &str) -> (tempfile::TempDir, Installation) {
@@ -219,7 +298,7 @@ mod tests {
 
         let calls = Rc::new(RefCell::new(Vec::new()));
 
-        let updater = Updater::new(
+        let updater = test_updater(
             installation.clone(),
             FakeRuntime::succeeding(calls.clone()),
             FakeHealthChecker::succeeding(calls.clone()),
@@ -240,7 +319,7 @@ mod tests {
 
         let calls = Rc::new(RefCell::new(Vec::new()));
 
-        let updater = Updater::new(
+        let updater = test_updater(
             installation.clone(),
             FakeRuntime::succeeding(calls.clone()),
             FakeHealthChecker::succeeding(calls.clone()),
@@ -259,7 +338,7 @@ mod tests {
 
         let calls = Rc::new(RefCell::new(Vec::new()));
 
-        let updater = Updater::new(
+        let updater = test_updater(
             installation.clone(),
             FakeRuntime::succeeding(calls.clone()),
             FakeHealthChecker::succeeding(calls.clone()),
@@ -288,7 +367,7 @@ mod tests {
             result: Ok(()),
         };
 
-        let updater = Updater::new(installation, runtime, health_checker);
+        let updater = test_updater(installation.clone(), runtime, health_checker);
 
         let version = Version::parse("0.2.0").unwrap();
 
@@ -306,7 +385,7 @@ mod tests {
 
         let calls = Rc::new(RefCell::new(Vec::new()));
 
-        let updater = Updater::new(
+        let updater = test_updater(
             installation.clone(),
             FakeRuntime::pull_failing(calls.clone()),
             FakeHealthChecker::succeeding(calls.clone()),
@@ -337,7 +416,7 @@ mod tests {
 
         let calls = Rc::new(RefCell::new(Vec::new()));
 
-        let updater = Updater::new(
+        let updater = test_updater(
             installation.clone(),
             FakeRuntime::apply_failing_then_recovering(calls.clone()),
             FakeHealthChecker::succeeding(calls.clone()),
@@ -374,7 +453,7 @@ mod tests {
             apply_results: Rc::new(RefCell::new(vec![Ok(()), Ok(())])),
         };
 
-        let updater = Updater::new(
+        let updater = test_updater(
             installation.clone(),
             runtime,
             FakeHealthChecker::failing(calls.clone()),
@@ -415,7 +494,7 @@ mod tests {
             ])),
         };
 
-        let updater = Updater::new(
+        let updater = test_updater(
             installation.clone(),
             runtime,
             FakeHealthChecker::succeeding(calls.clone()),
