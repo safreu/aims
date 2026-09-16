@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "aimsctl"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "clap",
  "cosca",
@@ -297,7 +297,7 @@ dependencies = [
 
 [[package]]
 name = "backend"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "argon2",
@@ -2666,7 +2666,7 @@ dependencies = [
 
 [[package]]
 name = "scanner"
-version = "0.1.4"
+version = "0.1.5"
 
 [[package]]
 name = "schannel"
