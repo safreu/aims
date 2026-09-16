@@ -4,18 +4,17 @@ use clap::{Parser, Subcommand};
 
 use crate::{
     commands::{Install, Status, Uninstall, Update},
-    installation::{installation::Installation, version::Version},
+    executable::{AIMSCTL_INSTALL_PATH, ExecutableManager, SelfReplaceTargetBinaryInstaller},
+    installation::{Installation, Version},
     manager::Manager,
     privilege::{Elevation, SudoEscalator, SystemPrivilegeChecker, ensure_root},
     progress::ConsoleReporter,
     runtime::{docker::DockerCompose, health::HttpHealthChecker},
-    self_update::{
-        GithubReleaseBinaryProvider, ProcessTargetBinaryRunner, SelfReplaceTargetBinaryInstaller,
-        SelfUpdater,
-    },
+    self_update::{GithubReleaseBinaryProvider, ProcessTargetBinaryRunner, SelfUpdater},
 };
 
 mod commands;
+mod executable;
 mod installation;
 mod privilege;
 mod runtime;
@@ -26,8 +25,6 @@ mod progress;
 
 #[cfg(test)]
 mod test_support;
-
-const AIMSCTL_INSTALL_PATH: &str = "/usr/local/bin/aimsctl";
 
 #[derive(Parser)]
 #[command(name = "aimsctl")]
@@ -56,6 +53,11 @@ enum Commands {
         /// Docker volume used for PostgreSQL data.
         #[arg(long, default_value = "aims_prod_postgres_data")]
         postgres_volume: String,
+
+        ///Destination where aimsctl installs itself.
+        #[arg(long, default_value = "/usr/local/bin/aimsctl", hide = true)]
+        aimsctl_install_path: PathBuf,
+        
     },
 
     /// Update an existing Aims installation.
@@ -149,11 +151,13 @@ fn main() {
             compose_project,
             http_port,
             postgres_volume,
+            aimsctl_install_path,
         } => install(
             installation_root,
             compose_project,
             http_port,
             postgres_volume,
+            aimsctl_install_path,
         ),
 
         Commands::Update {
@@ -188,10 +192,13 @@ fn install(
     compose_project: String,
     http_port: u16,
     postgres_volume: String,
+    aimsctl_install_path: PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let version = Version::parse(env!("CARGO_PKG_VERSION"))?;
 
     let installation = Installation::new(installation_root);
+
+    installation.ensure_not_exists()?;
 
     let installer = Install::new(
         installation,
@@ -203,7 +210,14 @@ fn install(
         postgres_volume,
     );
 
-    installer.install(&version)?;
+    let executable_manager = ExecutableManager::new(aimsctl_install_path);
+
+    executable_manager.install()?;
+
+    if let Err(error) = installer.install(&version) {
+        let _ = executable_manager.uninstall();
+        return Err(error.into());
+    }
 
     Ok(())
 }
@@ -252,7 +266,9 @@ fn uninstall(installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error
 
     uninstaller.uninstall()?;
 
-    std::fs::remove_file(AIMSCTL_INSTALL_PATH)?;
+    let executable_manager = ExecutableManager::new(AIMSCTL_INSTALL_PATH);
+
+    executable_manager.uninstall()?;
 
     Ok(())
 }
@@ -318,6 +334,7 @@ mod tests {
                 compose_project: "aims-prod".to_string(),
                 http_port: 80,
                 postgres_volume: "aims_prod_postgres_data".to_string(),
+                aimsctl_install_path: PathBuf::from("/usr/local/bin/aimsctl"),
             },
             Commands::Update {
                 version: "0.1.5".to_string(),
@@ -355,5 +372,41 @@ mod tests {
         for command in commands {
             assert!(!command.requires_root());
         }
+    }
+
+    #[test]
+    fn install_accepts_hidden_aimsctl_install_path() {
+        let cli = Cli::try_parse_from([
+            "aimsctl",
+            "install",
+            "--aimsctl-install-path",
+            "/tmp/aims-e2e-bin/aimsctl",
+        ])
+        .unwrap();
+    
+        assert!(matches!(
+            cli.command,
+            Commands::Install {
+                aimsctl_install_path,
+                ..
+            } if aimsctl_install_path == PathBuf::from("/tmp/aims-e2e-bin/aimsctl")
+        ));
+    }
+
+    #[test]
+    fn install_uses_default_aimsctl_install_path() {
+        let cli = Cli::try_parse_from([
+            "aimsctl",
+            "install",
+        ])
+        .unwrap();
+    
+        assert!(matches!(
+            cli.command,
+            Commands::Install {
+                aimsctl_install_path,
+                ..
+            } if aimsctl_install_path == PathBuf::from("/usr/local/bin/aimsctl")
+        ));
     }
 }

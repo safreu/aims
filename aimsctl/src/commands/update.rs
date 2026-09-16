@@ -1,8 +1,6 @@
 use crate::{
     installation::{
-        installation::{EnvironmentSnapshot, Installation, InstallationError},
-        migration::{self, MigrationError},
-        version::Version,
+        EnvironmentSnapshot, Installation, InstallationError, MigrationError, Version, migrate,
     },
     progress::ProgressReporter,
     runtime::{
@@ -120,7 +118,7 @@ where
         previous_version: &Version,
         version: &Version,
     ) -> Result<(), UpdateError> {
-        migration::migrate(&self.installation, previous_version, version)?;
+        migrate(&self.installation, previous_version, version)?;
 
         self.installation.set_version(version)?;
 

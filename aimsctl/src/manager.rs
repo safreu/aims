@@ -1,5 +1,5 @@
 use crate::{
-    installation::installation::Installation,
+    installation::Installation,
     progress::ProgressReporter,
     runtime::docker::{ContainerRuntime, DockerComposeError},
 };
@@ -51,7 +51,8 @@ pub enum ManagerError {
 #[cfg(test)]
 mod tests {
     use crate::{
-        installation::version::Version, runtime::docker::ServiceStatus,
+        installation::Version,
+        runtime::docker::{RuntimeAvailabilityError, ServiceStatus},
         test_support::TestProgressReporter,
     };
 
@@ -95,6 +96,10 @@ mod tests {
             _installation: &Installation,
         ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
             Ok(Vec::new())
+        }
+
+        fn check_available(&self) -> Result<(), RuntimeAvailabilityError> {
+            Ok(())
         }
     }
 

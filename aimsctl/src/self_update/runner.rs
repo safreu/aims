@@ -1,6 +1,6 @@
 use std::{path::Path, process::Command};
 
-use crate::installation::{installation::Installation, version::Version};
+use crate::installation::{Installation, Version};
 
 pub(crate) trait TargetBinaryRunner {
     fn run(

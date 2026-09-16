@@ -1,6 +1,6 @@
 use std::{thread, time::Duration};
 
-use crate::installation::installation::{Installation, InstallationError};
+use crate::installation::{Installation, InstallationError};
 
 pub trait HealthChecker {
     fn wait_until_healthy(&self, installation: &Installation) -> Result<(), HealthCheckError>;

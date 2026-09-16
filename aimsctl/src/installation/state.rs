@@ -32,9 +32,20 @@ impl Installation {
         self.root.join("compose.prod.yml")
     }
 
-    #[allow(unused)]
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    pub fn exists(&self) -> bool {
+        self.root().exists()
+    }
+
+    pub fn ensure_not_exists(&self) -> Result<(), InstallationError> {
+        if self.exists() {
+            return Err(InstallationError::AlreadyExists(self.root.clone()));
+        }
+
+        Ok(())
     }
 
     pub fn health_url(&self) -> Result<String, InstallationError> {
@@ -44,9 +55,7 @@ impl Installation {
     }
 
     pub fn create(&self) -> Result<(), InstallationError> {
-        if self.root().exists() {
-            return Err(InstallationError::AlreadyExists(self.root.clone()));
-        }
+        self.ensure_not_exists()?;
 
         std::fs::create_dir_all(&self.root).map_err(InstallationError::CreateDirectory)
     }
@@ -438,6 +447,38 @@ mod tests {
             result,
             Err(InstallationError::MissingEnvironmentVariable(key))
                 if key == "AIMS_HTTP_PORT"
+        ));
+    }
+
+    #[test]
+    fn installation_existence_can_be_checked() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let installation_root = temp_dir.path().join("aims");
+
+        let installation = Installation::new(&installation_root);
+
+        assert!(!installation.exists());
+
+        std::fs::create_dir(&installation_root).unwrap();
+
+        assert!(installation.exists());
+    }
+
+    #[test]
+    fn existing_installation_fails_preflight() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let installation_root = temp_dir.path().join("aims");
+
+        std::fs::create_dir(&installation_root).unwrap();
+
+        let installation = Installation::new(&installation_root);
+
+        let result = installation.ensure_not_exists();
+
+        assert!(matches!(
+            result,
+            Err(InstallationError::AlreadyExists(path))
+                if path == installation_root
         ));
     }
 }

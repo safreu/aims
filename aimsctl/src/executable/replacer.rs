@@ -4,13 +4,7 @@ pub(crate) trait TargetBinaryInstaller {
     fn install(&self, binary: &Path) -> Result<(), TargetBinaryInstallerError>;
 }
 
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum TargetBinaryInstallerError {
-    #[error("failed to replace installed aimsctl binary")]
-    Replace(#[source] std::io::Error),
-}
-
-pub struct SelfReplaceTargetBinaryInstaller;
+pub(crate) struct SelfReplaceTargetBinaryInstaller;
 
 impl TargetBinaryInstaller for SelfReplaceTargetBinaryInstaller {
     fn install(&self, binary: &Path) -> Result<(), TargetBinaryInstallerError> {
@@ -18,4 +12,10 @@ impl TargetBinaryInstaller for SelfReplaceTargetBinaryInstaller {
 
         Ok(())
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum TargetBinaryInstallerError {
+    #[error("failed to replace installed aimsctl binary")]
+    Replace(#[source] std::io::Error),
 }

@@ -1,7 +1,6 @@
 use crate::{
     installation::{
-        installation::{Installation, InstallationError},
-        version::Version,
+        Version, {Installation, InstallationError},
     },
     runtime::{
         docker::{ContainerRuntime, DockerComposeError, ServiceStatus},

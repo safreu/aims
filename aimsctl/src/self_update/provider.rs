@@ -2,7 +2,7 @@ use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 
 use sha2::{Digest, Sha256, Sha512};
 
-use crate::installation::version::Version;
+use crate::installation::Version;
 
 use super::prepared_binary::PreparedBinary;
 

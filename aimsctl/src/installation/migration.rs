@@ -1,5 +1,5 @@
 use crate::installation::{
-    installation::{Installation, InstallationError},
+    state::{Installation, InstallationError},
     version::{Version, VersionParseError},
 };
 

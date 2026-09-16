@@ -1,5 +1,5 @@
 use crate::{
-    installation::installation::{Installation, InstallationError},
+    installation::{Installation, InstallationError},
     progress::ProgressReporter,
     runtime::docker::{ContainerRuntime, DockerComposeError},
 };

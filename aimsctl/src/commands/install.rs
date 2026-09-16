@@ -1,12 +1,11 @@
 use crate::{
     installation::{
-        environment::EnvironmentConfig,
-        installation::{Installation, InstallationError},
-        version::Version,
+        EnvironmentConfig, Installation, InstallationError, Version, build_environment,
+        generate_database_password,
     },
     progress::ProgressReporter,
     runtime::{
-        docker::{ContainerRuntime, DockerComposeError},
+        docker::{ContainerRuntime, DockerComposeError, RuntimeAvailabilityError},
         health::{HealthCheckError, HealthChecker},
     },
 };
@@ -55,6 +54,8 @@ where
     pub fn install(&self, version: &Version) -> Result<(), InstallError> {
         const TOTAL_STEPS: usize = 5;
 
+        self.docker.check_available()?;
+
         self.progress.header(&format!("Aims {version} installer"));
 
         self.progress.step(1, TOTAL_STEPS, "Preparing installation");
@@ -66,7 +67,7 @@ where
 
         self.progress.step(2, TOTAL_STEPS, "Writing configuration");
 
-        let database_password = crate::installation::environment::generate_database_password();
+        let database_password = generate_database_password();
 
         let environment_config = EnvironmentConfig {
             version,
@@ -76,7 +77,7 @@ where
             postgres_volume: &self.postgres_volume,
         };
 
-        let environment = crate::installation::environment::build_environment(&environment_config);
+        let environment = build_environment(&environment_config);
 
         self.installation.write_environment(&environment)?;
 
@@ -158,6 +159,8 @@ pub enum InstallError {
         installation_error: Box<InstallError>,
         cleanup_error: Box<InstallError>,
     },
+    #[error("container runtime is not available")]
+    RuntimeUnavailable(#[from] RuntimeAvailabilityError),
 }
 
 #[cfg(test)]
@@ -326,5 +329,39 @@ mod tests {
         assert!(env.contains("AIMS_COMPOSE_PROJECT=aims-installer-test"));
         assert!(env.contains("AIMS_HTTP_PORT=18081"));
         assert!(env.contains("AIMS_POSTGRES_VOLUME=aims_installer_test_postgres_data"));
+    }
+
+    #[test]
+    fn unavailable_container_runtime_fails_before_installation_starts() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let installation_root = temp_dir.path().join("aims");
+
+        let installation = Installation::new(&installation_root);
+
+        let runtime = FakeRuntime::new();
+
+        runtime.push_availability_result(Err(RuntimeAvailabilityError::Docker(
+            DockerComposeError::CommandFailedToStart(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "docker not found",
+            )),
+        )));
+
+        let installer = test_installer(installation, runtime.clone(), FakeHealthChecker::healthy());
+
+        let version = Version::parse("0.1.1").unwrap();
+
+        let result = installer.install(&version);
+
+        assert!(matches!(
+            result,
+            Err(InstallError::RuntimeUnavailable(
+                RuntimeAvailabilityError::Docker(_)
+            ))
+        ));
+
+        assert!(!installation_root.exists());
+
+        assert!(runtime.calls().is_empty());
     }
 }

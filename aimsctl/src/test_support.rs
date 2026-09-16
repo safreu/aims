@@ -1,17 +1,17 @@
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use crate::{
-    installation::{
-        environment::{EnvironmentConfig, build_environment},
-        installation::Installation,
-        version::Version,
-    },
+    installation::{EnvironmentConfig, Installation, Version, build_environment},
     progress::ProgressReporter,
     runtime::{
-        docker::{ContainerRuntime, DockerComposeError, ServiceStatus},
+        docker::{ContainerRuntime, DockerComposeError, RuntimeAvailabilityError, ServiceStatus},
         health::{HealthCheckError, HealthChecker},
     },
 };
+
+type SharedResults<T> = Rc<RefCell<VecDeque<Result<T, DockerComposeError>>>>;
+
+type SharedAvailabilityResults = Rc<RefCell<VecDeque<Result<(), RuntimeAvailabilityError>>>>;
 
 pub struct TestInstallation {
     pub _temp_dir: tempfile::TempDir,
@@ -64,12 +64,13 @@ impl ProgressReporter for TestProgressReporter {
 #[derive(Clone)]
 pub struct FakeRuntime {
     calls: Rc<RefCell<Vec<String>>>,
-    pull_results: Rc<RefCell<VecDeque<Result<(), DockerComposeError>>>>,
-    apply_results: Rc<RefCell<VecDeque<Result<(), DockerComposeError>>>>,
-    start_results: Rc<RefCell<VecDeque<Result<(), DockerComposeError>>>>,
-    stop_results: Rc<RefCell<VecDeque<Result<(), DockerComposeError>>>>,
-    down_results: Rc<RefCell<VecDeque<Result<(), DockerComposeError>>>>,
-    service_status_results: Rc<RefCell<VecDeque<Result<Vec<ServiceStatus>, DockerComposeError>>>>,
+    availability_results: SharedAvailabilityResults,
+    pull_results: SharedResults<()>,
+    apply_results: SharedResults<()>,
+    start_results: SharedResults<()>,
+    stop_results: SharedResults<()>,
+    down_results: SharedResults<()>,
+    service_status_results: SharedResults<Vec<ServiceStatus>>,
 }
 
 #[allow(unused)]
@@ -83,6 +84,7 @@ impl FakeRuntime {
             stop_results: Rc::new(RefCell::new(VecDeque::new())),
             down_results: Rc::new(RefCell::new(VecDeque::new())),
             service_status_results: Rc::new(RefCell::new(VecDeque::new())),
+            availability_results: Rc::new(RefCell::new(VecDeque::new())),
         }
     }
 
@@ -115,6 +117,10 @@ impl FakeRuntime {
         result: Result<Vec<ServiceStatus>, DockerComposeError>,
     ) {
         self.service_status_results.borrow_mut().push_back(result);
+    }
+
+    pub fn push_availability_result(&self, result: Result<(), RuntimeAvailabilityError>) {
+        self.availability_results.borrow_mut().push_back(result);
     }
 }
 
@@ -175,6 +181,13 @@ impl ContainerRuntime for FakeRuntime {
             .borrow_mut()
             .pop_front()
             .unwrap_or(Ok(Vec::new()))
+    }
+
+    fn check_available(&self) -> Result<(), RuntimeAvailabilityError> {
+        self.availability_results
+            .borrow_mut()
+            .pop_front()
+            .unwrap_or(Ok(()))
     }
 }
 

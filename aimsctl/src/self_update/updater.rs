@@ -1,9 +1,8 @@
 use crate::{
+    executable::{TargetBinaryInstaller, TargetBinaryInstallerError},
     installation::{
-        installation::{Installation, InstallationError},
-        version::Version,
+        Version, {Installation, InstallationError},
     },
-    self_update::installer::{TargetBinaryInstaller, TargetBinaryInstallerError},
 };
 
 use super::{
@@ -96,7 +95,6 @@ mod tests {
 
     use crate::{
         self_update::{
-            installer::{TargetBinaryInstaller, TargetBinaryInstallerError},
             prepared_binary::PreparedBinary,
             provider::{TargetBinaryProvider, TargetBinaryProviderError},
             runner::{TargetBinaryRunner, TargetBinaryRunnerError},
