@@ -1,7 +1,7 @@
 use crate::{
-    docker::{ContainerRuntime, DockerComposeError},
-    installation::Installation,
+    installation::installation::Installation,
     progress::ProgressReporter,
+    runtime::docker::{ContainerRuntime, DockerComposeError},
 };
 
 pub struct Manager<R, P>
@@ -50,11 +50,14 @@ pub enum ManagerError {
 
 #[cfg(test)]
 mod tests {
+    use crate::{
+        installation::version::Version, runtime::docker::ServiceStatus,
+        test_support::TestProgressReporter,
+    };
+
     use super::*;
 
     use std::{cell::RefCell, rc::Rc};
-
-    use crate::{docker::ServiceStatus, test_support::TestProgressReporter, version::Version};
 
     struct FakeRuntime {
         calls: Rc<RefCell<Vec<String>>>,

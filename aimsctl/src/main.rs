@@ -3,23 +3,24 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 use crate::{
-    docker::DockerCompose, health::HttpHealthChecker, installation::Installation,
-    installer::Installer, manager::Manager, progress::ConsoleReporter, status::StatusChecker,
-    uninstaller::Uninstaller, updater::Updater, version::Version,
+    commands::{Install, Status, Uninstall, Update},
+    installation::{installation::Installation, version::Version},
+    manager::Manager,
+    progress::ConsoleReporter,
+    runtime::{docker::DockerCompose, health::HttpHealthChecker},
+    self_update::{
+        GithubReleaseBinaryProvider, ProcessTargetBinaryRunner, SelfReplaceTargetBinaryInstaller,
+        SelfUpdater,
+    },
 };
 
-mod docker;
-mod environment;
-mod health;
+mod commands;
 mod installation;
-mod installer;
+mod runtime;
+mod self_update;
+
 mod manager;
-mod migration;
 mod progress;
-mod status;
-mod uninstaller;
-mod updater;
-mod version;
 
 #[cfg(test)]
 mod test_support;
@@ -99,6 +100,17 @@ enum Commands {
         #[arg(long, default_value = "/opt/aims")]
         installation_root: PathBuf,
     },
+
+    /// Apply an update using the target aimsctl binary.
+    #[command(hide = true)]
+    ApplyUpdate {
+        /// Version of Aims to update to.
+        version: String,
+
+        /// Directory containing the Aims installation.
+        #[arg(long)]
+        installation_root: PathBuf,
+    },
 }
 fn main() {
     let cli = Cli::parse();
@@ -131,6 +143,10 @@ fn main() {
         Commands::Stop { installation_root } => stop(installation_root),
 
         Commands::Uninstall { installation_root } => uninstall(installation_root),
+        Commands::ApplyUpdate {
+            version,
+            installation_root,
+        } => apply_update(&version, installation_root),
     };
 
     if let Err(error) = result {
@@ -149,7 +165,7 @@ fn install(
 
     let installation = Installation::new(installation_root);
 
-    let installer = Installer::new(
+    let installer = Install::new(
         installation,
         DockerCompose,
         HttpHealthChecker,
@@ -169,11 +185,11 @@ fn update(version: &str, installation_root: PathBuf) -> Result<(), Box<dyn std::
 
     let installation = Installation::new(installation_root);
 
-    let updater = Updater::new(
+    let updater = SelfUpdater::new(
         installation,
-        DockerCompose,
-        HttpHealthChecker,
-        ConsoleReporter,
+        GithubReleaseBinaryProvider,
+        ProcessTargetBinaryRunner,
+        SelfReplaceTargetBinaryInstaller,
     );
 
     updater.update(&version)?;
@@ -204,7 +220,7 @@ fn stop(installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 fn uninstall(installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let installation = Installation::new(installation_root);
 
-    let uninstaller = Uninstaller::new(installation, DockerCompose, ConsoleReporter);
+    let uninstaller = Uninstall::new(installation, DockerCompose, ConsoleReporter);
 
     uninstaller.uninstall()?;
 
@@ -216,7 +232,7 @@ fn uninstall(installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error
 fn status(installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let installation = Installation::new(installation_root);
 
-    let checker = StatusChecker::new(installation, DockerCompose, HttpHealthChecker);
+    let checker = Status::new(installation, DockerCompose, HttpHealthChecker);
 
     let status = checker.status()?;
 
@@ -238,6 +254,26 @@ fn status(installation_root: PathBuf) -> Result<(), Box<dyn std::error::Error>> 
             "unhealthy"
         }
     );
+
+    Ok(())
+}
+
+fn apply_update(
+    version: &str,
+    installation_root: PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let version = Version::parse(version)?;
+
+    let installation = Installation::new(installation_root);
+
+    let updater = Update::new(
+        installation,
+        DockerCompose,
+        HttpHealthChecker,
+        ConsoleReporter,
+    );
+
+    updater.update(&version)?;
 
     Ok(())
 }

@@ -1,6 +1,6 @@
-use crate::{
+use crate::installation::{
     installation::{Installation, InstallationError},
-    version::Version,
+    version::{Version, VersionParseError},
 };
 
 pub fn migrate(
@@ -33,7 +33,7 @@ pub enum MigrationError {
     Installation(#[from] InstallationError),
 
     #[error("invalid migration version")]
-    Version(#[from] crate::version::VersionParseError),
+    Version(#[from] VersionParseError),
 }
 
 #[cfg(test)]

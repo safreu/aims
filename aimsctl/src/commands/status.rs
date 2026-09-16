@@ -1,8 +1,12 @@
 use crate::{
-    docker::{ContainerRuntime, DockerComposeError, ServiceStatus},
-    health::{HealthCheckError, HealthChecker},
-    installation::{Installation, InstallationError},
-    version::Version,
+    installation::{
+        installation::{Installation, InstallationError},
+        version::Version,
+    },
+    runtime::{
+        docker::{ContainerRuntime, DockerComposeError, ServiceStatus},
+        health::{HealthCheckError, HealthChecker},
+    },
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -12,7 +16,7 @@ pub struct AimsStatus {
     pub healthy: bool,
 }
 
-pub struct StatusChecker<R, H>
+pub struct Status<R, H>
 where
     R: ContainerRuntime,
     H: HealthChecker,
@@ -22,7 +26,7 @@ where
     health_checker: H,
 }
 
-impl<R, H> StatusChecker<R, H>
+impl<R, H> Status<R, H>
 where
     R: ContainerRuntime,
     H: HealthChecker,
@@ -63,7 +67,7 @@ mod tests {
     use super::*;
 
     use crate::{
-        docker::ServiceStatus,
+        runtime::docker::ServiceStatus,
         test_support::{self, FakeHealthChecker, FakeRuntime, docker_failure},
     };
 
@@ -89,7 +93,7 @@ mod tests {
         let runtime = FakeRuntime::new();
         runtime.push_service_status_result(Ok(services.clone()));
 
-        let checker = StatusChecker::new(
+        let checker = Status::new(
             test_installation.installation,
             runtime,
             FakeHealthChecker::healthy(),
@@ -124,7 +128,7 @@ mod tests {
         let runtime = FakeRuntime::new();
         runtime.push_service_status_result(Ok(services.clone()));
 
-        let checker = StatusChecker::new(
+        let checker = Status::new(
             test_installation.installation,
             runtime,
             FakeHealthChecker::unhealthy(),
@@ -144,7 +148,7 @@ mod tests {
         let runtime = FakeRuntime::new();
         runtime.push_service_status_result(Err(docker_failure()));
 
-        let checker = StatusChecker::new(
+        let checker = Status::new(
             test_installation.installation,
             runtime,
             FakeHealthChecker::healthy(),

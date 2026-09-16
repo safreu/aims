@@ -1,12 +1,16 @@
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use crate::{
-    docker::{ContainerRuntime, DockerComposeError, ServiceStatus},
-    environment::{EnvironmentConfig, build_environment},
-    health::{HealthCheckError, HealthChecker},
-    installation::Installation,
+    installation::{
+        environment::{EnvironmentConfig, build_environment},
+        installation::Installation,
+        version::Version,
+    },
     progress::ProgressReporter,
-    version::Version,
+    runtime::{
+        docker::{ContainerRuntime, DockerComposeError, ServiceStatus},
+        health::{HealthCheckError, HealthChecker},
+    },
 };
 
 pub struct TestInstallation {

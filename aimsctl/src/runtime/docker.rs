@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use crate::{installation::Installation, version::Version};
+use crate::installation::{installation::Installation, version::Version};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceStatus {

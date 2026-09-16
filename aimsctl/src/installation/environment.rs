@@ -1,8 +1,8 @@
 use rand::{RngExt, distr::Alphanumeric};
 
-use crate::version::Version;
+use crate::installation::version::Version;
 
-const ENV_TEMPLATE: &str = include_str!("../../deployment/raspberry-pi/env.template");
+const ENV_TEMPLATE: &str = include_str!("../../../deployment/raspberry-pi/env.template");
 
 pub struct EnvironmentConfig<'a> {
     pub version: &'a Version,

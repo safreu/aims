@@ -1,9 +1,17 @@
 use crate::{
-    docker::ContainerRuntime, environment::EnvironmentConfig, health::HealthChecker,
-    installation::Installation, progress::ProgressReporter, version::Version,
+    installation::{
+        environment::EnvironmentConfig,
+        installation::{Installation, InstallationError},
+        version::Version,
+    },
+    progress::ProgressReporter,
+    runtime::{
+        docker::{ContainerRuntime, DockerComposeError},
+        health::{HealthCheckError, HealthChecker},
+    },
 };
 
-pub struct Installer<D, H, P>
+pub struct Install<D, H, P>
 where
     D: ContainerRuntime,
     H: HealthChecker,
@@ -18,7 +26,7 @@ where
     postgres_volume: String,
 }
 
-impl<D, H, P> Installer<D, H, P>
+impl<D, H, P> Install<D, H, P>
 where
     D: ContainerRuntime,
     H: HealthChecker,
@@ -44,7 +52,7 @@ where
         }
     }
 
-    pub fn install(&self, version: &Version) -> Result<(), InstallerError> {
+    pub fn install(&self, version: &Version) -> Result<(), InstallError> {
         const TOTAL_STEPS: usize = 5;
 
         self.progress.header(&format!("Aims {version} installer"));
@@ -58,7 +66,7 @@ where
 
         self.progress.step(2, TOTAL_STEPS, "Writing configuration");
 
-        let database_password = crate::environment::generate_database_password();
+        let database_password = crate::installation::environment::generate_database_password();
 
         let environment_config = EnvironmentConfig {
             version,
@@ -68,7 +76,7 @@ where
             postgres_volume: &self.postgres_volume,
         };
 
-        let environment = crate::environment::build_environment(&environment_config);
+        let environment = crate::installation::environment::build_environment(&environment_config);
 
         self.installation.write_environment(&environment)?;
 
@@ -78,7 +86,7 @@ where
             .step(3, TOTAL_STEPS, &format!("Downloading Aims {version}"));
 
         if let Err(error) = self.docker.pull(&self.installation, version) {
-            let installation_error = InstallerError::Docker(error);
+            let installation_error = InstallError::Docker(error);
             return Err(self.cleanup_after_failure(installation_error, self.cleanup_files()));
         }
 
@@ -87,7 +95,7 @@ where
         self.progress.step(4, TOTAL_STEPS, "Starting services");
 
         if let Err(error) = self.docker.apply(&self.installation) {
-            let installation_error = InstallerError::Docker(error);
+            let installation_error = InstallError::Docker(error);
             return Err(self
                 .cleanup_after_failure(installation_error, self.cleanup_running_installations()));
         }
@@ -97,7 +105,7 @@ where
         self.progress.step(5, TOTAL_STEPS, "Checking health");
 
         if let Err(error) = self.health_checker.wait_until_healthy(&self.installation) {
-            let installation_error = InstallerError::Health(error);
+            let installation_error = InstallError::Health(error);
 
             return Err(self
                 .cleanup_after_failure(installation_error, self.cleanup_running_installations()));
@@ -111,12 +119,12 @@ where
         Ok(())
     }
 
-    fn cleanup_files(&self) -> Result<(), InstallerError> {
+    fn cleanup_files(&self) -> Result<(), InstallError> {
         self.installation.remove()?;
         Ok(())
     }
 
-    fn cleanup_running_installations(&self) -> Result<(), InstallerError> {
+    fn cleanup_running_installations(&self) -> Result<(), InstallError> {
         self.docker.down(&self.installation)?;
         self.installation.remove()?;
         Ok(())
@@ -124,12 +132,12 @@ where
 
     fn cleanup_after_failure(
         &self,
-        installation_error: InstallerError,
-        cleanup_result: Result<(), InstallerError>,
-    ) -> InstallerError {
+        installation_error: InstallError,
+        cleanup_result: Result<(), InstallError>,
+    ) -> InstallError {
         match cleanup_result {
             Ok(()) => installation_error,
-            Err(cleanup_error) => InstallerError::CleanupFailed {
+            Err(cleanup_error) => InstallError::CleanupFailed {
                 installation_error: Box::new(installation_error),
                 cleanup_error: Box::new(cleanup_error),
             },
@@ -138,17 +146,17 @@ where
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum InstallerError {
+pub enum InstallError {
     #[error(transparent)]
-    Installation(#[from] crate::installation::InstallationError),
+    Installation(#[from] InstallationError),
     #[error(transparent)]
-    Docker(#[from] crate::docker::DockerComposeError),
+    Docker(#[from] DockerComposeError),
     #[error(transparent)]
-    Health(#[from] crate::health::HealthCheckError),
+    Health(#[from] HealthCheckError),
     #[error("installation failed: {installation_error}; cleanup also failed: {cleanup_error}")]
     CleanupFailed {
-        installation_error: Box<InstallerError>,
-        cleanup_error: Box<InstallerError>,
+        installation_error: Box<InstallError>,
+        cleanup_error: Box<InstallError>,
     },
 }
 
@@ -164,8 +172,8 @@ mod tests {
         installation: Installation,
         runtime: FakeRuntime,
         health_checker: FakeHealthChecker,
-    ) -> Installer<FakeRuntime, FakeHealthChecker, TestProgressReporter> {
-        Installer::new(
+    ) -> Install<FakeRuntime, FakeHealthChecker, TestProgressReporter> {
+        Install::new(
             installation,
             runtime,
             health_checker,
@@ -213,7 +221,7 @@ mod tests {
 
         let result = installer.install(&version);
 
-        assert!(matches!(result, Err(InstallerError::Docker(_))));
+        assert!(matches!(result, Err(InstallError::Docker(_))));
 
         assert_eq!(runtime.calls(), ["pull:0.1.1"]);
         assert!(!installation_root.exists());
@@ -235,7 +243,7 @@ mod tests {
 
         let result = installer.install(&version);
 
-        assert!(matches!(result, Err(InstallerError::Docker(_))));
+        assert!(matches!(result, Err(InstallError::Docker(_))));
 
         assert_eq!(runtime.calls(), ["pull:0.1.1", "apply", "down"]);
 
@@ -256,7 +264,7 @@ mod tests {
 
         let result = installer.install(&version);
 
-        assert!(matches!(result, Err(InstallerError::Health(_))));
+        assert!(matches!(result, Err(InstallError::Health(_))));
 
         assert_eq!(runtime.calls(), ["pull:0.1.1", "apply", "down"]);
 
@@ -281,17 +289,17 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(InstallerError::CleanupFailed {
+            Err(InstallError::CleanupFailed {
                 installation_error,
                 cleanup_error,
             })
                 if matches!(
                     *installation_error,
-                    InstallerError::Health(_)
+                    InstallError::Health(_)
                 )
                     && matches!(
                         *cleanup_error,
-                        InstallerError::Docker(_)
+                        InstallError::Docker(_)
                     )
         ));
 

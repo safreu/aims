@@ -1,13 +1,17 @@
 use crate::{
-    docker::{ContainerRuntime, DockerComposeError},
-    health::{HealthCheckError, HealthChecker},
-    installation::{EnvironmentSnapshot, Installation, InstallationError},
-    migration::{self, MigrationError},
+    installation::{
+        installation::{EnvironmentSnapshot, Installation, InstallationError},
+        migration::{self, MigrationError},
+        version::Version,
+    },
     progress::ProgressReporter,
-    version::Version,
+    runtime::{
+        docker::{ContainerRuntime, DockerComposeError},
+        health::{HealthCheckError, HealthChecker},
+    },
 };
 
-pub struct Updater<R, H, P>
+pub struct Update<R, H, P>
 where
     R: ContainerRuntime,
     H: HealthChecker,
@@ -19,7 +23,7 @@ where
     progress: P,
 }
 
-impl<R, H, P> Updater<R, H, P>
+impl<R, H, P> Update<R, H, P>
 where
     R: ContainerRuntime,
     H: HealthChecker,
@@ -164,8 +168,8 @@ mod tests {
         installation: Installation,
         runtime: FakeRuntime,
         health_checker: FakeHealthChecker,
-    ) -> Updater<FakeRuntime, FakeHealthChecker, TestProgressReporter> {
-        Updater::new(installation, runtime, health_checker, TestProgressReporter)
+    ) -> Update<FakeRuntime, FakeHealthChecker, TestProgressReporter> {
+        Update::new(installation, runtime, health_checker, TestProgressReporter)
     }
 
     #[test]

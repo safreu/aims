@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::version::Version;
+use crate::installation::version::{Version, VersionParseError};
 
 #[derive(Debug, Clone)]
 pub struct Installation {
@@ -17,7 +17,7 @@ pub struct EnvironmentSnapshot {
     content: String,
 }
 
-const COMPOSE_FILE_CONTENT: &str = include_str!("../../compose.prod.yml");
+const COMPOSE_FILE_CONTENT: &str = include_str!("../../../compose.prod.yml");
 
 impl Installation {
     pub fn new(root: impl Into<PathBuf>) -> Self {
@@ -181,7 +181,7 @@ pub enum InstallationError {
     #[error("environment variable {0} is missing")]
     MissingEnvironmentVariable(String),
     #[error("AIMS_VERSION in environment file is invalid")]
-    InvalidVersion(#[source] crate::version::VersionParseError),
+    InvalidVersion(#[source] VersionParseError),
 }
 
 #[cfg(test)]

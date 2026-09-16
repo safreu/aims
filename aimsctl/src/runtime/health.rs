@@ -1,6 +1,6 @@
 use std::{thread, time::Duration};
 
-use crate::installation::Installation;
+use crate::installation::installation::{Installation, InstallationError};
 
 pub trait HealthChecker {
     fn wait_until_healthy(&self, installation: &Installation) -> Result<(), HealthCheckError>;
@@ -50,5 +50,5 @@ pub enum HealthCheckError {
     #[error("failed to create HTTP client")]
     Client,
     #[error("failed to determine Aims health URL")]
-    Installation(#[from] crate::installation::InstallationError),
+    Installation(#[from] InstallationError),
 }

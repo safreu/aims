@@ -1,10 +1,10 @@
 use crate::{
-    docker::{ContainerRuntime, DockerComposeError},
-    installation::{Installation, InstallationError},
+    installation::installation::{Installation, InstallationError},
     progress::ProgressReporter,
+    runtime::docker::{ContainerRuntime, DockerComposeError},
 };
 
-pub struct Uninstaller<R, P>
+pub struct Uninstall<R, P>
 where
     R: ContainerRuntime,
     P: ProgressReporter,
@@ -14,7 +14,7 @@ where
     progress: P,
 }
 
-impl<R, P> Uninstaller<R, P>
+impl<R, P> Uninstall<R, P>
 where
     R: ContainerRuntime,
     P: ProgressReporter,
@@ -27,7 +27,7 @@ where
         }
     }
 
-    pub fn uninstall(&self) -> Result<(), UninstallerError> {
+    pub fn uninstall(&self) -> Result<(), UninstallError> {
         const TOTAL_STEPS: usize = 2;
 
         self.progress.header("Aims uninstaller");
@@ -54,7 +54,7 @@ where
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum UninstallerError {
+pub enum UninstallError {
     #[error("Docker compose operation failed")]
     Docker(#[from] DockerComposeError),
     #[error("failed to remove Aims installation")]
@@ -77,7 +77,7 @@ mod tests {
         let installation = Installation::new(&installation_root);
         let runtime = FakeRuntime::new();
 
-        let uninstaller = Uninstaller::new(installation, runtime.clone(), TestProgressReporter);
+        let uninstaller = Uninstall::new(installation, runtime.clone(), TestProgressReporter);
 
         uninstaller.uninstall().unwrap();
 
@@ -97,11 +97,11 @@ mod tests {
 
         runtime.push_down_result(Err(docker_failure()));
 
-        let uninstaller = Uninstaller::new(installation, runtime.clone(), TestProgressReporter);
+        let uninstaller = Uninstall::new(installation, runtime.clone(), TestProgressReporter);
 
         let result = uninstaller.uninstall();
 
-        assert!(matches!(result, Err(UninstallerError::Docker(_))));
+        assert!(matches!(result, Err(UninstallError::Docker(_))));
 
         assert_eq!(runtime.calls(), ["down"]);
         assert!(installation_root.exists());
