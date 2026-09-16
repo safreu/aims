@@ -57,7 +57,6 @@ enum Commands {
         ///Destination where aimsctl installs itself.
         #[arg(long, default_value = "/usr/local/bin/aimsctl", hide = true)]
         aimsctl_install_path: PathBuf,
-        
     },
 
     /// Update an existing Aims installation.
@@ -324,6 +323,8 @@ fn apply_update(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
 
     #[test]
@@ -383,30 +384,26 @@ mod tests {
             "/tmp/aims-e2e-bin/aimsctl",
         ])
         .unwrap();
-    
+
         assert!(matches!(
             cli.command,
             Commands::Install {
                 aimsctl_install_path,
                 ..
-            } if aimsctl_install_path == PathBuf::from("/tmp/aims-e2e-bin/aimsctl")
+            } if aimsctl_install_path == Path::new("/tmp/aims-e2e-bin/aimsctl")
         ));
     }
 
     #[test]
     fn install_uses_default_aimsctl_install_path() {
-        let cli = Cli::try_parse_from([
-            "aimsctl",
-            "install",
-        ])
-        .unwrap();
-    
+        let cli = Cli::try_parse_from(["aimsctl", "install"]).unwrap();
+
         assert!(matches!(
             cli.command,
             Commands::Install {
                 aimsctl_install_path,
                 ..
-            } if aimsctl_install_path == PathBuf::from("/usr/local/bin/aimsctl")
+            } if aimsctl_install_path == Path::new("/usr/local/bin/aimsctl")
         ));
     }
 }

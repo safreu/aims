@@ -32,7 +32,7 @@ impl ExecutableManager {
             std::fs::create_dir_all(parent)
                 .map_err(ExecutableManagerError::CreateInstallDirectory)?;
         }
-        
+
         fs::copy(source, &self.destination).map_err(ExecutableManagerError::Copy)?;
 
         Ok(())
@@ -136,29 +136,22 @@ mod tests {
     #[test]
     fn install_creates_missing_parent_directory() {
         let temp_dir = tempfile::tempdir().unwrap();
-    
+
         let source = temp_dir.path().join("source-aimsctl");
         std::fs::write(&source, b"test binary").unwrap();
-    
-        let destination = temp_dir
-            .path()
-            .join("nested")
-            .join("bin")
-            .join("aimsctl");
-    
+
+        let destination = temp_dir.path().join("nested").join("bin").join("aimsctl");
+
         let parent = destination.parent().unwrap();
-    
+
         assert!(!parent.exists());
-    
+
         let manager = ExecutableManager::new(destination.clone());
-    
+
         manager.install_from(&source).unwrap();
-    
+
         assert!(parent.is_dir());
         assert!(destination.is_file());
-        assert_eq!(
-            std::fs::read(&destination).unwrap(),
-            b"test binary"
-        );
+        assert_eq!(std::fs::read(&destination).unwrap(), b"test binary");
     }
 }
