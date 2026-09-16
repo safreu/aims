@@ -14,34 +14,39 @@ impl ExecutableManager {
         }
     }
 
-    pub(crate) fn install(&self) -> Result<(), ExecutableInstallError> {
+    pub(crate) fn install(&self) -> Result<(), ExecutableManagerError> {
         let current_executable =
-            std::env::current_exe().map_err(ExecutableInstallError::CurrentExecutable)?;
+            std::env::current_exe().map_err(ExecutableManagerError::CurrentExecutable)?;
 
         self.install_from(&current_executable)
     }
 
-    fn install_from(&self, source: &Path) -> Result<(), ExecutableInstallError> {
+    fn install_from(&self, source: &Path) -> Result<(), ExecutableManagerError> {
         if self.destination.exists() {
-            return Err(ExecutableInstallError::AlreadyExists(
+            return Err(ExecutableManagerError::AlreadyExists(
                 self.destination.clone(),
             ));
         }
 
-        fs::copy(source, &self.destination).map_err(ExecutableInstallError::Copy)?;
+        if let Some(parent) = self.destination.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(ExecutableManagerError::CreateInstallDirectory)?;
+        }
+        
+        fs::copy(source, &self.destination).map_err(ExecutableManagerError::Copy)?;
 
         Ok(())
     }
 
-    pub(crate) fn uninstall(&self) -> Result<(), ExecutableInstallError> {
-        std::fs::remove_file(&self.destination).map_err(ExecutableInstallError::Remove)?;
+    pub(crate) fn uninstall(&self) -> Result<(), ExecutableManagerError> {
+        std::fs::remove_file(&self.destination).map_err(ExecutableManagerError::Remove)?;
 
         Ok(())
     }
 }
 
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum ExecutableInstallError {
+pub(crate) enum ExecutableManagerError {
     #[error("failed to determine current aimsctl executable")]
     CurrentExecutable(#[source] std::io::Error),
     #[error("failed to install aimsctl executable")]
@@ -50,6 +55,8 @@ pub(crate) enum ExecutableInstallError {
     Remove(#[source] std::io::Error),
     #[error("aimsctl executable already exists at {0}")]
     AlreadyExists(PathBuf),
+    #[error("failed to create aimsctl installation directory")]
+    CreateInstallDirectory(#[source] std::io::Error),
 }
 
 #[cfg(test)]
@@ -83,7 +90,7 @@ mod tests {
 
         let result = installer.install_from(&source);
 
-        assert!(matches!(result, Err(ExecutableInstallError::Copy(_))));
+        assert!(matches!(result, Err(ExecutableManagerError::Copy(_))));
 
         assert!(!destination.exists());
     }
@@ -104,7 +111,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(ExecutableInstallError::AlreadyExists(path))
+            Err(ExecutableManagerError::AlreadyExists(path))
                 if path == destination
         ));
 
@@ -124,5 +131,34 @@ mod tests {
         manager.uninstall().unwrap();
 
         assert!(!destination.exists());
+    }
+
+    #[test]
+    fn install_creates_missing_parent_directory() {
+        let temp_dir = tempfile::tempdir().unwrap();
+    
+        let source = temp_dir.path().join("source-aimsctl");
+        std::fs::write(&source, b"test binary").unwrap();
+    
+        let destination = temp_dir
+            .path()
+            .join("nested")
+            .join("bin")
+            .join("aimsctl");
+    
+        let parent = destination.parent().unwrap();
+    
+        assert!(!parent.exists());
+    
+        let manager = ExecutableManager::new(destination.clone());
+    
+        manager.install_from(&source).unwrap();
+    
+        assert!(parent.is_dir());
+        assert!(destination.is_file());
+        assert_eq!(
+            std::fs::read(&destination).unwrap(),
+            b"test binary"
+        );
     }
 }
