@@ -109,7 +109,7 @@ verify_aimsctl() {
     )
 }
 
-run_installer() {
+run_init() {
     local architecture="$1"
     local source_directory="$2"
     shift 2
@@ -122,7 +122,7 @@ run_installer() {
 
     chmod +x "${source_directory}/${asset}"
 
-    "${source_directory}/${asset}" install "$@"
+    "${source_directory}/${asset}" init "$@"
 }
 
 main() {
@@ -136,7 +136,7 @@ main() {
 
     if [[ $# -gt 0 ]]; then
         if [[ "$1" != "--" ]]; then
-            fail "Usage: $0 [version] [-- aimsctl-install-options...]"
+            fail "Usage: $0 [version] [-- aimsctl-init-options...]"
         fi
 
         shift
@@ -162,7 +162,7 @@ main() {
         "$architecture" \
         "$TEMPORARY_DIRECTORY"
 
-    run_installer \
+    run_init \
         "$architecture" \
         "$TEMPORARY_DIRECTORY" \
         "$@"
