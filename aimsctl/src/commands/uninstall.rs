@@ -35,9 +35,9 @@ where
         self.progress
             .step(1, TOTAL_STEPS, "Stopping and removing services");
 
-        self.runtime.down(&self.installation)?;
+        self.runtime.down_with_volumes(&self.installation)?;
 
-        self.progress.detail("Services removed");
+        self.progress.detail("Services and database data removed");
 
         self.progress
             .step(2, TOTAL_STEPS, "Removing installation files");
@@ -46,8 +46,7 @@ where
 
         self.progress.detail("Installation files removed");
 
-        self.progress
-            .success("Aims uninstalled successfully\nDatabase data has been preserved");
+        self.progress.success("Aims uninstalled successfully");
 
         Ok(())
     }
@@ -68,7 +67,7 @@ mod tests {
     use crate::test_support::{FakeRuntime, TestProgressReporter, docker_failure};
 
     #[test]
-    fn uninstall_stops_services_and_removes_installation() {
+    fn uninstall_removes_services_database_data_and_installation() {
         let temp_dir = tempfile::tempdir().unwrap();
         let installation_root = temp_dir.path().join("aims");
 
@@ -81,7 +80,7 @@ mod tests {
 
         uninstaller.uninstall().unwrap();
 
-        assert_eq!(runtime.calls(), ["down"]);
+        assert_eq!(runtime.calls(), ["down_with_volumes"]);
         assert!(!installation_root.exists());
     }
 
@@ -95,7 +94,7 @@ mod tests {
         let installation = Installation::new(&installation_root);
         let runtime = FakeRuntime::new();
 
-        runtime.push_down_result(Err(docker_failure()));
+        runtime.push_down_with_volumes_result(Err(docker_failure()));
 
         let uninstaller = Uninstall::new(installation, runtime.clone(), TestProgressReporter);
 
@@ -103,7 +102,7 @@ mod tests {
 
         assert!(matches!(result, Err(UninstallError::Docker(_))));
 
-        assert_eq!(runtime.calls(), ["down"]);
+        assert_eq!(runtime.calls(), ["down_with_volumes"]);
         assert!(installation_root.exists());
     }
 }

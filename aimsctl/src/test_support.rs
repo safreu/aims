@@ -70,6 +70,7 @@ pub struct FakeRuntime {
     start_results: SharedResults<()>,
     stop_results: SharedResults<()>,
     down_results: SharedResults<()>,
+    down_with_volumes_results: SharedResults<()>,
     service_status_results: SharedResults<Vec<ServiceStatus>>,
 }
 
@@ -83,6 +84,7 @@ impl FakeRuntime {
             start_results: Rc::new(RefCell::new(VecDeque::new())),
             stop_results: Rc::new(RefCell::new(VecDeque::new())),
             down_results: Rc::new(RefCell::new(VecDeque::new())),
+            down_with_volumes_results: Rc::new(RefCell::new(VecDeque::new())),
             service_status_results: Rc::new(RefCell::new(VecDeque::new())),
             availability_results: Rc::new(RefCell::new(VecDeque::new())),
         }
@@ -110,6 +112,12 @@ impl FakeRuntime {
 
     pub fn push_down_result(&self, result: Result<(), DockerComposeError>) {
         self.down_results.borrow_mut().push_back(result);
+    }
+
+    pub fn push_down_with_volumes_result(&self, result: Result<(), DockerComposeError>) {
+        self.down_with_volumes_results
+            .borrow_mut()
+            .push_back(result);
     }
 
     pub fn push_service_status_result(
@@ -169,6 +177,17 @@ impl ContainerRuntime for FakeRuntime {
         self.calls.borrow_mut().push("down".to_string());
 
         self.down_results.borrow_mut().pop_front().unwrap_or(Ok(()))
+    }
+
+    fn down_with_volumes(&self, _installation: &Installation) -> Result<(), DockerComposeError> {
+        self.calls
+            .borrow_mut()
+            .push("down_with_volumes".to_string());
+
+        self.down_with_volumes_results
+            .borrow_mut()
+            .pop_front()
+            .unwrap_or(Ok(()))
     }
 
     fn service_statuses(

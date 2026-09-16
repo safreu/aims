@@ -91,6 +91,13 @@ mod tests {
             panic!("down must not be called by manager");
         }
 
+        fn down_with_volumes(
+            &self,
+            _installation: &Installation,
+        ) -> Result<(), DockerComposeError> {
+            panic!("down_with_volumes must not be called by manager");
+        }
+
         fn service_statuses(
             &self,
             _installation: &Installation,
