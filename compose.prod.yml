@@ -39,7 +39,7 @@ services:
     image: ghcr.io/safreu/aims-frontend:${AIMS_VERSION}
     restart: unless-stopped
     ports:
-      - "${AIMS_HTTP_PORT:-8080}:80" 
+      - "${AIMS_HTTP_PORT:-80}:80" 
     depends_on:
       - backend
 

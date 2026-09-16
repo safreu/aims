@@ -1,7 +1,7 @@
 use crate::{
-    docker::{ContainerRuntime, DockerComposeError},
     installation::Installation,
     progress::ProgressReporter,
+    runtime::docker::{ContainerRuntime, DockerComposeError},
 };
 
 pub struct Manager<R, P>
@@ -50,11 +50,15 @@ pub enum ManagerError {
 
 #[cfg(test)]
 mod tests {
+    use crate::{
+        installation::Version,
+        runtime::docker::{RuntimeAvailabilityError, ServiceStatus},
+        test_support::TestProgressReporter,
+    };
+
     use super::*;
 
     use std::{cell::RefCell, rc::Rc};
-
-    use crate::{docker::ServiceStatus, version::Version};
 
     struct FakeRuntime {
         calls: Rc<RefCell<Vec<String>>>,
@@ -93,20 +97,14 @@ mod tests {
         ) -> Result<Vec<ServiceStatus>, DockerComposeError> {
             Ok(Vec::new())
         }
-    }
-    struct TestProgressReporter;
 
-    impl ProgressReporter for TestProgressReporter {
-        fn header(&self, _message: &str) {}
-        fn step(&self, _current: usize, _total: usize, _message: &str) {}
-        fn detail(&self, _message: &str) {}
-        fn phase(&self, _name: &str, _message: &str) {}
-        fn success(&self, _message: &str) {}
+        fn check_available(&self) -> Result<(), RuntimeAvailabilityError> {
+            Ok(())
+        }
     }
 
     fn test_manager(calls: Rc<RefCell<Vec<String>>>) -> Manager<FakeRuntime, TestProgressReporter> {
-        let installation =
-            Installation::new("/tmp/aims-test", "http://127.0.0.1:8080/api/v1/health");
+        let installation = Installation::new("/tmp/aims-test");
 
         Manager::new(installation, FakeRuntime { calls }, TestProgressReporter)
     }

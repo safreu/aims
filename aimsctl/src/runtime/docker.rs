@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use crate::{installation::Installation, version::Version};
+use crate::installation::{Installation, Version};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceStatus {
@@ -34,6 +34,8 @@ pub trait ContainerRuntime {
         &self,
         installation: &Installation,
     ) -> Result<Vec<ServiceStatus>, DockerComposeError>;
+
+    fn check_available(&self) -> Result<(), RuntimeAvailabilityError>;
 }
 
 pub struct DockerCompose;
@@ -138,6 +140,20 @@ impl ContainerRuntime for DockerCompose {
 
         parse_service_statuses(&stdout)
     }
+
+    fn check_available(&self) -> Result<(), RuntimeAvailabilityError> {
+        let mut docker = Command::new("docker");
+        docker.arg("--version");
+
+        run_command(&mut docker).map_err(RuntimeAvailabilityError::Docker)?;
+
+        let mut compose = Command::new("docker");
+        compose.arg("compose").arg("version");
+
+        run_command(&mut compose).map_err(RuntimeAvailabilityError::Compose)?;
+
+        Ok(())
+    }
 }
 
 fn run_command(command: &mut Command) -> Result<(), DockerComposeError> {
@@ -194,6 +210,15 @@ pub enum DockerComposeError {
         stdout: String,
         stderr: String,
     },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RuntimeAvailabilityError {
+    #[error("Docker is not available")]
+    Docker(#[source] DockerComposeError),
+
+    #[error("Docker Compose is not available")]
+    Compose(#[source] DockerComposeError),
 }
 
 #[cfg(test)]
