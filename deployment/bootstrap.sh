@@ -3,7 +3,6 @@
 set -euo pipefail
 
 readonly AIMS_REPOSITORY="safreu/aims"
-readonly AIMS_INSTALL_PATH="/usr/local/bin/aimsctl"
 
 TEMPORARY_DIRECTORY=""
 
@@ -18,22 +17,7 @@ fail() {
     exit 1
 }
 
-require_root() {
-    if [[ "${EUID}" -ne 0 ]]; then
-        fail "This installer must be run as root. Try again with sudo."
-    fi
-}
-
 parse_version() {
-    if [[ $# -gt 1 ]]; then
-        fail "Usage: $0 [version]"
-    fi
-
-    if [[ $# -eq 0 ]]; then
-        echo ""
-        return
-    fi
-
     local version="$1"
 
     if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -57,33 +41,6 @@ detect_architecture() {
     esac
 }
 
-detect_distribution() {
-    if [[ ! -r /etc/os-release ]]; then
-        fail "Cannot determine Linux distribution: /etc/os-release is missing."
-    fi
-
-    # shellcheck disable=SC1091
-    source /etc/os-release
-
-    case "${ID:-}" in
-        raspbian|debian)
-            echo "debian"
-            ;;
-        ubuntu)
-            echo "ubuntu"
-            ;;
-        fedora)
-            echo "fedora"
-            ;;
-        arch)
-            echo "arch"
-            ;;
-        *)
-            fail "Unsupported Linux distribution: ${ID:-unknown}"
-            ;;
-    esac
-}
-
 check_command() {
     local command="$1"
 
@@ -95,19 +52,8 @@ check_command() {
 check_dependencies() {
     check_command curl
     check_command sha256sum
-    check_command install
     check_command mktemp
     check_command grep
-}
-
-check_docker() {
-    if ! command -v docker >/dev/null 2>&1; then
-        fail "Docker is required but is not installed. Install Docker and run this installer again."
-    fi
-
-    if ! docker compose version >/dev/null 2>&1; then
-        fail "Docker Compose is required but is not available. Install Docker Compose and run this installer again."
-    fi
 }
 
 download_aimsctl() {
@@ -163,66 +109,46 @@ verify_aimsctl() {
     )
 }
 
-install_aimsctl() {
+run_installer() {
     local architecture="$1"
     local source_directory="$2"
-
+    shift 2
+    
     local asset="aimsctl-linux-${architecture}"
-
-    echo "Installing aimsctl..."
-
-    install \
-        -m 0755 \
-        "${source_directory}/${asset}" \
-        "${AIMS_INSTALL_PATH}"
-}
-
-get_installed_aimsctl_version() {
-    "${AIMS_INSTALL_PATH}" version
-}
-
-verify_installed_aimsctl() {
-    local expected_version="$1"
-    local actual_version
-
-    actual_version="$(get_installed_aimsctl_version)"
-
-    if [[ -n "$expected_version" && "$actual_version" != "$expected_version" ]]; then
-        fail "Installed aimsctl version is ${actual_version}, expected ${expected_version}."
-    fi
-
-    echo "aimsctl ${actual_version} installed successfully."
-}
-
-run_installer() {
+    
     echo
     echo "Installing Aims..."
     echo
 
-    "${AIMS_INSTALL_PATH}" install
+    chmod +x "${source_directory}/${asset}"
+
+    "${source_directory}/${asset}" install "$@"
 }
 
 main() {
-    require_root
-
-    local requested_version
+    local requested_version=""
     local architecture
-    local distribution
-    local installed_version
 
-    requested_version="$(parse_version "$@")"
+    if [[ $# -gt 0 && "$1" != "--" ]]; then
+        requested_version="$(parse_version "$1")"
+        shift
+    fi
+
+    if [[ $# -gt 0 ]]; then
+        if [[ "$1" != "--" ]]; then
+            fail "Usage: $0 [version] [-- aimsctl-install-options...]"
+        fi
+
+        shift
+    fi
+    
     architecture="$(detect_architecture)"
-    distribution="$(detect_distribution)"
 
     echo "Aims bootstrap"
     echo
     echo "Architecture: ${architecture}"
-    echo "Distribution: ${distribution}"
 
     check_dependencies
-    check_docker
-
-    echo "Docker:       available"
 
     TEMPORARY_DIRECTORY="$(mktemp -d)"
     trap cleanup EXIT
@@ -236,18 +162,13 @@ main() {
         "$architecture" \
         "$TEMPORARY_DIRECTORY"
 
-    install_aimsctl \
+    run_installer \
         "$architecture" \
-        "$TEMPORARY_DIRECTORY"
-
-    verify_installed_aimsctl "$requested_version"
-
-    installed_version="$(get_installed_aimsctl_version)"
-
-    run_installer
+        "$TEMPORARY_DIRECTORY" \
+        "$@"
 
     echo
-    echo "Aims ${installed_version} bootstrap completed successfully."
+    echo "Aims bootstrap completed successfully."
 }
 
 main "$@"

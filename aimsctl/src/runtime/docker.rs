@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use crate::{installation::Installation, version::Version};
+use crate::installation::{Installation, Version};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceStatus {
@@ -30,10 +30,14 @@ pub trait ContainerRuntime {
 
     fn down(&self, installation: &Installation) -> Result<(), DockerComposeError>;
 
+    fn down_with_volumes(&self, installation: &Installation) -> Result<(), DockerComposeError>;
+
     fn service_statuses(
         &self,
         installation: &Installation,
     ) -> Result<Vec<ServiceStatus>, DockerComposeError>;
+
+    fn check_available(&self) -> Result<(), RuntimeAvailabilityError>;
 }
 
 pub struct DockerCompose;
@@ -103,6 +107,7 @@ impl ContainerRuntime for DockerCompose {
 
         run_command(&mut command)
     }
+
     fn down(&self, installation: &Installation) -> Result<(), DockerComposeError> {
         let mut command = Command::new("docker");
 
@@ -113,6 +118,21 @@ impl ContainerRuntime for DockerCompose {
             .arg("-f")
             .arg(installation.compose_file())
             .arg("down");
+
+        run_command(&mut command)
+    }
+
+    fn down_with_volumes(&self, installation: &Installation) -> Result<(), DockerComposeError> {
+        let mut command = Command::new("docker");
+
+        command
+            .arg("compose")
+            .arg("--env-file")
+            .arg(installation.env_file())
+            .arg("-f")
+            .arg(installation.compose_file())
+            .arg("down")
+            .arg("-v");
 
         run_command(&mut command)
     }
@@ -137,6 +157,20 @@ impl ContainerRuntime for DockerCompose {
         let stdout = run_command_with_output(&mut command)?;
 
         parse_service_statuses(&stdout)
+    }
+
+    fn check_available(&self) -> Result<(), RuntimeAvailabilityError> {
+        let mut docker = Command::new("docker");
+        docker.arg("--version");
+
+        run_command(&mut docker).map_err(RuntimeAvailabilityError::Docker)?;
+
+        let mut compose = Command::new("docker");
+        compose.arg("compose").arg("version");
+
+        run_command(&mut compose).map_err(RuntimeAvailabilityError::Compose)?;
+
+        Ok(())
     }
 }
 
@@ -194,6 +228,15 @@ pub enum DockerComposeError {
         stdout: String,
         stderr: String,
     },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RuntimeAvailabilityError {
+    #[error("Docker is not available")]
+    Docker(#[source] DockerComposeError),
+
+    #[error("Docker Compose is not available")]
+    Compose(#[source] DockerComposeError),
 }
 
 #[cfg(test)]

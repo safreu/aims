@@ -95,6 +95,7 @@ body {
   margin: 0;
   min-width: 320px;
   background: var(--bg);
+  padding-top: env(safe-area-inset-top);
 }
 
 button,
