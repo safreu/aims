@@ -24,6 +24,7 @@ dependencies = [
  "clap",
  "rand 0.10.2",
  "reqwest",
+ "rustix",
  "self-replace",
  "self_update",
  "semver",

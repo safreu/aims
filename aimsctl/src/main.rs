@@ -6,6 +6,7 @@ use crate::{
     commands::{Install, Status, Uninstall, Update},
     installation::{installation::Installation, version::Version},
     manager::Manager,
+    privilege::{Elevation, SudoEscalator, SystemPrivilegeChecker, ensure_root},
     progress::ConsoleReporter,
     runtime::{docker::DockerCompose, health::HttpHealthChecker},
     self_update::{
@@ -16,6 +17,7 @@ use crate::{
 
 mod commands;
 mod installation;
+mod privilege;
 mod runtime;
 mod self_update;
 
@@ -112,8 +114,34 @@ enum Commands {
         installation_root: PathBuf,
     },
 }
+
+impl Commands {
+    fn requires_root(&self) -> bool {
+        matches!(
+            self,
+            Self::Install { .. }
+                | Self::Update { .. }
+                | Self::Start { .. }
+                | Self::Stop { .. }
+                | Self::Uninstall { .. }
+                | Self::ApplyUpdate { .. }
+        )
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
+
+    if cli.command.requires_root() {
+        match ensure_root(&SystemPrivilegeChecker, &SudoEscalator) {
+            Ok(Elevation::AlreadyRoot) => {}
+            Ok(Elevation::Reexecuted) => return,
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(1);
+            }
+        }
+    }
 
     let result = match cli.command {
         Commands::Install {
@@ -276,4 +304,56 @@ fn apply_update(
     updater.update(&version)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mutating_commands_require_root() {
+        let commands = [
+            Commands::Install {
+                installation_root: PathBuf::from("/opt/aims"),
+                compose_project: "aims-prod".to_string(),
+                http_port: 80,
+                postgres_volume: "aims_prod_postgres_data".to_string(),
+            },
+            Commands::Update {
+                version: "0.1.5".to_string(),
+                installation_root: PathBuf::from("/opt/aims"),
+            },
+            Commands::Start {
+                installation_root: PathBuf::from("/opt/aims"),
+            },
+            Commands::Stop {
+                installation_root: PathBuf::from("/opt/aims"),
+            },
+            Commands::Uninstall {
+                installation_root: PathBuf::from("/opt/aims"),
+            },
+            Commands::ApplyUpdate {
+                version: "0.1.5".to_string(),
+                installation_root: PathBuf::from("/opt/aims"),
+            },
+        ];
+
+        for command in commands {
+            assert!(command.requires_root());
+        }
+    }
+
+    #[test]
+    fn read_only_commands_do_not_require_root() {
+        let commands = [
+            Commands::Version,
+            Commands::Status {
+                installation_root: PathBuf::from("/opt/aims"),
+            },
+        ];
+
+        for command in commands {
+            assert!(!command.requires_root());
+        }
+    }
 }
