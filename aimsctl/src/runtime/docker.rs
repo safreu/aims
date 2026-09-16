@@ -30,6 +30,8 @@ pub trait ContainerRuntime {
 
     fn down(&self, installation: &Installation) -> Result<(), DockerComposeError>;
 
+    fn down_with_volumes(&self, installation: &Installation) -> Result<(), DockerComposeError>;
+
     fn service_statuses(
         &self,
         installation: &Installation,
@@ -105,6 +107,7 @@ impl ContainerRuntime for DockerCompose {
 
         run_command(&mut command)
     }
+
     fn down(&self, installation: &Installation) -> Result<(), DockerComposeError> {
         let mut command = Command::new("docker");
 
@@ -115,6 +118,21 @@ impl ContainerRuntime for DockerCompose {
             .arg("-f")
             .arg(installation.compose_file())
             .arg("down");
+
+        run_command(&mut command)
+    }
+
+    fn down_with_volumes(&self, installation: &Installation) -> Result<(), DockerComposeError> {
+        let mut command = Command::new("docker");
+
+        command
+            .arg("compose")
+            .arg("--env-file")
+            .arg(installation.env_file())
+            .arg("-f")
+            .arg(installation.compose_file())
+            .arg("down")
+            .arg("-v");
 
         run_command(&mut command)
     }

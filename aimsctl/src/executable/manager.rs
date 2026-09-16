@@ -3,8 +3,28 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub(crate) trait ExecutableInstaller {
+    fn install(&self) -> Result<(), ExecutableManagerError>;
+    fn uninstall(&self) -> Result<(), ExecutableManagerError>;
+}
+
 pub(crate) struct ExecutableManager {
     destination: PathBuf,
+}
+
+impl ExecutableInstaller for ExecutableManager {
+    fn install(&self) -> Result<(), ExecutableManagerError> {
+        let current_executable =
+            std::env::current_exe().map_err(ExecutableManagerError::CurrentExecutable)?;
+
+        self.install_from(&current_executable)
+    }
+
+    fn uninstall(&self) -> Result<(), ExecutableManagerError> {
+        std::fs::remove_file(&self.destination).map_err(ExecutableManagerError::Remove)?;
+
+        Ok(())
+    }
 }
 
 impl ExecutableManager {
@@ -12,13 +32,6 @@ impl ExecutableManager {
         Self {
             destination: destination.into(),
         }
-    }
-
-    pub(crate) fn install(&self) -> Result<(), ExecutableManagerError> {
-        let current_executable =
-            std::env::current_exe().map_err(ExecutableManagerError::CurrentExecutable)?;
-
-        self.install_from(&current_executable)
     }
 
     fn install_from(&self, source: &Path) -> Result<(), ExecutableManagerError> {
@@ -34,12 +47,6 @@ impl ExecutableManager {
         }
 
         fs::copy(source, &self.destination).map_err(ExecutableManagerError::Copy)?;
-
-        Ok(())
-    }
-
-    pub(crate) fn uninstall(&self) -> Result<(), ExecutableManagerError> {
-        std::fs::remove_file(&self.destination).map_err(ExecutableManagerError::Remove)?;
 
         Ok(())
     }

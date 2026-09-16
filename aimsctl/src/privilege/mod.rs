@@ -1,15 +1,19 @@
-use rustix::process::geteuid;
+use std::ffi::OsString;
 
-use crate::privilege::sudo::{PrivilegeChecker, PrivilegeEscalator};
+use crate::privilege::process::{PrivilegeChecker, PrivilegeEscalator};
 
-mod sudo;
-pub use sudo::{SudoEscalator, SystemPrivilegeChecker};
+mod process;
+pub use process::{CoscaPrivilegeEscalator, SystemPrivilegeChecker};
 
-pub fn is_root() -> bool {
-    geteuid().is_root()
+pub fn current_arguments() -> Vec<OsString> {
+    std::env::args_os().skip(1).collect()
 }
 
-pub fn ensure_root<C, E>(checker: &C, escalator: &E) -> Result<Elevation, PrivilegeError>
+pub fn ensure_root<C, E>(
+    checker: &C,
+    escalator: &E,
+    arguments: &[OsString],
+) -> Result<Elevation, PrivilegeError>
 where
     C: PrivilegeChecker,
     E: PrivilegeEscalator,
@@ -18,12 +22,12 @@ where
         return Ok(Elevation::AlreadyRoot);
     }
 
-    let status = escalator.escalate()?;
+    let success = escalator.escalate(arguments)?;
 
-    if status.success() {
+    if success {
         Ok(Elevation::Reexecuted)
     } else {
-        Err(PrivilegeError::EscalationFailed(status))
+        Err(PrivilegeError::EscalationFailed)
     }
 }
 
@@ -37,17 +41,15 @@ pub enum Elevation {
 pub enum PrivilegeError {
     #[error("failed to determine current aimsctl executable")]
     CurrentExecutable(#[source] std::io::Error),
-
-    #[error("failed to start sudo")]
-    EscalationFailedToStart(#[source] std::io::Error),
-
-    #[error("elevated aimsctl exited unsuccessfully with status {0}")]
-    EscalationFailed(std::process::ExitStatus),
+    #[error("failed to execute elevated aimsctl")]
+    Escalation(#[source] cosca::error::Error),
+    #[error("elevated aimsctl exited unsuccessfully")]
+    EscalationFailed,
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, os::unix::process::ExitStatusExt, process::ExitStatus, rc::Rc};
+    use std::{cell::RefCell, ffi::OsString, rc::Rc};
 
     use super::*;
 
@@ -62,41 +64,36 @@ mod tests {
     }
 
     struct FakePrivilegeEscalator {
-        calls: Rc<RefCell<usize>>,
-        status: ExitStatus,
+        calls: Rc<RefCell<Vec<Vec<OsString>>>>,
+        succeeds: bool,
     }
 
     impl FakePrivilegeEscalator {
         fn succeeding() -> Self {
             Self {
-                calls: Rc::new(RefCell::new(0)),
-                status: ExitStatus::from_raw(0),
+                calls: Rc::new(RefCell::new(Vec::new())),
+                succeeds: true,
             }
         }
 
         fn failing() -> Self {
             Self {
-                calls: Rc::new(RefCell::new(0)),
-                status: ExitStatus::from_raw(1 << 8),
+                calls: Rc::new(RefCell::new(Vec::new())),
+                succeeds: false,
             }
         }
 
-        fn call_count(&self) -> usize {
-            *self.calls.borrow()
+        fn calls(&self) -> Vec<Vec<OsString>> {
+            self.calls.borrow().clone()
         }
     }
 
     impl PrivilegeEscalator for FakePrivilegeEscalator {
-        fn escalate(&self) -> Result<ExitStatus, PrivilegeError> {
-            *self.calls.borrow_mut() += 1;
+        fn escalate(&self, arguments: &[OsString]) -> Result<bool, PrivilegeError> {
+            self.calls.borrow_mut().push(arguments.to_vec());
 
-            Ok(self.status)
+            Ok(self.succeeds)
         }
-    }
-
-    #[test]
-    fn root_detection_matches_effective_user_id() {
-        assert_eq!(is_root(), geteuid().is_root());
     }
 
     #[test]
@@ -104,21 +101,33 @@ mod tests {
         let checker = FakePrivilegeChecker { root: true };
         let escalator = FakePrivilegeEscalator::succeeding();
 
-        let result = ensure_root(&checker, &escalator).unwrap();
+        let arguments = vec![
+            OsString::from("apply-init"),
+            OsString::from("--config-path"),
+            OsString::from("/tmp/aimsctl.toml"),
+        ];
+
+        let result = ensure_root(&checker, &escalator, &arguments).unwrap();
 
         assert_eq!(result, Elevation::AlreadyRoot);
-        assert_eq!(escalator.call_count(), 0);
+        assert!(escalator.calls().is_empty());
     }
 
     #[test]
-    fn non_root_reexecutes_with_elevated_privileges() {
+    fn non_root_executes_requested_arguments_with_elevated_privileges() {
         let checker = FakePrivilegeChecker { root: false };
         let escalator = FakePrivilegeEscalator::succeeding();
 
-        let result = ensure_root(&checker, &escalator).unwrap();
+        let arguments = vec![
+            OsString::from("apply-init"),
+            OsString::from("--config-path"),
+            OsString::from("/tmp/aimsctl.toml"),
+        ];
+
+        let result = ensure_root(&checker, &escalator, &arguments).unwrap();
 
         assert_eq!(result, Elevation::Reexecuted);
-        assert_eq!(escalator.call_count(), 1);
+        assert_eq!(escalator.calls(), vec![arguments]);
     }
 
     #[test]
@@ -126,10 +135,16 @@ mod tests {
         let checker = FakePrivilegeChecker { root: false };
         let escalator = FakePrivilegeEscalator::failing();
 
-        let result = ensure_root(&checker, &escalator);
+        let arguments = vec![
+            OsString::from("apply-init"),
+            OsString::from("--config-path"),
+            OsString::from("/tmp/aimsctl.toml"),
+        ];
 
-        assert!(matches!(result, Err(PrivilegeError::EscalationFailed(_))));
+        let result = ensure_root(&checker, &escalator, &arguments);
 
-        assert_eq!(escalator.call_count(), 1);
+        assert!(matches!(result, Err(PrivilegeError::EscalationFailed)));
+
+        assert_eq!(escalator.calls(), vec![arguments]);
     }
 }

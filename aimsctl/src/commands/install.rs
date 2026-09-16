@@ -161,6 +161,10 @@ pub enum InstallError {
     },
     #[error("container runtime is not available")]
     RuntimeUnavailable(#[from] RuntimeAvailabilityError),
+
+    #[cfg(test)]
+    #[error("test prompt failure")]
+    Test,
 }
 
 #[cfg(test)]
