@@ -1,0 +1,117 @@
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  min-height: 56px;
+  padding: var(--space-sm) 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+
+  border-bottom: 1px solid var(--border);
+}
+
+.item:first-child {
+  padding-top: 0;
+}
+
+.item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.itemInfo {
+  min-width: 0;
+
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.itemName {
+  overflow: hidden;
+
+  font-weight: 600;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.itemKind {
+  color: var(--text-muted);
+
+  font-size: 0.85rem;
+
+  text-transform: capitalize;
+}
+
+.badge {
+  flex-shrink: 0;
+
+  padding: 0.15rem 0.4rem;
+
+  color: var(--text-muted);
+  background: var(--surface-hover);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font-size: 0.7rem;
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+.manageButton {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+
+  display: grid;
+  place-items: center;
+
+  color: var(--text-muted);
+  background: var(--surface-hover);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.manageButton:hover {
+  color: var(--text);
+  background: var(--surface-active);
+  border-color: var(--border-hover);
+}
+
+.manageButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.dangerAction {
+  color: var(--danger);
+}
+
+.empty {
+  margin: 0;
+
+  color: var(--text-muted);
+}

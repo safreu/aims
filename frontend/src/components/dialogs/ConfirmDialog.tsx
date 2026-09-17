@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import "./ConfirmDialog.css";
+
+import styles from "./ConfirmDialog.module.css";
 
 type Props = {
   open: boolean;
@@ -39,18 +40,19 @@ export function ConfirmDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="confirm-dialog"
+      className={styles.dialog}
       onCancel={(event) => {
         event.preventDefault();
+
         if (!loading) onCancel();
       }}
     >
-      <div className="confirm-dialog__content">
-        <h2>{title}</h2>
+      <div className={styles.content}>
+        <h2 className={styles.title}>{title}</h2>
 
-        <p>{description}</p>
+        <p className={styles.description}>{description}</p>
 
-        <div className="confirm-dialog__actions">
+        <div className={styles.actions}>
           <button
             type="button"
             className="button button--ghost"

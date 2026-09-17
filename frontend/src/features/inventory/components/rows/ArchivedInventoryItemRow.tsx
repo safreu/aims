@@ -1,10 +1,12 @@
 import { useState } from "react";
+
+import { useToast } from "../../../../components/toast/ToastContext";
 import { restoreInventoryItem } from "../../api";
 import type { InventoryItem } from "../../types";
-import "./ArchivedInventoryItemRow.css";
-import { useToast } from "../../../../components/toast/ToastContext";
 
-type ArchivedInventoryItemProps = {
+import styles from "./ArchivedInventoryItemRow.module.css";
+
+type Props = {
   householdId: string;
   item: InventoryItem;
   onChanged: () => Promise<void>;
@@ -14,24 +16,26 @@ export function ArchivedInventoryItemRow({
   householdId,
   item,
   onChanged,
-}: ArchivedInventoryItemProps) {
+}: Props) {
   const { showToast } = useToast();
 
   const [isRestoring, setIsRestoring] = useState(false);
-  async function handleRestore() {
-    setIsRestoring(false);
 
-    await restoreInventoryItem(householdId, item.id)
-      .then(() => onChanged())
-      .finally(() => {
-        setIsRestoring(false);
-        showToast("Item restoration successful", "success");
-      });
+  function handleRestore() {
+    setIsRestoring(true);
+
+    void restoreInventoryItem(householdId, item.id)
+      .then(async () => {
+        await onChanged();
+        showToast("Item restored", "success");
+      })
+      .catch(() => showToast("Failed to restore item", "error"))
+      .finally(() => setIsRestoring(false));
   }
 
   return (
-    <div className="archived-inventory-item-row">
-      <div className="archived-inventory-item-row__info">
+    <div className={styles.row}>
+      <div className={styles.info}>
         <strong>{item.name}</strong>
 
         <span>{item.category?.name ?? "No category"}</span>

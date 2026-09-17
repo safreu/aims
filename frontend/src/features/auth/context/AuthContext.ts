@@ -1,9 +1,10 @@
 import { createContext, useContext } from "react";
+
 import type { CurrentUser } from "../types";
 
 type AuthContextValue = {
   user: CurrentUser | null;
-  loading: boolean;
+  isInitializing: boolean;
   initializationError: boolean;
   retryInitialization: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -18,5 +19,6 @@ export function useAuth(): AuthContextValue {
   if (context === null) {
     throw new Error("useAuth must be used inside AuthProvider");
   }
+
   return context;
 }

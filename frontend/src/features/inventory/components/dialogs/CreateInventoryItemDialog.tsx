@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
-import { type InventoryItemPriority } from "../../types";
-import { createInventoryItem } from "../../api";
-import "./InventoryItemDialog.css";
-import { InventoryItemFields } from "../fields/InventoryItemFields";
+
 import { useToast } from "../../../../components/toast/ToastContext";
+import { createInventoryItem } from "../../api";
+import { InventoryItemFields } from "../fields/InventoryItemFields";
+import type { Priority } from "../../../../domain/priority";
 
 type InventoryItemFieldErrors = {
   name?: string;
@@ -11,7 +11,7 @@ type InventoryItemFieldErrors = {
   reorderThreshold?: string;
 };
 
-type CreateInventoryItemDialogProps = {
+type Props = {
   householdId: string;
   onCreated: () => Promise<void>;
   onClose: () => void;
@@ -21,7 +21,7 @@ export function CreateInventoryItemDialog({
   householdId,
   onCreated,
   onClose,
-}: CreateInventoryItemDialogProps) {
+}: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const { showToast } = useToast();
 
@@ -29,10 +29,9 @@ export function CreateInventoryItemDialog({
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [currentStock, setCurrentStock] = useState<number | "">(0);
   const [reorderThreshold, setReorderThreshold] = useState<number | "">(0);
-  const [priority, setPriority] = useState<InventoryItemPriority>("default");
+  const [priority, setPriority] = useState<Priority>("default");
 
   const [isCreating, setIsCreating] = useState(false);
-
   const [fieldErrors, setFieldErrors] = useState<InventoryItemFieldErrors>({});
 
   useEffect(() => {
@@ -44,12 +43,25 @@ export function CreateInventoryItemDialog({
 
     const errors: InventoryItemFieldErrors = {};
 
-    if (name.trim() === "") errors.name = "Name is required";
-    if (currentStock === "") errors.currentStock = "Current stock is required";
-    if (reorderThreshold === "")
+    if (name.trim() === "") {
+      errors.name = "Name is required";
+    }
+
+    if (currentStock === "") {
+      errors.currentStock = "Current stock is required";
+    } else if (!Number.isInteger(currentStock) || currentStock < 0) {
+      errors.currentStock = "Current stock must be a non-negative whole number";
+    }
+
+    if (reorderThreshold === "") {
       errors.reorderThreshold = "Reorder threshold is required";
+    } else if (!Number.isInteger(reorderThreshold) || reorderThreshold < 0) {
+      errors.reorderThreshold =
+        "Reorder threshold must be a non-negative whole number";
+    }
 
     setFieldErrors(errors);
+
     if (
       Object.keys(errors).length > 0 ||
       currentStock === "" ||
@@ -61,7 +73,7 @@ export function CreateInventoryItemDialog({
     setIsCreating(true);
 
     await createInventoryItem(householdId, {
-      name,
+      name: name.trim(),
       category_id: categoryId,
       current_stock: currentStock,
       reorder_threshold: reorderThreshold,
@@ -70,42 +82,48 @@ export function CreateInventoryItemDialog({
       .then(async () => {
         await onCreated();
         dialogRef.current?.close();
-        showToast("Item creation successful", "success");
+        showToast("Item created", "success");
       })
       .catch(() => showToast("Failed to create inventory item", "error"))
       .finally(() => setIsCreating(false));
   }
+
+  function handleBackdropClick(event: React.MouseEvent<HTMLDialogElement>) {
+    if (event.target === dialogRef.current && !isCreating) {
+      dialogRef.current?.close();
+    }
+  }
+
   return (
     <dialog
       ref={dialogRef}
-      className="inventory-item-dialog"
+      className="dialog"
       onClose={onClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current) {
-          dialogRef.current?.close();
+      onCancel={(event) => {
+        if (isCreating) {
+          event.preventDefault();
         }
       }}
+      onClick={handleBackdropClick}
     >
-      <div className="inventory-item-dialog__content">
-        <header className="inventory-item-dialog__header">
+      <div className="dialog__content">
+        <header className="dialog__header">
           <div>
-            <h2>Add item</h2>
-            <p>Create a new inventory item</p>
+            <h2 className="dialog__title">Add item</h2>
+            <p className="dialog__description">Create a new inventory item</p>
           </div>
 
           <button
             type="button"
-            className="button button--ghost inventory-item-dialog__close"
+            className="button button--ghost"
             onClick={() => dialogRef.current?.close()}
+            disabled={isCreating}
           >
             Close
           </button>
         </header>
 
-        <form
-          className="inventory-item-dialog__section"
-          onSubmit={handleSubmit}
-        >
+        <form className="dialog__section" onSubmit={handleSubmit}>
           <InventoryItemFields
             householdId={householdId}
             name={name}
@@ -121,35 +139,42 @@ export function CreateInventoryItemDialog({
             disabled={isCreating}
           >
             <label
-              className={`inventory-item-dialog__field ${fieldErrors.currentStock ? "inventory-item-dialog__field--error" : ""}`}
+              className={`dialog__field ${
+                fieldErrors.currentStock ? "dialog__field--error" : ""
+              }`}
             >
               <span>Current stock</span>
 
               <input
                 type="number"
                 min="0"
+                step="1"
                 value={currentStock}
                 onChange={(event) => {
                   const value = event.target.value;
+
                   setCurrentStock(value === "" ? "" : Number(value));
                 }}
                 disabled={isCreating}
               />
+
               {fieldErrors.currentStock && (
-                <span className="inventory-item-dialog__field-error">
+                <span className="dialog__field-error" role="alert">
                   {fieldErrors.currentStock}
                 </span>
               )}
             </label>
           </InventoryItemFields>
 
-          <button
-            type="submit"
-            className="button button--primary"
-            disabled={isCreating}
-          >
-            {isCreating ? "Creating..." : "Create"}
-          </button>
+          <div className="dialog__actions">
+            <button
+              type="submit"
+              className="button button--primary"
+              disabled={isCreating}
+            >
+              {isCreating ? "Creating..." : "Create"}
+            </button>
+          </div>
         </form>
       </div>
     </dialog>

@@ -1,8 +1,12 @@
 import { useState } from "react";
-import type { CustomShoppingEntry } from "../../types";
+
+import { useToast } from "../../../../components/toast/ToastContext";
+import { PriorityIndicator } from "../../../../components/priority/PriorityIndicator";
 import { setCustomShoppingChecked } from "../../api";
+import type { CustomShoppingEntry } from "../../types";
 import { CustomShoppingEntryDialog } from "../dialogs/CustomShoppingEntryDialog";
-import { PriorityIndicator } from "../../../inventory/components/priority/PriorityIndicator";
+
+import styles from "./ShoppingEntryRow.module.css";
 
 type CustomShoppingEntryRowProps = {
   householdId: string;
@@ -15,26 +19,29 @@ export function CustomShoppingEntryRow({
   entry,
   onChange,
 }: CustomShoppingEntryRowProps) {
+  const { showToast } = useToast();
+
   const [isMutating, setIsMutating] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleCheckedUpdate(checked: boolean) {
     setIsMutating(true);
-    setError(null);
 
-    await setCustomShoppingChecked(householdId, entry.id, { checked })
-      .then(() => onChange())
-      .catch(() => setError("Failed to update shopping list"))
-      .finally(() => setIsMutating(false));
+    try {
+      await setCustomShoppingChecked(householdId, entry.id, { checked });
+
+      await onChange();
+    } catch {
+      showToast("Failed to update shopping list", "error");
+    } finally {
+      setIsMutating(false);
+    }
   }
 
   return (
-    <li
-      className={`shopping-entry ${entry.checked ? "shopping-entry--checked" : ""}`}
-    >
+    <li className={`${styles.entry} ${entry.checked ? styles.checked : ""}`}>
       <input
-        className="shopping-entry__checkbox"
+        className={styles.checkbox}
         type="checkbox"
         checked={entry.checked}
         disabled={isMutating}
@@ -44,27 +51,21 @@ export function CustomShoppingEntryRow({
 
       <button
         type="button"
-        className="shopping-entry__open"
+        className={styles.open}
         onClick={() => setIsDialogOpen(true)}
       >
-        <div className="shopping-entry__main">
-          <div className="shopping-entry__title">
-            <strong className="shopping-entry__name">{entry.title}</strong>
+        <div className={styles.main}>
+          <div className={styles.title}>
+            <strong className={styles.name}>{entry.title}</strong>
 
             <PriorityIndicator priority={entry.priority} />
           </div>
 
-          <strong className="shopping-entry__quantity">
-            ×{entry.quantity}
-          </strong>
+          <strong className={styles.quantity}>×{entry.quantity}</strong>
         </div>
 
-        {entry.note !== null && (
-          <p className="shopping-entry__note">{entry.note}</p>
-        )}
+        {entry.note !== null && <p className={styles.note}>{entry.note}</p>}
       </button>
-
-      {error !== null && <p className="shopping-entry__error">{error}</p>}
 
       {isDialogOpen && (
         <CustomShoppingEntryDialog

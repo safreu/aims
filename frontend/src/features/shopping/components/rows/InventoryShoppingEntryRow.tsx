@@ -1,10 +1,12 @@
 import { useState } from "react";
-import type { InventoryShoppingEntry } from "../../types";
-import { setShoppingChecked } from "../../api";
-import "./ShoppingEntryRow.css";
-import { InventoryShoppingEntryDialog } from "../dialogs/InventoryShoppingEntryDialog";
-import { PriorityIndicator } from "../../../inventory/components/priority/PriorityIndicator";
+
 import { useToast } from "../../../../components/toast/ToastContext";
+import { PriorityIndicator } from "../../../../components/priority/PriorityIndicator";
+import { setShoppingChecked } from "../../api";
+import type { InventoryShoppingEntry } from "../../types";
+import { InventoryShoppingEntryDialog } from "../dialogs/InventoryShoppingEntryDialog";
+
+import styles from "./ShoppingEntryRow.module.css";
 
 type InventoryShoppingEntryRowProps = {
   householdId: string;
@@ -19,25 +21,27 @@ export function InventoryShoppingEntryRow({
 }: InventoryShoppingEntryRowProps) {
   const { showToast } = useToast();
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
   const [isMutating, setIsMutating] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   async function handleCheckedUpdate(checked: boolean) {
     setIsMutating(true);
 
-    await setShoppingChecked(householdId, entry.item_id, { checked })
-      .then(() => onChange())
-      .catch(() => showToast("Failed to update shopping list", "error"))
-      .finally(() => setIsMutating(false));
+    try {
+      await setShoppingChecked(householdId, entry.item_id, { checked });
+
+      await onChange();
+    } catch {
+      showToast("Failed to update shopping list", "error");
+    } finally {
+      setIsMutating(false);
+    }
   }
 
   return (
-    <li
-      className={`shopping-entry ${entry.checked ? "shopping-entry--checked" : ""}`}
-    >
+    <li className={`${styles.entry} ${entry.checked ? styles.checked : ""}`}>
       <input
-        className="shopping-entry__checkbox"
+        className={styles.checkbox}
         type="checkbox"
         checked={entry.checked}
         disabled={isMutating}
@@ -47,32 +51,26 @@ export function InventoryShoppingEntryRow({
 
       <button
         type="button"
-        className="shopping-entry__open"
+        className={styles.open}
         onClick={() => setIsDialogOpen(true)}
       >
-        <div className="shopping-entry__main">
-          <div className="shopping-entry__title">
-            <strong className="shopping-entry__name">{entry.name}</strong>
+        <div className={styles.main}>
+          <div className={styles.title}>
+            <strong className={styles.name}>{entry.name}</strong>
 
             <PriorityIndicator priority={entry.priority} />
           </div>
 
-          <strong className="shopping-entry__quantity">
-            ×{entry.quantity}
-          </strong>
+          <strong className={styles.quantity}>×{entry.quantity}</strong>
         </div>
 
-        <div className="shopping-entry__meta">
-          {entry.category !== null && (
-            <span className="shopping-entry__category">
-              {entry.category.name}
-            </span>
-          )}
-        </div>
-
-        {entry.note !== null && (
-          <p className="shopping-entry__note">{entry.note}</p>
+        {entry.category !== null && (
+          <div className={styles.meta}>
+            <span className={styles.category}>{entry.category.name}</span>
+          </div>
         )}
+
+        {entry.note !== null && <p className={styles.note}>{entry.note}</p>}
       </button>
 
       {isDialogOpen && (

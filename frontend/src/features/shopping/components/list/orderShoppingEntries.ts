@@ -1,31 +1,43 @@
-import type { OrderByValue } from "../../../../components/list-controls/OderBy";
-import type { ShoppingList, ShoppingPriority } from "../../types";
+import type { OrderByValue } from "../../../../components/list-controls/OrderBy";
+import type { Priority } from "../../../../domain/priority";
+import type { ShoppingList } from "../../types";
 
-const priorityRank = {
+const priorityRank: Record<Priority, number> = {
   default: 0,
   low: 1,
   medium: 2,
   high: 3,
 };
 
+type OrderableShoppingEntry = {
+  checked: boolean;
+  quantity: number;
+  priority: Priority;
+};
 function compareEntries(
-  a: { checked: boolean; quantity: number; priority: ShoppingPriority },
-  b: { checked: boolean; quantity: number; priority: ShoppingPriority },
+  a: OrderableShoppingEntry,
+  b: OrderableShoppingEntry,
   orderBy: OrderByValue,
 ): number {
   const checkedComparison = Number(a.checked) - Number(b.checked);
 
-  if (checkedComparison !== 0) return checkedComparison;
+  if (checkedComparison !== 0) {
+    return checkedComparison;
+  }
 
   switch (orderBy) {
     case "quantity-desc":
       return b.quantity - a.quantity;
+
     case "quantity-asc":
       return a.quantity - b.quantity;
+
     case "priority-desc":
       return priorityRank[b.priority] - priorityRank[a.priority];
+
     case "priority-asc":
       return priorityRank[a.priority] - priorityRank[b.priority];
+
     case "default":
       return 0;
   }

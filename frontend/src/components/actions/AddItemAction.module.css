@@ -1,0 +1,39 @@
+.floating {
+  position: fixed;
+
+  right: var(--space-lg);
+  bottom: calc(72px + var(--space-lg));
+
+  width: 52px;
+  height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--text-h);
+  background: var(--accent);
+
+  border: none;
+  border-radius: 50%;
+
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+
+  cursor: pointer;
+
+  z-index: 50;
+}
+
+.floating:hover {
+  background: var(--accent-hover);
+}
+
+.floating:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.floating svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}

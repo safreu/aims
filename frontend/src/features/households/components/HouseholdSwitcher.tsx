@@ -1,18 +1,18 @@
-import { useNavigate } from "react-router-dom";
-import { useToast } from "../../../components/toast/ToastContext";
+import { Check, ChevronDown, Plus, Settings, User, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import type { Household } from "../types";
-import { getHouseholds } from "../api";
+import { useNavigate } from "react-router-dom";
+
 import {
   DropdownMenu,
   DropdownMenuItem,
-  DropDownMenuSeparator,
+  DropdownMenuSeparator,
 } from "../../../components/dropdown-menu/DropdownMenu";
-import { Check, ChevronDown, Plus, Settings, User, Users } from "lucide-react";
-
-import "./HouseholdSwitcher.css";
-import { CreateHouseholdDialog } from "./CreateHouseholdDialog";
+import { useToast } from "../../../components/toast/ToastContext";
+import { getHouseholds } from "../api";
 import { useUserEvents } from "../events/UserEventsContext";
+import type { Household } from "../types";
+import { CreateHouseholdDialog } from "./CreateHouseholdDialog";
+import styles from "./HouseholdSwitcher.module.css";
 
 type HouseholdSwitcherProps = {
   householdId?: string;
@@ -64,20 +64,20 @@ export function HouseholdSwitcher({ householdId }: HouseholdSwitcherProps) {
         trigger={
           <button
             type="button"
-            className="household-switcher"
+            className={styles.trigger}
             aria-label="Select household"
           >
             {currentHousehold !== undefined && (
-              <span className="household-switcher__type-icon">
+              <span className={styles.typeIcon}>
                 {currentHousehold.kind === "shared" ? <Users /> : <User />}
               </span>
             )}
 
-            <span className="household-switcher__label">
+            <span className={styles.label}>
               {currentHousehold?.name ?? "Select household"}
             </span>
 
-            <ChevronDown className="household-switcher__chevron" />
+            <ChevronDown className={styles.chevron} />
           </button>
         }
       >
@@ -86,26 +86,25 @@ export function HouseholdSwitcher({ householdId }: HouseholdSwitcherProps) {
             key={household.id}
             onSelect={() => handleSelectHousehold(household.id)}
           >
-            <span className="household-switcher__type-icon">
+            <span className={styles.typeIcon}>
               {household.kind === "shared" ? <Users /> : <User />}
             </span>
 
-            <span className="household-switcher__name">{household.name}</span>
+            <span className={styles.name}>{household.name}</span>
 
             {household.id === householdId && (
-              <Check className="household-switcher__selected" />
+              <Check className={styles.selected} />
             )}
           </DropdownMenuItem>
         ))}
 
-        {households.length > 0 && <DropDownMenuSeparator />}
+        {households.length > 0 && <DropdownMenuSeparator />}
 
         <DropdownMenuItem
-          className="household-switcher__create"
+          className={styles.create}
           onSelect={() => setShowCreateDialog(true)}
         >
           <Plus />
-
           <span>Create household</span>
         </DropdownMenuItem>
 

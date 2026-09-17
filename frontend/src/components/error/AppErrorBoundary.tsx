@@ -1,7 +1,8 @@
 import { Component, type ReactNode } from "react";
 import type { ErrorInfo } from "react-dom/client";
+
 import { appLogger } from "../../diagnostics/logger";
-import "./AppErrorBoundary.css";
+import styles from "./AppErrorBoundary.module.css";
 
 type Props = {
   children: ReactNode;
@@ -37,17 +38,17 @@ export class AppErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <main className="app-error">
-          <div className="app-error__content">
-            <h1>Something went wrong</h1>
+        <main className={styles.container}>
+          <div className={styles.content}>
+            <h1 className={styles.title}>Something went wrong</h1>
 
-            <p>
+            <p className={styles.description}>
               Aims encountered an unexpected error. Reload the app to try again.
             </p>
 
             <button
               type="button"
-              className="app-error__retry"
+              className="button button--primary"
               onClick={this.handleReload}
             >
               Reload

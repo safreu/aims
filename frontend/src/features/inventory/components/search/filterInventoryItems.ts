@@ -1,9 +1,10 @@
+import type { CategoryFilterValue } from "../../../../components/list-controls/filters/CategoryFilter";
 import type { PriorityFilterValue } from "../../../../components/list-controls/filters/PriorityFilter";
 import type { InventoryItem } from "../../types";
 
 type InventoryFilters = {
   search: string;
-  category: string;
+  category: CategoryFilterValue;
   priority: PriorityFilterValue;
 };
 

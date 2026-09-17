@@ -1,9 +1,10 @@
-import { useCallback, useEffect, type ReactNode } from "react";
-import { CategoryContext } from "./CategoryContex";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
+
+import { queryKeys } from "../../../../api/queryKeys";
 import { useHouseholdEvents } from "../../../households/events/HouseholdEventsContext";
 import { getInventoryCategories } from "../../api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../../../../api/queryKeys";
+import { CategoryContext } from "./CategoryContext";
 
 type Props = {
   householdId: string;
@@ -12,7 +13,6 @@ type Props = {
 
 export function CategoryProvider({ householdId, children }: Props) {
   const { subscribe } = useHouseholdEvents();
-
   const queryClient = useQueryClient();
 
   const { data: categories = [] } = useQuery({
@@ -43,8 +43,16 @@ export function CategoryProvider({ householdId, children }: Props) {
     };
   }, [subscribe, refreshCategories]);
 
+  const value = useMemo(
+    () => ({
+      categories,
+      refreshCategories,
+    }),
+    [categories, refreshCategories],
+  );
+
   return (
-    <CategoryContext.Provider value={{ categories, refreshCategories }}>
+    <CategoryContext.Provider value={value}>
       {children}
     </CategoryContext.Provider>
   );

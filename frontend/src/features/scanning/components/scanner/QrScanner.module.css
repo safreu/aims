@@ -1,0 +1,19 @@
+.scanner {
+  width: 100%;
+
+  overflow: hidden;
+
+  background: #000000;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.video {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+
+  display: block;
+
+  object-fit: cover;
+}

@@ -1,35 +1,43 @@
 import { Check, ChevronDown, Plus } from "lucide-react";
+import { useState } from "react";
+import { createPortal } from "react-dom";
+
 import {
   DropdownMenu,
   DropdownMenuItem,
-  DropDownMenuSeparator,
+  DropdownMenuSeparator,
 } from "../../../../components/dropdown-menu/DropdownMenu";
-import { createPortal } from "react-dom";
-
-import "./CategorySelect.css";
-import { useState } from "react";
+import { useCategories } from "../categories/CategoryContext";
 import { CreateInventoryCategoryDialog } from "../dialogs/CreateInventoryCategoryDialog";
-import { useCategories } from "../categories/CategoryContex";
+
+import styles from "./CategorySelect.module.css";
 
 type CategorySelectProps = {
   householdId: string;
   value: string | null;
   onValueChange: (categoryId: string | null) => void;
+  disabled?: boolean;
 };
 
 export function CategorySelect({
   householdId,
   value,
   onValueChange,
+  disabled = false,
 }: CategorySelectProps) {
   const { categories, refreshCategories } = useCategories();
+
   const [showCreateCategoryDialog, setShowCreateCategoryDialog] =
     useState(false);
-
   const [search, setSearch] = useState("");
+
+  const normalizedSearch = search.trim().toLowerCase();
+
   const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(search.trim().toLowerCase()),
+    category.name.toLowerCase().includes(normalizedSearch),
   );
+
+  const selectedCategory = categories.find((category) => category.id === value);
 
   async function handleCategoryCreated(categoryId: string) {
     await refreshCategories();
@@ -38,44 +46,48 @@ export function CategorySelect({
     setShowCreateCategoryDialog(false);
   }
 
-  const selectedCategory = categories.find((category) => category.id === value);
-
   return (
     <>
       <DropdownMenu
         portal={false}
         onOpenChange={(open) => {
-          if (!open) setSearch("");
+          if (!open) {
+            setSearch("");
+          }
         }}
         trigger={
           <button
             type="button"
-            className="category-select"
+            className={styles.trigger}
+            disabled={disabled}
             aria-label="Select category"
           >
-            <span className="category-select__label">
+            <span className={styles.label}>
               {selectedCategory?.name ?? "No category"}
             </span>
 
-            <ChevronDown className="category-select__chevron" />
+            <ChevronDown className={styles.chevron} aria-hidden="true" />
           </button>
         }
       >
-        <div className="category-select__search">
+        <div className={styles.search}>
           <input
             type="search"
             placeholder="Search categories..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             onKeyDown={(event) => event.stopPropagation()}
+            aria-label="Search categories"
           />
         </div>
 
-        <div className="category-select__options">
+        <div className={styles.options}>
           <DropdownMenuItem onSelect={() => onValueChange(null)}>
-            <span className="category-select__name">No category</span>
+            <span className={styles.name}>No category</span>
 
-            {value === null && <Check className="category-select__selected" />}
+            {value === null && (
+              <Check className={styles.selected} aria-hidden="true" />
+            )}
           </DropdownMenuItem>
 
           {filteredCategories.map((category) => (
@@ -83,26 +95,26 @@ export function CategorySelect({
               key={category.id}
               onSelect={() => onValueChange(category.id)}
             >
-              <span className="category-select__name">{category.name}</span>
+              <span className={styles.name}>{category.name}</span>
 
               {category.id === value && (
-                <Check className="category-select__selected" />
+                <Check className={styles.selected} aria-hidden="true" />
               )}
             </DropdownMenuItem>
           ))}
 
           {filteredCategories.length === 0 && (
-            <div className="category-select__empty">No categories found</div>
+            <div className={styles.empty}>No categories found</div>
           )}
         </div>
 
-        <DropDownMenuSeparator />
+        <DropdownMenuSeparator />
 
         <DropdownMenuItem
-          className="category-select__create"
+          className={styles.create}
           onSelect={() => setShowCreateCategoryDialog(true)}
         >
-          <Plus />
+          <Plus aria-hidden="true" />
           <span>Create category</span>
         </DropdownMenuItem>
       </DropdownMenu>

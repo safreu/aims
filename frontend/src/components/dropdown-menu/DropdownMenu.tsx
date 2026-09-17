@@ -1,7 +1,7 @@
 import * as RadixDropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { ReactNode } from "react";
 
-import "./DropdownMenu.css";
+import styles from "./DropdownMenu.module.css";
 
 type DropdownMenuProps = {
   trigger: ReactNode;
@@ -25,13 +25,14 @@ export function DropdownMenu({
 }: DropdownMenuProps) {
   const content = (
     <RadixDropdownMenu.Content
-      className="dropdown-menu__content"
+      className={styles.content}
       sideOffset={6}
       align="start"
     >
       {children}
     </RadixDropdownMenu.Content>
   );
+
   return (
     <RadixDropdownMenu.Root onOpenChange={onOpenChange}>
       <RadixDropdownMenu.Trigger asChild>{trigger}</RadixDropdownMenu.Trigger>
@@ -53,7 +54,7 @@ export function DropdownMenuItem({
 }: DropdownMenuItemProps) {
   return (
     <RadixDropdownMenu.Item
-      className={`dropdown-menu__item ${className}`}
+      className={`${styles.item} ${className}`}
       onSelect={onSelect}
       disabled={disabled}
     >
@@ -62,8 +63,8 @@ export function DropdownMenuItem({
   );
 }
 
-export function DropDownMenuSeparator() {
-  return <RadixDropdownMenu.Separator className="dropdown-menu__separator" />;
+export function DropdownMenuSeparator() {
+  return <RadixDropdownMenu.Separator className={styles.separator} />;
 }
 
 type DropdownMenuCheckboxItemProps = {
@@ -79,7 +80,7 @@ export function DropdownMenuCheckboxItem({
 }: DropdownMenuCheckboxItemProps) {
   return (
     <RadixDropdownMenu.CheckboxItem
-      className="dropdown-menu__item"
+      className={styles.item}
       checked={checked}
       onCheckedChange={(checked) => {
         if (typeof checked === "boolean") onCheckedChange(checked);
@@ -88,4 +89,14 @@ export function DropdownMenuCheckboxItem({
       {children}
     </RadixDropdownMenu.CheckboxItem>
   );
+}
+
+type DropdownMenuItemContentProps = {
+  children: ReactNode;
+};
+
+export function DropdownMenuItemContent({
+  children,
+}: DropdownMenuItemContentProps) {
+  return <div className={styles.itemContent}>{children}</div>;
 }

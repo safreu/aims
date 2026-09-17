@@ -1,5 +1,7 @@
 import type { QrAction } from "../types";
 
+export type ShareQrCardResult = "shared" | "downloaded" | "cancelled";
+
 export async function createQrCardBlob(
   qrCanvas: HTMLCanvasElement,
   itemName: string,
@@ -25,7 +27,7 @@ export async function createQrCardBlob(
   context.textAlign = "center";
 
   context.font = "600 42px sans-serif";
-  context.fillText(itemName, width / 2, 90);
+  context.fillText(itemName, width / 2, 90, width - 80);
 
   const qrSize = 560;
   const qrX = (width - qrSize) / 2;
@@ -38,9 +40,9 @@ export async function createQrCardBlob(
   const actionText =
     action.kind === "increase"
       ? `Increase Stock +${action.amount}`
-      : `Decrease Stock -${action.amount}`;
+      : `Decrease Stock −${action.amount}`;
 
-  context.fillText(actionText, width / 2, 810);
+  context.fillText(actionText, width / 2, 810, width - 80);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -48,6 +50,7 @@ export async function createQrCardBlob(
         reject(new Error("Failed to create QR image"));
         return;
       }
+
       resolve(blob);
     }, "image/png");
   });
@@ -74,39 +77,41 @@ function downloadBlob(blob: Blob, fileName: string): void {
   link.click();
   link.remove();
 
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export async function shareQrCard(
   qrCanvas: HTMLCanvasElement,
   itemName: string,
   action: QrAction,
-): Promise<"shared" | "downloaded" | "cancelled"> {
+): Promise<ShareQrCardResult> {
   const blob = await createQrCardBlob(qrCanvas, itemName, action);
 
   const fileName = createFileName(itemName, action);
 
-  const file = new File([blob], fileName, { type: "image/png" });
+  if (typeof navigator.share === "function") {
+    const file = new File([blob], fileName, {
+      type: "image/png",
+    });
 
-  if (
-    typeof navigator.share === "function" &&
-    navigator.canShare?.({ files: [file] })
-  ) {
-    try {
-      await navigator.share({
-        title: itemName,
-        files: [file],
-      });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: itemName,
+          files: [file],
+        });
 
-      return "shared";
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        return "cancelled";
+        return "shared";
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return "cancelled";
+        }
+
+        throw error;
       }
-
-      throw error;
     }
   }
+
   downloadBlob(blob, fileName);
 
   return "downloaded";

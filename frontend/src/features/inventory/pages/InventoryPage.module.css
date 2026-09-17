@@ -1,0 +1,134 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.header h1 {
+  margin-bottom: var(--space-xs);
+}
+
+.header p {
+  margin: 0;
+
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-sm);
+
+  flex-shrink: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.sectionHeader h2 {
+  margin: 0;
+}
+
+.message {
+  margin: 0;
+
+  color: var(--text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.itemSkeleton {
+  width: 100%;
+  min-height: 72px;
+  padding: var(--space-md);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.itemSkeletonInfo {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.itemSkeletonStock {
+  flex-shrink: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.archivedSkeleton {
+  min-height: 64px;
+  padding: 0.75rem var(--space-md);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  opacity: 0.75;
+}
+
+.archivedSkeletonInfo {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+@media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .actions .button {
+    flex: 1;
+  }
+
+  .archivedSkeleton {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

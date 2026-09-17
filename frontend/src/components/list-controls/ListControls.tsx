@@ -1,16 +1,15 @@
-import { useState, type ReactNode } from "react";
-import "./ListControls.css";
 import { RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
+
+import styles from "./ListControls.module.css";
 
 type Props = {
   search: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
   activeFilterCount?: number;
-
   onReset?: () => void;
   canReset?: boolean;
-
   children?: ReactNode;
 };
 
@@ -26,10 +25,10 @@ export function ListControls({
   const [showFilters, setShowFilters] = useState(false);
 
   return (
-    <div className="list-controls">
-      <div className="list-controls__main">
-        <div className="list-controls__search">
-          <Search className="list-controls__icon" />
+    <div className={styles.controls}>
+      <div className={styles.main}>
+        <div className={styles.search}>
+          <Search className={styles.searchIcon} />
 
           <input
             type="search"
@@ -41,7 +40,7 @@ export function ListControls({
           {search !== "" && (
             <button
               type="button"
-              className="list-controls__search-clear"
+              className={styles.searchClear}
               onClick={() => onSearchChange("")}
               aria-label="Clear search"
             >
@@ -53,30 +52,31 @@ export function ListControls({
         {children && (
           <button
             type="button"
-            className={`list-controls__filter-toggle ${showFilters ? "list-controls__filter-toggle--open" : ""}`}
+            className={`${styles.filterToggle} ${
+              showFilters ? styles.filterToggleOpen : ""
+            }`}
             onClick={() => setShowFilters((current) => !current)}
+            aria-expanded={showFilters}
           >
             <SlidersHorizontal />
 
             <span>Filters</span>
 
             {activeFilterCount > 0 && (
-              <span className="list-controls__filter-count">
-                {activeFilterCount}
-              </span>
+              <span className={styles.filterCount}>{activeFilterCount}</span>
             )}
           </button>
         )}
       </div>
 
       {children && showFilters && (
-        <div className="list-controls__filters">
+        <div className={styles.filters}>
           {children}
 
           {onReset && (
             <button
               type="button"
-              className="list-controls__reset"
+              className={styles.reset}
               onClick={onReset}
               disabled={!canReset}
             >

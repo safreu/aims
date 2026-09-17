@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
-import type { CustomShoppingEntry, ShoppingPriority } from "../../types";
+
+import { useToast } from "../../../../components/toast/ToastContext";
 import {
   deleteCustomShoppingEntry,
   updateCustomShoppingEntry,
 } from "../../api";
-import {
-  Select,
-  type SelectOption,
-} from "../../../../components/select/Select";
+import type { CustomShoppingEntry } from "../../types";
+import type { Priority } from "../../../../domain/priority";
+import { ShoppingEntryFields } from "../fields/ShoppingEntryFields";
+
+type ShoppingEntryFieldErrors = {
+  title?: string;
+  quantity?: string;
+};
 
 type CustomShoppingEntryDialogProps = {
   householdId: string;
@@ -16,13 +21,6 @@ type CustomShoppingEntryDialogProps = {
   onClose: () => void;
 };
 
-const PriorityOptions: SelectOption<ShoppingPriority>[] = [
-  { value: "default", label: "Default" },
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-];
-
 export function CustomShoppingEntryDialog({
   householdId,
   entry,
@@ -30,14 +28,15 @@ export function CustomShoppingEntryDialog({
   onClose,
 }: CustomShoppingEntryDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const { showToast } = useToast();
 
   const [title, setTitle] = useState(entry.title);
-  const [quantity, setQuantity] = useState(entry.quantity);
-  const [priority, setPriority] = useState(entry.priority);
+  const [quantity, setQuantity] = useState<number | "">(entry.quantity);
+  const [priority, setPriority] = useState<Priority>(entry.priority);
   const [note, setNote] = useState(entry.note ?? "");
 
   const [isMutating, setIsMutating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<ShoppingEntryFieldErrors>({});
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -46,126 +45,114 @@ export function CustomShoppingEntryDialog({
   async function handleSave(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const trimmedTitle = title.trim();
+    const errors: ShoppingEntryFieldErrors = {};
 
-    if (trimmedTitle === "") {
-      setError("Title is required");
+    if (title.trim() === "") {
+      errors.title = "Name is required";
+    }
+
+    if (quantity === "") {
+      errors.quantity = "Quantity is required";
+    } else if (!Number.isInteger(quantity) || quantity < 1) {
+      errors.quantity = "Quantity must be a positive whole number";
+    }
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0 || quantity === "") {
       return;
     }
 
     setIsMutating(true);
-    setError(null);
 
-    await updateCustomShoppingEntry(householdId, entry.id, {
-      title: trimmedTitle,
-      quantity,
-      priority,
-      note: note.trim() === "" ? null : note.trim(),
-    })
-      .catch(() => setError("Failed to update shopping item"))
-      .then(async () => {
-        await onChanged();
-        dialogRef.current?.close();
-      })
-      .finally(() => setIsMutating(false));
+    try {
+      await updateCustomShoppingEntry(householdId, entry.id, {
+        title: title.trim(),
+        quantity,
+        priority,
+        note: note.trim() === "" ? null : note.trim(),
+      });
+
+      await onChanged();
+
+      dialogRef.current?.close();
+      showToast("Shopping item updated", "success");
+    } catch {
+      showToast("Failed to update shopping item", "error");
+    } finally {
+      setIsMutating(false);
+    }
   }
 
   async function handleDelete() {
     setIsMutating(true);
-    setError(null);
 
-    await deleteCustomShoppingEntry(householdId, entry.id)
-      .then(async () => {
-        await onChanged();
-        dialogRef.current?.close();
-      })
-      .catch(() => setError("Failed to dismiss shopping item"))
-      .finally(() => setIsMutating(false));
+    try {
+      await deleteCustomShoppingEntry(householdId, entry.id);
+
+      await onChanged();
+
+      dialogRef.current?.close();
+      showToast("Shopping item deleted", "success");
+    } catch {
+      showToast("Failed to delete shopping item", "error");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  function handleBackdropClick(event: React.MouseEvent<HTMLDialogElement>) {
+    if (event.target === dialogRef.current && !isMutating) {
+      dialogRef.current?.close();
+    }
   }
 
   return (
     <dialog
       ref={dialogRef}
-      className="inventory-item-dialog"
+      className="dialog"
       onClose={onClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current) {
-          dialogRef.current?.close();
+      onCancel={(event) => {
+        if (isMutating) {
+          event.preventDefault();
         }
       }}
+      onClick={handleBackdropClick}
     >
-      <div className="inventory-item-dialog__content">
-        <header className="inventory-item-dialog__header">
+      <div className="dialog__content">
+        <header className="dialog__header">
           <div>
-            <h2>{entry.title}</h2>
-            <p>Edit this shopping item</p>
+            <h2 className="dialog__title">{entry.title}</h2>
+
+            <p className="dialog__description">Edit this shopping item</p>
           </div>
 
           <button
             type="button"
-            className="button button--ghost inventory-item-dialog__close"
+            className="button button--ghost"
             onClick={() => dialogRef.current?.close()}
+            disabled={isMutating}
           >
             Close
           </button>
         </header>
 
-        <form onSubmit={handleSave}>
-          <section className="inventory-item-dialog__section">
-            <div className="inventory-item-dialog__fields">
-              <label className="inventory-item-dialog__field">
-                <span>Name</span>
+        <form className="dialog__section" onSubmit={handleSave}>
+          <ShoppingEntryFields
+            title={title}
+            quantity={quantity}
+            priority={priority}
+            note={note}
+            onTitleChange={setTitle}
+            onQuantityChange={setQuantity}
+            onPriorityChange={setPriority}
+            onNoteChange={setNote}
+            titleError={fieldErrors.title}
+            quantityError={fieldErrors.quantity}
+            disabled={isMutating}
+          />
 
-                <input
-                  type="text"
-                  value={title}
-                  disabled={isMutating}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-              </label>
-
-              <label className="inventory-item-dialog__field">
-                <span>Quantity</span>
-
-                <input
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(event) => setQuantity(Number(event.target.value))}
-                  disabled={isMutating}
-                  required
-                />
-              </label>
-
-              <label className="inventory-item-dialog__field">
-                <span>Priority</span>
-
-                <Select
-                  value={priority}
-                  options={PriorityOptions}
-                  onValueChange={(value) => setPriority(value)}
-                  portal={false}
-                  disabled={isMutating}
-                  ariaLabel="Priority"
-                />
-              </label>
-
-              <label className="inventory-item-dialog__field">
-                <span>Note</span>
-
-                <input
-                  type="text"
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  disabled={isMutating}
-                />
-              </label>
-            </div>
-
-            {error !== null && (
-              <p className="inventory-item-dialog__error">{error}</p>
-            )}
-
+          <div className="dialog__actions">
             <button
               type="submit"
               className="button button--primary"
@@ -173,22 +160,24 @@ export function CustomShoppingEntryDialog({
             >
               {isMutating ? "Saving..." : "Save"}
             </button>
-          </section>
+          </div>
         </form>
 
-        <section className="inventory-item-dialog__section inventory-item-dialog__danger">
+        <section className="dialog__section dialog__danger">
           <h3>Delete item</h3>
 
           <p>Permanently remove this custom item from the shopping list</p>
 
-          <button
-            type="button"
-            className="button button--danger"
-            disabled={isMutating}
-            onClick={() => void handleDelete()}
-          >
-            Delete
-          </button>
+          <div className="dialog__actions">
+            <button
+              type="button"
+              className="button button--danger"
+              disabled={isMutating}
+              onClick={() => void handleDelete()}
+            >
+              Delete
+            </button>
+          </div>
         </section>
       </div>
     </dialog>

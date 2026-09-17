@@ -1,4 +1,5 @@
 import { configureSync, getConsoleSink } from "@logtape/logtape";
+
 import { diagnosticSink } from "./diagnosticsSink";
 
 configureSync({

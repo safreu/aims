@@ -35,6 +35,7 @@ export const queryKeys = {
         "qr-actions",
       ] as const,
   },
+
   shopping: (householdId: string) =>
     ["households", householdId, "shopping"] as const,
 
@@ -42,6 +43,8 @@ export const queryKeys = {
     ["households", householdId, "categories"] as const,
 
   household: {
+    all: () => ["households"] as const,
+
     detail: (householdId: string) => ["households", householdId] as const,
 
     members: (householdId: string) =>

@@ -23,8 +23,24 @@ type DiagnosticExport = {
   logs: ExportedLogRecord[];
 };
 
+const REDACTED_VALUE = "[REDACTED]";
+
+const SENSITIVE_PROPERTY_NAMES = new Set([
+  "authorization",
+  "cookie",
+  "password",
+  "passwordhash",
+  "password_hash",
+  "refreshtoken",
+  "refresh_token",
+  "sessiontoken",
+  "session_token",
+  "token",
+]);
+
 function serializeRecord(diagnostic: DiagnosticRecord): ExportedLogRecord {
   const { record } = diagnostic;
+
   return {
     firstSeen: new Date(diagnostic.firstSeen).toISOString(),
     lastSeen: new Date(diagnostic.lastSeen).toISOString(),
@@ -32,19 +48,51 @@ function serializeRecord(diagnostic: DiagnosticRecord): ExportedLogRecord {
     level: record.level,
     category: record.category.join("."),
     message: record.message.map(String).join(""),
-    properties: record.properties,
+    properties: sanitizeProperties(record.properties),
   };
+}
+
+function sanitizeProperties(
+  properties: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(properties).map(([key, value]) => [
+      key,
+      isSensitivePropertyName(key) ? REDACTED_VALUE : sanitizeValue(value),
+    ]),
+  );
+}
+
+function sanitizeValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+
+  if (typeof value === "object" && value !== null) {
+    return sanitizeProperties(value as Record<string, unknown>);
+  }
+
+  return value;
+}
+
+function isSensitivePropertyName(name: string): boolean {
+  return SENSITIVE_PROPERTY_NAMES.has(name.toLowerCase());
 }
 
 export function exportDiagnostics(): void {
   const diagnostics: DiagnosticExport = {
     exportedAt: new Date().toISOString(),
-    app: { name: "Aims" },
+
+    app: {
+      name: "Aims",
+    },
+
     environment: {
       userAgent: navigator.userAgent,
       language: navigator.language,
       online: navigator.onLine,
     },
+
     logs: getDiagnosticRecords().map(serializeRecord),
   };
 
@@ -57,6 +105,7 @@ export function exportDiagnostics(): void {
   const timestamp = new Date().toISOString().replaceAll(":", "-");
 
   const anchor = document.createElement("a");
+
   anchor.href = url;
   anchor.download = `aims-diagnostics-${timestamp}.json`;
 

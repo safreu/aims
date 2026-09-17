@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import "./InventoryItemQrDialog.css";
-import type { QrActionKind } from "../types";
-import { getQrActions } from "../api";
-import { useToast } from "../../../components/toast/ToastContext";
-import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
-import { shareQrCard } from "../utils/qrShare";
 import { useQuery } from "@tanstack/react-query";
-import { queryKeys } from "../../../api/queryKeys";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Skeleton from "react-loading-skeleton";
+import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
+
+import { queryKeys } from "../../../api/queryKeys";
+import { useToast } from "../../../components/toast/ToastContext";
+import { getQrActions } from "../api";
+import type { QrActionKind } from "../types";
+import { shareQrCard } from "../utils/qrShare";
+
+import styles from "./InventoryItemQrDialog.module.css";
 
 type Props = {
   householdId: string;
@@ -35,6 +37,7 @@ export function InventoryItemQrDialog({
     queryKey: queryKeys.inventory.qrActions(householdId, itemId),
     queryFn: async () => {
       const actions = await getQrActions(householdId);
+
       return actions.filter((action) => action.item_id === itemId);
     },
   });
@@ -48,8 +51,14 @@ export function InventoryItemQrDialog({
     [qrActions, selectedKind],
   );
 
+  useEffect(() => {
+    dialogRef.current?.showModal();
+  }, []);
+
   async function handleShare() {
-    if (selectedAction === null || qrCanvasRef.current === null) return;
+    if (selectedAction === null || qrCanvasRef.current === null) {
+      return;
+    }
 
     setIsSharing(true);
 
@@ -70,58 +79,71 @@ export function InventoryItemQrDialog({
     }
   }
 
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
+  function selectKind(kind: QrActionKind) {
+    if (isSharing) return;
+
+    setSelectedKind(kind);
+  }
 
   return (
     <dialog
       ref={dialogRef}
-      className="inventory-item-qr-dialog"
+      className={`dialog ${styles.dialog}`}
       onClose={onClose}
+      onCancel={(event) => {
+        if (isSharing) {
+          event.preventDefault();
+        }
+      }}
       onClick={(event) => {
-        if (event.target === dialogRef.current) {
+        if (event.target === dialogRef.current && !isSharing) {
           dialogRef.current?.close();
         }
       }}
     >
-      <div className="inventory-item-qr-dialog__content">
-        <header className="inventory-item-qr-dialog__header">
+      <div className="dialog__content">
+        <header className="dialog__header">
           <div>
-            <h2>{itemName}</h2>
-            <p>Inventory QR code</p>
+            <h2 className="dialog__title">{itemName}</h2>
+
+            <p className="dialog__description">Inventory QR code</p>
           </div>
 
           <button
             type="button"
             className="button button--ghost"
             onClick={() => dialogRef.current?.close()}
+            disabled={isSharing}
           >
             Close
           </button>
         </header>
 
-        <div className="inventory-item-qr-dialog__switcher">
+        <div
+          className={styles.switcher}
+          role="group"
+          aria-label="QR code action"
+        >
           <button
             type="button"
-            className={`inventory-item-qr-dialog__option ${
-              selectedKind === "decrease"
-                ? "inventory-item-qr-dialog__option--active"
-                : ""
+            className={`${styles.option} ${
+              selectedKind === "decrease" ? styles.optionActive : ""
             }`}
-            onClick={() => setSelectedKind("decrease")}
+            onClick={() => selectKind("decrease")}
+            disabled={isSharing}
+            aria-pressed={selectedKind === "decrease"}
           >
             Decrease
           </button>
 
           <button
             type="button"
-            className={`inventory-item-qr-dialog__option ${
-              selectedKind === "increase"
-                ? "inventory-item-qr-dialog__option--active"
-                : ""
+            className={`${styles.option} ${
+              selectedKind === "increase" ? styles.optionActive : ""
             }`}
-            onClick={() => setSelectedKind("increase")}
+            onClick={() => selectKind("increase")}
+            disabled={isSharing}
+            aria-pressed={selectedKind === "increase"}
           >
             Increase
           </button>
@@ -130,16 +152,14 @@ export function InventoryItemQrDialog({
         {isPending ? (
           <InventoryItemQrSkeleton />
         ) : isError ? (
-          <p className="inventory-item-qr-dialog__error">
+          <p className={styles.error} role="alert">
             Failed to load QR codes
           </p>
         ) : selectedAction === null ? (
-          <p className="inventory-item-qr-dialog__error">
-            QR code not available
-          </p>
+          <p className={styles.error}>QR code not available</p>
         ) : (
-          <div className="inventory-item-qr-dialog__qr">
-            <div className="inventory-item-qr-dialog__qr-card">
+          <div className={styles.qr}>
+            <div className={styles.qrCard}>
               <QRCodeSVG value={selectedAction.id} size={220} level="M" />
             </div>
 
@@ -152,7 +172,7 @@ export function InventoryItemQrDialog({
               {isSharing ? "Preparing..." : "Share QR code"}
             </button>
 
-            <div className="inventory-item-qr-dialog__export-qr">
+            <div className={styles.exportQr} aria-hidden="true">
               <QRCodeCanvas
                 ref={qrCanvasRef}
                 value={selectedAction.id}
@@ -166,10 +186,11 @@ export function InventoryItemQrDialog({
     </dialog>
   );
 }
+
 function InventoryItemQrSkeleton() {
   return (
-    <div className="inventory-item-qr-dialog__qr">
-      <div className="inventory-item-qr-dialog__qr-placeholder">
+    <div className={styles.qr} aria-label="Loading QR code">
+      <div className={styles.qrPlaceholder}>
         <Skeleton width={200} height={200} borderRadius="var(--radius-md)" />
       </div>
 

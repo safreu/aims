@@ -1,15 +1,29 @@
-import type { InventoryItemPriority } from "../../../inventory/types";
+import {
+  Select,
+  type SelectOption,
+} from "../../../../components/select/Select";
+import type { Priority } from "../../../../domain/priority";
+
+const PRIORITY_OPTIONS: SelectOption<Priority>[] = [
+  { value: "default", label: "Default" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+];
 
 type ShoppingEntryFieldsProps = {
   title: string;
-  quantity: number;
-  priority: InventoryItemPriority;
+  quantity: number | "";
+  priority: Priority;
   note: string;
 
-  onTitleChange: (name: string) => void;
-  onQuantityChange: (reorderThreshold: number) => void;
-  onPriorityChange: (priority: InventoryItemPriority) => void;
+  onTitleChange: (title: string) => void;
+  onQuantityChange: (quantity: number | "") => void;
+  onPriorityChange: (priority: Priority) => void;
   onNoteChange: (note: string) => void;
+
+  titleError?: string;
+  quantityError?: string;
 
   disabled?: boolean;
 };
@@ -23,11 +37,15 @@ export function ShoppingEntryFields({
   onQuantityChange,
   onPriorityChange,
   onNoteChange,
+  titleError,
+  quantityError,
   disabled = false,
 }: ShoppingEntryFieldsProps) {
   return (
-    <div className="inventory-item-dialog__fields">
-      <label className="inventory-item-dialog__field">
+    <div className="dialog__fields">
+      <label
+        className={`dialog__field ${titleError ? "dialog__field--error" : ""}`}
+      >
         <span>Name</span>
 
         <input
@@ -36,38 +54,55 @@ export function ShoppingEntryFields({
           onChange={(event) => onTitleChange(event.target.value)}
           disabled={disabled}
         />
+
+        {titleError && (
+          <span className="dialog__field-error" role="alert">
+            {titleError}
+          </span>
+        )}
       </label>
 
-      <label className="inventory-item-dialog__field">
+      <label
+        className={`dialog__field ${
+          quantityError ? "dialog__field--error" : ""
+        }`}
+      >
         <span>Quantity</span>
 
         <input
           type="number"
           min="1"
+          step="1"
           value={quantity}
-          onChange={(event) => onQuantityChange(Number(event.target.value))}
+          onChange={(event) => {
+            const value = event.target.value;
+
+            onQuantityChange(value === "" ? "" : Number(value));
+          }}
           disabled={disabled}
+        />
+
+        {quantityError && (
+          <span className="dialog__field-error" role="alert">
+            {quantityError}
+          </span>
+        )}
+      </label>
+
+      <label className="dialog__field">
+        <span>Priority</span>
+
+        <Select
+          value={priority}
+          options={PRIORITY_OPTIONS}
+          onValueChange={(value) => onPriorityChange(value as Priority)}
+          portal={false}
+          disabled={disabled}
+          ariaLabel="Priority"
         />
       </label>
 
-      <label className="inventory-item-dialog__field">
-        <span>Priority</span>
-
-        <select
-          value={priority}
-          onChange={(event) =>
-            onPriorityChange(event.target.value as InventoryItemPriority)
-          }
-          disabled={disabled}
-        >
-          <option value="default">Default</option>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
-      </label>
-
-      <label className="inventory-item-dialog__field">
+      <label className="dialog__field">
         <span>Note</span>
 
         <input

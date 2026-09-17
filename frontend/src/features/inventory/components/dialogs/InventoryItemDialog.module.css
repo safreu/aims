@@ -1,0 +1,42 @@
+.dialog {
+  width: min(680px, calc(100% - 2rem));
+  max-width: 680px;
+}
+
+.history {
+  max-height: 320px;
+  margin-top: var(--space-lg);
+  padding-right: var(--space-sm);
+
+  overflow-y: auto;
+}
+
+.error {
+  margin: var(--space-md) 0;
+  padding: 0.75rem var(--space-md);
+
+  color: var(--text-h);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+}
+
+.danger h3 {
+  color: var(--danger);
+}
+
+.danger p {
+  margin: 0 0 var(--space-md);
+
+  color: var(--text-muted);
+
+  font-size: 0.875rem;
+}
+
+@media (max-width: 600px) {
+  .dialog {
+    width: 100%;
+    max-width: none;
+  }
+}

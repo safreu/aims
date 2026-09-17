@@ -5,8 +5,9 @@ import {
   type PointerEvent,
   type PropsWithChildren,
 } from "react";
-import "./ToastProvider.css";
+
 import { ToastContext, type ToastType } from "./ToastContext";
+import styles from "./ToastProvider.module.css";
 
 type Toast = {
   id: number;
@@ -221,15 +222,15 @@ export function ToastProvider({ children }: PropsWithChildren) {
 
       <div
         ref={toastContainerRef}
-        className="toast-container"
+        className={styles.container}
         popover="manual"
         aria-live="polite"
       >
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`toast toast--${toast.type} ${
-              toast.closing ? "toast--closing" : ""
+            className={`${styles.toast} ${styles[toast.type]} ${
+              toast.closing ? styles.closing : ""
             }`}
             role="button"
             tabIndex={0}
@@ -243,17 +244,17 @@ export function ToastProvider({ children }: PropsWithChildren) {
               }
             }}
           >
-            <span className="toast__icon" aria-hidden="true">
+            <span className={styles.icon} aria-hidden="true">
               {toastIcon(toast.type)}
             </span>
 
-            <span className="toast__message">{toast.message}</span>
+            <span className={styles.message}>{toast.message}</span>
 
             {toast.count > 1 && (
-              <span className="toast__count">×{toast.count}</span>
+              <span className={styles.count}>×{toast.count}</span>
             )}
 
-            <div className="toast__progress" />
+            <div className={styles.progress} />
           </div>
         ))}
       </div>

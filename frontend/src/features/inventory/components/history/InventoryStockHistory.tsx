@@ -1,12 +1,14 @@
-import "./InventoryStockHistory.css";
+import { useQuery } from "@tanstack/react-query";
+import Skeleton from "react-loading-skeleton";
+
+import { queryKeys } from "../../../../api/queryKeys";
+import { getInventoryStockHistory } from "../../api";
 import type {
   InventoryStockHistoryActor,
   InventoryStockHistoryEntry,
 } from "../../types";
-import { getInventoryStockHistory } from "../../api";
-import { useQuery } from "@tanstack/react-query";
-import { queryKeys } from "../../../../api/queryKeys";
-import Skeleton from "react-loading-skeleton";
+
+import styles from "./InventoryStockHistory.module.css";
 
 type InventoryStockHistoryProps = {
   householdId: string;
@@ -26,34 +28,38 @@ export function InventoryStockHistory({
     queryFn: () => getInventoryStockHistory(householdId, itemId),
   });
 
-  if (isPending) return <InventoryStockHistorySkeleton />;
+  if (isPending) {
+    return <InventoryStockHistorySkeleton />;
+  }
 
   if (isError) {
     return (
-      <p className="stock-history__message">Failed to load stock history</p>
+      <p className={styles.message} role="alert">
+        Failed to load stock history
+      </p>
     );
   }
 
   if (history.length === 0) {
-    return <p className="stock-history__message">No stock history yet :(</p>;
+    return <p className={styles.message}>No stock history yet</p>;
   }
 
   return (
-    <ul className="stock-history">
+    <ul className={styles.history}>
       {history.map((entry) => (
-        <li key={entry.id} className="stock-history__entry">
-          <strong className="stock-history__change">
-            {getChangeLabel(entry)}
-          </strong>
+        <li key={entry.id} className={styles.entry}>
+          <strong className={styles.change}>{getChangeLabel(entry)}</strong>
 
-          <div className="stock-history__details">
-            <strong className="stock-history__transition">
-              {entry.stock_before} {"=>"} {entry.stock_after}
+          <div className={styles.details}>
+            <strong className={styles.transition}>
+              {entry.stock_before} → {entry.stock_after}
             </strong>
 
-            <div className="stock-history__meta">
+            <div className={styles.meta}>
               <span>{getActorName(entry.actor)}</span>
+
               <span aria-hidden="true">·</span>
+
               <time dateTime={entry.created_at}>
                 {formatDate(entry.created_at)}
               </time>
@@ -69,8 +75,10 @@ function getActorName(actor: InventoryStockHistoryActor): string {
   switch (actor.type) {
     case "user":
       return actor.display_name;
+
     case "device":
       return actor.name;
+
     case "system":
       return "System";
   }
@@ -80,12 +88,12 @@ function getChangeLabel(entry: InventoryStockHistoryEntry): string {
   switch (entry.kind) {
     case "increase":
       return `+${entry.amount ?? 0}`;
+
     case "decrease":
-      return `-${entry.amount ?? 0}`;
+      return `−${entry.amount ?? 0}`;
+
     case "set":
-      return `Set`;
-    default:
-      return entry.kind;
+      return "Set";
   }
 }
 
@@ -100,22 +108,19 @@ function formatDate(createdAt: string): string {
 
 function InventoryStockHistorySkeleton() {
   return (
-    <ul className="stock-history" aria-label="Loading stock history">
+    <ul className={styles.history} aria-label="Loading stock history">
       {Array.from({ length: 3 }).map((_, index) => (
-        <li
-          key={index}
-          className="stock-history__entry stock-history__entry--skeleton"
-        >
-          <div className="stock-history__change">
+        <li key={index} className={styles.entry}>
+          <div className={styles.change}>
             <Skeleton width="2rem" />
           </div>
 
-          <div className="stock-history__details">
-            <div className="stock-history__transition">
+          <div className={styles.details}>
+            <div className={styles.transition}>
               <Skeleton width="5rem" />
             </div>
 
-            <div className="stock-history__meta">
+            <div className={styles.meta}>
               <Skeleton width="9rem" />
             </div>
           </div>
