@@ -32,13 +32,52 @@
 
   flex-shrink: 0;
 
-  accent-color: var(--accent);
+  appearance: none;
+
+  background: var(--bg);
+
+  border: 1px solid var(--border);
+  border-radius: 4px;
 
   cursor: pointer;
+
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.checkbox:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.checkbox:checked::after {
+  content: "";
+
+  width: 5px;
+  height: 9px;
+  margin: 3px auto 0;
+
+  display: block;
+
+  border: solid var(--text-h);
+  border-width: 0 2px 2px 0;
+
+  transform: rotate(45deg);
+}
+
+.checkbox:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .checkbox:disabled {
-  cursor: default;
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .open {
