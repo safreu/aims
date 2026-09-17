@@ -15,7 +15,7 @@ import { InventoryStockControls } from "./InventoryStockControls";
 
 import styles from "./InventoryItemDialog.module.css";
 
-type InventoryItemDialogProps = {
+type Props = {
   householdId: string;
   itemId: string;
   onChanged: () => Promise<void>;
@@ -27,7 +27,7 @@ export function InventoryItemDialog({
   itemId,
   onChanged,
   onClose,
-}: InventoryItemDialogProps) {
+}: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const { dangerMode } = useDangerMode();
@@ -75,122 +75,126 @@ export function InventoryItemDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className={`dialog ${styles.dialog}`}
-      onClose={onClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current) {
-          dialogRef.current?.close();
-        }
-      }}
-    >
-      <div className="dialog__content">
-        <header className="dialog__header">
-          <div>
-            <h2 className="dialog__title">{item?.name ?? "Inventory item"}</h2>
+    <>
+      <dialog
+        ref={dialogRef}
+        className={`dialog ${styles.dialog}`}
+        onClose={onClose}
+        onClick={(event) => {
+          if (event.target === dialogRef.current) {
+            dialogRef.current?.close();
+          }
+        }}
+      >
+        <div className="dialog__content">
+          <header className="dialog__header">
+            <div>
+              <h2 className="dialog__title">
+                {item?.name ?? "Inventory item"}
+              </h2>
 
-            <p className="dialog__description">Manage item details and stock</p>
-          </div>
+              <p className="dialog__description">
+                Manage item details and stock
+              </p>
+            </div>
 
-          <button
-            type="button"
-            className="dialog__close"
-            onClick={() => dialogRef.current?.close()}
-            aria-label="Close"
-          >
-            <X aria-hidden="true" />
-          </button>
-        </header>
+            <button
+              type="button"
+              className="dialog__close"
+              onClick={() => dialogRef.current?.close()}
+              aria-label="Close"
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
 
-        {isPending ? (
-          <InventoryItemDialogSkeleton />
-        ) : isError ? (
-          <p className={styles.error} role="alert">
-            Failed to load inventory item
-          </p>
-        ) : (
-          <>
-            <InventoryItemDetails
-              householdId={householdId}
-              item={item}
-              onChanged={refreshItem}
-            />
-
-            {showStockControls && (
-              <InventoryStockControls
+          {isPending ? (
+            <InventoryItemDialogSkeleton />
+          ) : isError ? (
+            <p className={styles.error} role="alert">
+              Failed to load inventory item
+            </p>
+          ) : (
+            <>
+              <InventoryItemDetails
                 householdId={householdId}
                 item={item}
-                onChanged={refreshStock}
+                onChanged={refreshItem}
               />
-            )}
 
-            {trackingMode === "qr" && (
+              {showStockControls && (
+                <InventoryStockControls
+                  householdId={householdId}
+                  item={item}
+                  onChanged={refreshStock}
+                />
+              )}
+
+              {trackingMode === "qr" && (
+                <section className="dialog__section">
+                  <div className="dialog__section-header">
+                    <div>
+                      <h3>QR codes</h3>
+                      <p>View or share the QR codes for this item</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="button button--secondary"
+                      onClick={() => setShowQrCodes(true)}
+                    >
+                      Show QR codes
+                    </button>
+                  </div>
+                </section>
+              )}
+
               <section className="dialog__section">
                 <div className="dialog__section-header">
                   <div>
-                    <h3>QR codes</h3>
-
-                    <p>View or share the QR codes for this item</p>
+                    <h3>History</h3>
+                    <p>Recent changes to this item's stock</p>
                   </div>
 
                   <button
                     type="button"
                     className="button button--secondary"
-                    onClick={() => setShowQrCodes(true)}
+                    onClick={() => setShowHistory((current) => !current)}
+                    aria-expanded={showHistory}
                   >
-                    Show QR codes
+                    {showHistory ? "Hide history" : "Show history"}
                   </button>
                 </div>
+
+                {showHistory && (
+                  <div className={styles.history}>
+                    <InventoryStockHistory
+                      householdId={householdId}
+                      itemId={itemId}
+                    />
+                  </div>
+                )}
               </section>
-            )}
 
-            <section className="dialog__section">
-              <div className="dialog__section-header">
-                <div>
-                  <h3>History</h3>
+              <InventoryItemArchive
+                householdId={householdId}
+                item={item}
+                onArchived={() => dialogRef.current?.close()}
+              />
+            </>
+          )}
+        </div>
+      </dialog>
 
-                  <p>Recent changes to this item's stock</p>
-                </div>
-
-                <button
-                  type="button"
-                  className="button button--secondary"
-                  onClick={() => setShowHistory((current) => !current)}
-                  aria-expanded={showHistory}
-                >
-                  {showHistory ? "Hide history" : "Show history"}
-                </button>
-              </div>
-
-              {showHistory && (
-                <div className={styles.history}>
-                  <InventoryStockHistory
-                    householdId={householdId}
-                    itemId={itemId}
-                  />
-                </div>
-              )}
-            </section>
-
-            <InventoryItemArchive
-              householdId={householdId}
-              item={item}
-              onArchived={() => dialogRef.current?.close()}
-            />
-          </>
-        )}
-
-        {showQrCodes && item && (
-          <InventoryItemQrDialog
-            householdId={householdId}
-            itemId={itemId}
-            itemName={item.name}
-            onClose={() => setShowQrCodes(false)}
-          />
-        )}
-      </div>
-    </dialog>
+      {showQrCodes && item && (
+        <InventoryItemQrDialog
+          householdId={householdId}
+          itemId={itemId}
+          itemName={item.name}
+          onClose={() => setShowQrCodes(false)}
+        />
+      )}
+    </>
   );
 }
 
