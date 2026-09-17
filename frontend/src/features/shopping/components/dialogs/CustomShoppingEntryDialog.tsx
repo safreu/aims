@@ -1,6 +1,6 @@
-import { X } from "lucide-react";
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 
+import { Dialog } from "../../../../components/dialog/Dialog";
 import { useToast } from "../../../../components/toast/ToastContext";
 import type { Priority } from "../../../../domain/priority";
 import {
@@ -28,7 +28,6 @@ export function CustomShoppingEntryDialog({
   onChanged,
   onClose,
 }: CustomShoppingEntryDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const { showToast } = useToast();
 
   const [title, setTitle] = useState(entry.title);
@@ -38,10 +37,6 @@ export function CustomShoppingEntryDialog({
 
   const [isMutating, setIsMutating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ShoppingEntryFieldErrors>({});
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   async function handleSave(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,7 +71,7 @@ export function CustomShoppingEntryDialog({
 
       await onChanged();
 
-      dialogRef.current?.close();
+      onClose();
       showToast("Shopping item updated", "success");
     } catch {
       showToast("Failed to update shopping item", "error");
@@ -93,7 +88,7 @@ export function CustomShoppingEntryDialog({
 
       await onChanged();
 
-      dialogRef.current?.close();
+      onClose();
       showToast("Shopping item deleted", "success");
     } catch {
       showToast("Failed to delete shopping item", "error");
@@ -102,86 +97,73 @@ export function CustomShoppingEntryDialog({
     }
   }
 
-  function handleBackdropClick(event: React.MouseEvent<HTMLDialogElement>) {
-    if (event.target === dialogRef.current && !isMutating) {
-      dialogRef.current?.close();
-    }
-  }
-
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Dialog
+      title={entry.title}
+      description="Edit this shopping item"
       onClose={onClose}
-      onCancel={(event) => {
-        if (isMutating) {
-          event.preventDefault();
-        }
-      }}
-      onClick={handleBackdropClick}
+      closeDisabled={isMutating}
     >
-      <div className="dialog__content">
-        <header className="dialog__header">
-          <div>
-            <h2 className="dialog__title">{entry.title}</h2>
+      <form className="dialog__section" onSubmit={handleSave}>
+        <ShoppingEntryFields
+          title={title}
+          quantity={quantity}
+          priority={priority}
+          note={note}
+          onTitleChange={(value) => {
+            setTitle(value);
 
-            <p className="dialog__description">Edit this shopping item</p>
-          </div>
+            if (fieldErrors.title !== undefined) {
+              setFieldErrors((current) => ({
+                ...current,
+                title: undefined,
+              }));
+            }
+          }}
+          onQuantityChange={(value) => {
+            setQuantity(value);
 
+            if (fieldErrors.quantity !== undefined) {
+              setFieldErrors((current) => ({
+                ...current,
+                quantity: undefined,
+              }));
+            }
+          }}
+          onPriorityChange={setPriority}
+          onNoteChange={setNote}
+          titleError={fieldErrors.title}
+          quantityError={fieldErrors.quantity}
+          disabled={isMutating}
+        />
+
+        <div className="dialog__actions">
+          <button
+            type="submit"
+            className="button button--primary"
+            disabled={isMutating}
+          >
+            {isMutating ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </form>
+
+      <section className="dialog__section dialog__danger">
+        <h3>Delete item</h3>
+
+        <p>Permanently remove this custom item from the shopping list</p>
+
+        <div className="dialog__actions">
           <button
             type="button"
-            className="dialog__close"
-            onClick={() => dialogRef.current?.close()}
+            className="button button--danger"
             disabled={isMutating}
-            aria-label="Close"
+            onClick={() => void handleDelete()}
           >
-            <X aria-hidden="true" />
+            Delete
           </button>
-        </header>
-
-        <form className="dialog__section" onSubmit={handleSave}>
-          <ShoppingEntryFields
-            title={title}
-            quantity={quantity}
-            priority={priority}
-            note={note}
-            onTitleChange={setTitle}
-            onQuantityChange={setQuantity}
-            onPriorityChange={setPriority}
-            onNoteChange={setNote}
-            titleError={fieldErrors.title}
-            quantityError={fieldErrors.quantity}
-            disabled={isMutating}
-          />
-
-          <div className="dialog__actions">
-            <button
-              type="submit"
-              className="button button--primary"
-              disabled={isMutating}
-            >
-              {isMutating ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </form>
-
-        <section className="dialog__section dialog__danger">
-          <h3>Delete item</h3>
-
-          <p>Permanently remove this custom item from the shopping list</p>
-
-          <div className="dialog__actions">
-            <button
-              type="button"
-              className="button button--danger"
-              disabled={isMutating}
-              onClick={() => void handleDelete()}
-            >
-              Delete
-            </button>
-          </div>
-        </section>
-      </div>
-    </dialog>
+        </div>
+      </section>
+    </Dialog>
   );
 }

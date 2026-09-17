@@ -1,6 +1,6 @@
-import { X } from "lucide-react";
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 
+import { Dialog } from "../../../../components/dialog/Dialog";
 import { useToast } from "../../../../components/toast/ToastContext";
 import type { Priority } from "../../../../domain/priority";
 import { createCustomShoppingEntry } from "../../api";
@@ -22,7 +22,6 @@ export function CreateShoppingEntryDialog({
   onCreated,
   onClose,
 }: CreateShoppingEntryDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const { showToast } = useToast();
 
   const [title, setTitle] = useState("");
@@ -32,10 +31,6 @@ export function CreateShoppingEntryDialog({
 
   const [isCreating, setIsCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ShoppingEntryFieldErrors>({});
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,7 +65,7 @@ export function CreateShoppingEntryDialog({
 
       await onCreated();
 
-      dialogRef.current?.close();
+      onClose();
       showToast("Shopping item added", "success");
     } catch {
       showToast("Failed to create shopping item", "error");
@@ -79,89 +74,56 @@ export function CreateShoppingEntryDialog({
     }
   }
 
-  function handleBackdropClick(event: React.MouseEvent<HTMLDialogElement>) {
-    if (event.target === dialogRef.current && !isCreating) {
-      dialogRef.current?.close();
-    }
-  }
-
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Dialog
+      title="Add shopping item"
+      description="Add something to your shopping list"
       onClose={onClose}
-      onCancel={(event) => {
-        if (isCreating) {
-          event.preventDefault();
-        }
-      }}
-      onClick={handleBackdropClick}
+      closeDisabled={isCreating}
     >
-      <div className="dialog__content">
-        <header className="dialog__header">
-          <div>
-            <h2 className="dialog__title">Add shopping item</h2>
+      <form className="dialog__section" onSubmit={handleSubmit}>
+        <ShoppingEntryFields
+          title={title}
+          quantity={quantity}
+          priority={priority}
+          note={note}
+          onTitleChange={(value) => {
+            setTitle(value);
 
-            <p className="dialog__description">
-              Add something to your shopping list
-            </p>
-          </div>
+            if (fieldErrors.title !== undefined) {
+              setFieldErrors((current) => ({
+                ...current,
+                title: undefined,
+              }));
+            }
+          }}
+          onQuantityChange={(value) => {
+            setQuantity(value);
 
+            if (fieldErrors.quantity !== undefined) {
+              setFieldErrors((current) => ({
+                ...current,
+                quantity: undefined,
+              }));
+            }
+          }}
+          onPriorityChange={setPriority}
+          onNoteChange={setNote}
+          titleError={fieldErrors.title}
+          quantityError={fieldErrors.quantity}
+          disabled={isCreating}
+        />
+
+        <div className="dialog__actions">
           <button
-            type="button"
-            className="dialog__close"
-            onClick={() => dialogRef.current?.close()}
+            type="submit"
+            className="button button--primary"
             disabled={isCreating}
-            aria-label="Close"
           >
-            <X aria-hidden="true" />
+            {isCreating ? "Adding..." : "Add item"}
           </button>
-        </header>
-
-        <form className="dialog__section" onSubmit={handleSubmit}>
-          <ShoppingEntryFields
-            title={title}
-            quantity={quantity}
-            priority={priority}
-            note={note}
-            onTitleChange={(value) => {
-              setTitle(value);
-
-              if (fieldErrors.title !== undefined) {
-                setFieldErrors((current) => ({
-                  ...current,
-                  title: undefined,
-                }));
-              }
-            }}
-            onQuantityChange={(value) => {
-              setQuantity(value);
-
-              if (fieldErrors.quantity !== undefined) {
-                setFieldErrors((current) => ({
-                  ...current,
-                  quantity: undefined,
-                }));
-              }
-            }}
-            onPriorityChange={setPriority}
-            onNoteChange={setNote}
-            titleError={fieldErrors.title}
-            quantityError={fieldErrors.quantity}
-            disabled={isCreating}
-          />
-
-          <div className="dialog__actions">
-            <button
-              type="submit"
-              className="button button--primary"
-              disabled={isCreating}
-            >
-              {isCreating ? "Adding..." : "Add item"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+        </div>
+      </form>
+    </Dialog>
   );
 }

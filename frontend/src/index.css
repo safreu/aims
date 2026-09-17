@@ -14,6 +14,12 @@
   --purple-11: #fb7eff;
   --purple-12: #fdcdff;
 
+  /* Backgrounds */
+  --bg: var(--gray-1);
+  --surface: var(--gray-2);
+  --surface-hover: var(--gray-3);
+  --surface-active: var(--gray-4);
+
   --gray-1: #111113;
   --gray-2: #19191b;
   --gray-3: #222325;
@@ -26,12 +32,6 @@
   --gray-10: #797b86;
   --gray-11: #b2b3bd;
   --gray-12: #eeeef0;
-
-  /* Backgrounds */
-  --bg: var(--gray-1);
-  --surface: var(--gray-2);
-  --surface-hover: var(--gray-3);
-  --surface-active: var(--gray-4);
 
   /* Text */
   --text: var(--gray-11);
@@ -113,6 +113,7 @@ body,
 body {
   margin: 0;
   min-width: 320px;
+
   padding-top: env(safe-area-inset-top);
 
   background: var(--bg);
@@ -171,16 +172,6 @@ p {
   line-height: 1.5;
 }
 
-@media (max-width: 600px) {
-  h1 {
-    font-size: 1.6rem;
-  }
-
-  h2 {
-    font-size: 1.2rem;
-  }
-}
-
 .button {
   min-height: var(--control-height);
   padding: 0.65rem 1rem;
@@ -206,7 +197,6 @@ p {
 
 .button:disabled {
   opacity: 0.6;
-
   cursor: not-allowed;
 }
 
@@ -257,113 +247,13 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Dialog */
+/* Dialog content */
 
-.dialog {
-  width: min(440px, calc(100% - 2rem));
-  max-height: calc(100svh - 2rem);
-  padding: 0;
-
-  overflow-y: auto;
-
-  color: var(--text);
-  background: var(--surface);
-
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-}
-
-.dialog::backdrop {
-  background: rgb(0 0 0 / 60%);
-}
-
-.dialog__content {
+.dialog__form {
   display: flex;
   flex-direction: column;
+  gap: var(--space-lg);
 }
-
-/* Sticky dialog header */
-
-.dialog__header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-
-  padding: var(--space-lg);
-
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
-
-  background: var(--surface);
-
-  border-bottom: 1px solid var(--border);
-}
-
-.dialog__title {
-  margin: 0;
-
-  color: var(--text-h);
-
-  font-size: 1.25rem;
-}
-
-.dialog__description {
-  margin: 0;
-
-  color: var(--text-muted);
-
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-.dialog__close {
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  flex: 0 0 auto;
-
-  color: var(--text-muted);
-  background: transparent;
-
-  border: 0;
-  border-radius: var(--radius-sm);
-
-  cursor: pointer;
-
-  transition:
-    color 120ms ease,
-    background 120ms ease;
-}
-
-.dialog__close:hover:not(:disabled) {
-  color: var(--text-h);
-  background: var(--surface-hover);
-}
-
-.dialog__close:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.dialog__close:disabled {
-  opacity: 0.6;
-
-  cursor: not-allowed;
-}
-
-.dialog__close svg {
-  width: 1.1rem;
-  height: 1.1rem;
-}
-
-/* Dialog fields */
 
 .dialog__field {
   display: flex;
@@ -410,7 +300,6 @@ html {
 .dialog__field > input:disabled,
 .dialog__field > textarea:disabled {
   opacity: 0.6;
-
   cursor: not-allowed;
 }
 
@@ -459,27 +348,26 @@ html {
 }
 
 .dialog__field--error > input:focus-visible,
-.dialog__field--field-error > textarea:focus-visible {
+.dialog__field--error > textarea:focus-visible {
   border-color: var(--danger);
 
   outline-color: var(--danger);
 }
 
-/* Dialog sections */
-
 .dialog__section {
-  margin: 0 var(--space-lg);
-  padding: var(--space-lg) 0;
+  padding: 0 0 var(--space-lg);
 
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
 
-  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
-.dialog__header + .dialog__section {
-  border-top: 0;
+.dialog__section:last-child {
+  padding-bottom: 0;
+
+  border-bottom: 0;
 }
 
 .dialog__section > h3 {
@@ -518,20 +406,17 @@ html {
   line-height: 1.4;
 }
 
-/* Mobile */
-
 @media (max-width: 600px) {
-  .dialog {
-    width: calc(100% - 2rem);
+  h1 {
+    font-size: 1.6rem;
   }
 
-  .dialog__header {
-    padding: var(--space-md);
+  h2 {
+    font-size: 1.2rem;
   }
 
-  .dialog__section {
-    margin-right: var(--space-md);
-    margin-left: var(--space-md);
+  .dialog__form {
+    gap: var(--space-md);
   }
 
   .dialog__fields {

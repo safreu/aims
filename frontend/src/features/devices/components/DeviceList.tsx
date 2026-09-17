@@ -4,7 +4,7 @@ import { useState } from "react";
 import Skeleton from "react-loading-skeleton";
 
 import { queryKeys } from "../../../api/queryKeys";
-import { ConfirmDialog } from "../../../components/dialogs/ConfirmDialog";
+import { ConfirmDialog } from "../../../components/dialog/ConfirmDialog";
 import {
   DropdownMenu,
   DropdownMenuItem,

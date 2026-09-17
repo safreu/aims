@@ -1,6 +1,6 @@
-import { X } from "lucide-react";
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 
+import { Dialog } from "../../../../components/dialog/Dialog";
 import { useToast } from "../../../../components/toast/ToastContext";
 import { createInventoryCategory } from "../../api";
 
@@ -15,16 +15,11 @@ export function CreateInventoryCategoryDialog({
   onCreated,
   onClose,
 }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const { showToast } = useToast();
 
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string>();
   const [isCreating, setIsCreating] = useState(false);
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,92 +40,60 @@ export function CreateInventoryCategoryDialog({
     })
       .then(async (category) => {
         await onCreated(category.id);
-        dialogRef.current?.close();
+        onClose();
         showToast("Category created", "success");
       })
       .catch(() => showToast("Failed to create inventory category", "error"))
       .finally(() => setIsCreating(false));
   }
 
-  function handleBackdropClick(event: React.MouseEvent<HTMLDialogElement>) {
-    if (event.target === dialogRef.current && !isCreating) {
-      dialogRef.current?.close();
-    }
-  }
-
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Dialog
+      title="Add category"
+      description="Create a new inventory category"
       onClose={onClose}
-      onCancel={(event) => {
-        if (isCreating) {
-          event.preventDefault();
-        }
-      }}
-      onClick={handleBackdropClick}
+      closeDisabled={isCreating}
     >
-      <div className="dialog__content">
-        <header className="dialog__header">
-          <div>
-            <h2 className="dialog__title">Add category</h2>
-            <p className="dialog__description">
-              Create a new inventory category
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="dialog__close"
-            onClick={() => dialogRef.current?.close()}
-            disabled={isCreating}
-            aria-label="Close"
+      <form className="dialog__section" onSubmit={handleSubmit}>
+        <div className="dialog__fields dialog__fields--single">
+          <label
+            className={`dialog__field ${
+              nameError ? "dialog__field--error" : ""
+            }`}
           >
-            <X aria-hidden="true" />
-          </button>
-        </header>
+            <span>Name</span>
 
-        <form className="dialog__section" onSubmit={handleSubmit}>
-          <div className="dialog__fields dialog__fields--single">
-            <label
-              className={`dialog__field ${
-                nameError ? "dialog__field--error" : ""
-              }`}
-            >
-              <span>Name</span>
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
 
-              <input
-                type="text"
-                value={name}
-                onChange={(event) => {
-                  setName(event.target.value);
-
-                  if (nameError !== undefined) {
-                    setNameError(undefined);
-                  }
-                }}
-                disabled={isCreating}
-              />
-
-              {nameError && (
-                <span className="dialog__field-error" role="alert">
-                  {nameError}
-                </span>
-              )}
-            </label>
-          </div>
-
-          <div className="dialog__actions">
-            <button
-              type="submit"
-              className="button button--primary"
+                if (nameError !== undefined) {
+                  setNameError(undefined);
+                }
+              }}
               disabled={isCreating}
-            >
-              {isCreating ? "Creating..." : "Create"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+            />
+
+            {nameError && (
+              <span className="dialog__field-error" role="alert">
+                {nameError}
+              </span>
+            )}
+          </label>
+        </div>
+
+        <div className="dialog__actions">
+          <button
+            type="submit"
+            className="button button--primary"
+            disabled={isCreating}
+          >
+            {isCreating ? "Creating..." : "Create"}
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

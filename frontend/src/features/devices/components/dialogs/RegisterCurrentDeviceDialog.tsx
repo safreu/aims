@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 
-import styles from "./RegisterCurrentDeviceDialog.module.css";
+import { Dialog } from "../../../../components/dialog/Dialog";
 
 type Props = {
   registering: boolean;
@@ -13,12 +13,7 @@ export function RegisterCurrentDeviceDialog({
   onRegister,
   onClose,
 }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState("");
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,37 +26,13 @@ export function RegisterCurrentDeviceDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Dialog
+      title="Register this device"
+      description="Register this phone so it can scan Aims QR codes."
       onClose={onClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current && !registering) {
-          dialogRef.current?.close();
-        }
-      }}
+      closeDisabled={registering}
     >
-      <form className="dialog__content" onSubmit={handleSubmit}>
-        <div className={`dialog__header ${styles.header}`}>
-          <div className={styles.headerText}>
-            <h2 className="dialog__title">Register this device</h2>
-
-            <p className="dialog__description">
-              Register this phone so it can scan Aims QR codes.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className={styles.close}
-            onClick={() => dialogRef.current?.close()}
-            disabled={registering}
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-
+      <form className="dialog__form" onSubmit={handleSubmit}>
         <div className="dialog__field">
           <label htmlFor="device-name">Device name</label>
 
@@ -84,7 +55,7 @@ export function RegisterCurrentDeviceDialog({
           <button
             type="button"
             className="button button--secondary"
-            onClick={() => dialogRef.current?.close()}
+            onClick={onClose}
             disabled={registering}
           >
             Cancel
@@ -99,6 +70,6 @@ export function RegisterCurrentDeviceDialog({
           </button>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   );
 }

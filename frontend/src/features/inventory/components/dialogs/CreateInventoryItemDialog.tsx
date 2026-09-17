@@ -1,6 +1,6 @@
-import { X } from "lucide-react";
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 
+import { Dialog } from "../../../../components/dialog/Dialog";
 import { useToast } from "../../../../components/toast/ToastContext";
 import type { Priority } from "../../../../domain/priority";
 import { createInventoryItem } from "../../api";
@@ -23,7 +23,6 @@ export function CreateInventoryItemDialog({
   onCreated,
   onClose,
 }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const { showToast } = useToast();
 
   const [name, setName] = useState("");
@@ -34,10 +33,6 @@ export function CreateInventoryItemDialog({
 
   const [isCreating, setIsCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<InventoryItemFieldErrors>({});
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,112 +68,93 @@ export function CreateInventoryItemDialog({
 
     setIsCreating(true);
 
-    await createInventoryItem(householdId, {
-      name: name.trim(),
-      category_id: categoryId,
-      current_stock: currentStock,
-      reorder_threshold: reorderThreshold,
-      priority,
-    })
-      .then(async () => {
-        await onCreated();
-        dialogRef.current?.close();
-        showToast("Item created", "success");
-      })
-      .catch(() => showToast("Failed to create inventory item", "error"))
-      .finally(() => setIsCreating(false));
-  }
+    try {
+      await createInventoryItem(householdId, {
+        name: name.trim(),
+        category_id: categoryId,
+        current_stock: currentStock,
+        reorder_threshold: reorderThreshold,
+        priority,
+      });
 
-  function handleBackdropClick(event: React.MouseEvent<HTMLDialogElement>) {
-    if (event.target === dialogRef.current && !isCreating) {
-      dialogRef.current?.close();
+      await onCreated();
+
+      onClose();
+      showToast("Item created", "success");
+    } catch {
+      showToast("Failed to create inventory item", "error");
+    } finally {
+      setIsCreating(false);
     }
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Dialog
+      title="Add item"
+      description="Create a new inventory item"
       onClose={onClose}
-      onCancel={(event) => {
-        if (isCreating) {
-          event.preventDefault();
-        }
-      }}
-      onClick={handleBackdropClick}
+      closeDisabled={isCreating}
     >
-      <div className="dialog__content">
-        <header className="dialog__header">
-          <div>
-            <h2 className="dialog__title">Add item</h2>
-            <p className="dialog__description">Create a new inventory item</p>
-          </div>
-
-          <button
-            type="button"
-            className="dialog__close"
-            onClick={() => dialogRef.current?.close()}
-            disabled={isCreating}
-            aria-label="Close"
+      <form className="dialog__section" onSubmit={handleSubmit}>
+        <InventoryItemFields
+          householdId={householdId}
+          name={name}
+          categoryId={categoryId}
+          reorderThreshold={reorderThreshold}
+          priority={priority}
+          onNameChange={setName}
+          onCategoryChange={setCategoryId}
+          onReorderThresholdChange={setReorderThreshold}
+          onPriorityChange={setPriority}
+          nameError={fieldErrors.name}
+          reorderThresholdError={fieldErrors.reorderThreshold}
+          disabled={isCreating}
+        >
+          <label
+            className={`dialog__field ${
+              fieldErrors.currentStock ? "dialog__field--error" : ""
+            }`}
           >
-            <X aria-hidden="true" />
-          </button>
-        </header>
+            <span>Current stock</span>
 
-        <form className="dialog__section" onSubmit={handleSubmit}>
-          <InventoryItemFields
-            householdId={householdId}
-            name={name}
-            categoryId={categoryId}
-            reorderThreshold={reorderThreshold}
-            priority={priority}
-            onNameChange={setName}
-            onCategoryChange={setCategoryId}
-            onReorderThresholdChange={setReorderThreshold}
-            onPriorityChange={setPriority}
-            nameError={fieldErrors.name}
-            reorderThresholdError={fieldErrors.reorderThreshold}
-            disabled={isCreating}
-          >
-            <label
-              className={`dialog__field ${
-                fieldErrors.currentStock ? "dialog__field--error" : ""
-              }`}
-            >
-              <span>Current stock</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={currentStock}
+              onChange={(event) => {
+                const value = event.target.value;
 
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={currentStock}
-                onChange={(event) => {
-                  const value = event.target.value;
+                setCurrentStock(value === "" ? "" : Number(value));
 
-                  setCurrentStock(value === "" ? "" : Number(value));
-                }}
-                disabled={isCreating}
-              />
-
-              {fieldErrors.currentStock && (
-                <span className="dialog__field-error" role="alert">
-                  {fieldErrors.currentStock}
-                </span>
-              )}
-            </label>
-          </InventoryItemFields>
-
-          <div className="dialog__actions">
-            <button
-              type="submit"
-              className="button button--primary"
+                if (fieldErrors.currentStock !== undefined) {
+                  setFieldErrors((current) => ({
+                    ...current,
+                    currentStock: undefined,
+                  }));
+                }
+              }}
               disabled={isCreating}
-            >
-              {isCreating ? "Creating..." : "Create"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+            />
+
+            {fieldErrors.currentStock && (
+              <span className="dialog__field-error" role="alert">
+                {fieldErrors.currentStock}
+              </span>
+            )}
+          </label>
+        </InventoryItemFields>
+
+        <div className="dialog__actions">
+          <button
+            type="submit"
+            className="button button--primary"
+            disabled={isCreating}
+          >
+            {isCreating ? "Creating..." : "Create"}
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

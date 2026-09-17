@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 
+import { Dialog } from "../../../components/dialog/Dialog";
 import { Select, type SelectOption } from "../../../components/select/Select";
 import { useToast } from "../../../components/toast/ToastContext";
 import { createHousehold } from "../api";
@@ -25,8 +26,6 @@ export function CreateHouseholdDialog({
   onCreated,
   onClose,
 }: CreateHouseholdDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
   const [name, setName] = useState("");
   const [kind, setKind] = useState<Household["kind"]>("shared");
 
@@ -34,10 +33,6 @@ export function CreateHouseholdDialog({
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const { showToast } = useToast();
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,7 +57,7 @@ export function CreateHouseholdDialog({
 
       showToast("Household created", "success");
 
-      dialogRef.current?.close();
+      onClose();
     } catch {
       showToast("Failed to create household", "error");
     } finally {
@@ -71,25 +66,13 @@ export function CreateHouseholdDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Dialog
+      title="Create household"
+      description="Create a new household for your inventory and shopping list."
       onClose={onClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current && !isCreating) {
-          dialogRef.current?.close();
-        }
-      }}
+      closeDisabled={isCreating}
     >
-      <form className="dialog__content" onSubmit={handleSubmit}>
-        <div className="dialog__header">
-          <h2 className="dialog__title">Create household</h2>
-
-          <p className="dialog__description">
-            Create a new household for your inventory and shopping list.
-          </p>
-        </div>
-
+      <form className="dialog__form" onSubmit={handleSubmit}>
         <div className="dialog__field">
           <label htmlFor="household-name">Name</label>
 
@@ -115,7 +98,7 @@ export function CreateHouseholdDialog({
           <Select
             value={kind}
             options={householdKindOptions}
-            onValueChange={(value) => setKind(value as "personal" | "shared")}
+            onValueChange={(value) => setKind(value as Household["kind"])}
             disabled={isCreating}
             ariaLabel="Household kind"
             portal={false}
@@ -132,7 +115,7 @@ export function CreateHouseholdDialog({
           <button
             type="button"
             className="button button--secondary"
-            onClick={() => dialogRef.current?.close()}
+            onClick={onClose}
             disabled={isCreating}
           >
             Cancel
@@ -147,6 +130,6 @@ export function CreateHouseholdDialog({
           </button>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   );
 }

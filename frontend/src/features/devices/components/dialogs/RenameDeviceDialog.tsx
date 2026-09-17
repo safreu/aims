@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 
+import { Dialog } from "../../../../components/dialog/Dialog";
 import type { Device } from "../../types";
 
 type Props = {
@@ -15,12 +16,7 @@ export function RenameDeviceDialog({
   onRename,
   onClose,
 }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState(device.name);
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,21 +29,8 @@ export function RenameDeviceDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
-      onClose={onClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current && !renaming) {
-          dialogRef.current?.close();
-        }
-      }}
-    >
-      <form className="dialog__content" onSubmit={handleSubmit}>
-        <div className="dialog__header">
-          <h2 className="dialog__title">Rename device</h2>
-        </div>
-
+    <Dialog title="Rename device" onClose={onClose} closeDisabled={renaming}>
+      <form className="dialog__form" onSubmit={handleSubmit}>
         <div className="dialog__field">
           <label htmlFor="device-name">Device name</label>
 
@@ -65,7 +48,7 @@ export function RenameDeviceDialog({
           <button
             type="button"
             className="button button--secondary"
-            onClick={() => dialogRef.current?.close()}
+            onClick={onClose}
             disabled={renaming}
           >
             Cancel
@@ -82,6 +65,6 @@ export function RenameDeviceDialog({
           </button>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   );
 }

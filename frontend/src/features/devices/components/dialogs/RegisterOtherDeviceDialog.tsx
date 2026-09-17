@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 
+import { Dialog } from "../../../../components/dialog/Dialog";
 import {
   Select,
   type SelectOption,
@@ -23,14 +24,8 @@ export function RegisterOtherDeviceDialog({
   onRegister,
   onClose,
 }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
   const [name, setName] = useState("");
   const [kind, setKind] = useState<DeviceKind>("scanner");
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,24 +38,13 @@ export function RegisterOtherDeviceDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Dialog
+      title="Register device"
+      description="Add another device to this household"
       onClose={onClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current && !registering) {
-          dialogRef.current?.close();
-        }
-      }}
+      closeDisabled={registering}
     >
-      <form className="dialog__content" onSubmit={handleSubmit}>
-        <div className="dialog__header">
-          <h2 className="dialog__title">Register device</h2>
-          <p className="dialog__description">
-            Add another device to this household
-          </p>
-        </div>
-
+      <form className="dialog__form" onSubmit={handleSubmit}>
         <div className="dialog__field">
           <label htmlFor="other-device-name">Device name</label>
 
@@ -80,7 +64,7 @@ export function RegisterOtherDeviceDialog({
           <Select
             value={kind}
             options={deviceKindOptions}
-            onValueChange={(event) => setKind(event as DeviceKind)}
+            onValueChange={(value) => setKind(value as DeviceKind)}
             disabled={registering}
             ariaLabel="Device type"
             portal={false}
@@ -91,7 +75,7 @@ export function RegisterOtherDeviceDialog({
           <button
             type="button"
             className="button button--secondary"
-            onClick={() => dialogRef.current?.close()}
+            onClick={onClose}
             disabled={registering}
           >
             Cancel
@@ -106,6 +90,6 @@ export function RegisterOtherDeviceDialog({
           </button>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   );
 }

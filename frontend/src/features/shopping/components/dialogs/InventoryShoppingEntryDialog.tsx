@@ -1,6 +1,6 @@
-import { X } from "lucide-react";
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 
+import { Dialog } from "../../../../components/dialog/Dialog";
 import { Select } from "../../../../components/select/Select";
 import { useToast } from "../../../../components/toast/ToastContext";
 import { PRIORITIES, type Priority } from "../../../../domain/priority";
@@ -25,7 +25,6 @@ export function InventoryShoppingEntryDialog({
   onChanged,
   onClose,
 }: InventoryShoppingEntryDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const { showToast } = useToast();
 
   const [quantity, setQuantity] = useState<number | "">(entry.quantity);
@@ -34,10 +33,6 @@ export function InventoryShoppingEntryDialog({
 
   const [isMutating, setIsMutating] = useState(false);
   const [quantityError, setQuantityError] = useState<string>();
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   async function handleSave(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,7 +61,7 @@ export function InventoryShoppingEntryDialog({
 
       await onChanged();
 
-      dialogRef.current?.close();
+      onClose();
       showToast("Shopping item updated", "success");
     } catch {
       showToast("Failed to update shopping item", "error");
@@ -83,7 +78,7 @@ export function InventoryShoppingEntryDialog({
 
       await onChanged();
 
-      dialogRef.current?.close();
+      onClose();
       showToast("Shopping item dismissed", "success");
     } catch {
       showToast("Failed to dismiss shopping item", "error");
@@ -92,129 +87,98 @@ export function InventoryShoppingEntryDialog({
     }
   }
 
-  function handleBackdropClick(event: React.MouseEvent<HTMLDialogElement>) {
-    if (event.target === dialogRef.current && !isMutating) {
-      dialogRef.current?.close();
-    }
-  }
-
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Dialog
+      title={entry.name}
+      description="Edit this shopping item"
       onClose={onClose}
-      onCancel={(event) => {
-        if (isMutating) {
-          event.preventDefault();
-        }
-      }}
-      onClick={handleBackdropClick}
+      closeDisabled={isMutating}
     >
-      <div className="dialog__content">
-        <header className="dialog__header">
-          <div>
-            <h2 className="dialog__title">{entry.name}</h2>
+      <form className="dialog__section" onSubmit={handleSave}>
+        <div className="dialog__fields">
+          <label
+            className={`dialog__field ${
+              quantityError ? "dialog__field--error" : ""
+            }`}
+          >
+            <span>Quantity</span>
 
-            <p className="dialog__description">Edit this shopping item</p>
-          </div>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={quantity}
+              onChange={(event) => {
+                const value = event.target.value;
 
+                setQuantity(value === "" ? "" : Number(value));
+
+                if (quantityError !== undefined) {
+                  setQuantityError(undefined);
+                }
+              }}
+              disabled={isMutating}
+            />
+
+            {quantityError && (
+              <span className="dialog__field-error" role="alert">
+                {quantityError}
+              </span>
+            )}
+          </label>
+
+          <label className="dialog__field">
+            <span>Priority</span>
+
+            <Select
+              value={priority}
+              options={PRIORITIES}
+              onValueChange={(value) => setPriority(value as Priority)}
+              portal={false}
+              disabled={isMutating}
+              ariaLabel="Priority"
+            />
+          </label>
+
+          <label className="dialog__field">
+            <span>Note</span>
+
+            <input
+              type="text"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              disabled={isMutating}
+            />
+          </label>
+        </div>
+
+        <div className="dialog__actions">
+          <button
+            type="submit"
+            className="button button--primary"
+            disabled={isMutating}
+          >
+            {isMutating ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </form>
+
+      <section className="dialog__section dialog__danger">
+        <h3>Dismiss item</h3>
+
+        <p>Remove this inventory item from the shopping list</p>
+
+        <div className="dialog__actions">
           <button
             type="button"
-            className="dialog__close"
-            onClick={() => dialogRef.current?.close()}
+            className="button button--danger"
             disabled={isMutating}
-            aria-label="Close"
+            onClick={() => void handleDismiss()}
           >
-            <X aria-hidden="true" />
+            Dismiss
           </button>
-        </header>
-
-        <form className="dialog__section" onSubmit={handleSave}>
-          <div className="dialog__fields">
-            <label
-              className={`dialog__field ${
-                quantityError ? "dialog__field--error" : ""
-              }`}
-            >
-              <span>Quantity</span>
-
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={quantity}
-                onChange={(event) => {
-                  const value = event.target.value;
-
-                  setQuantity(value === "" ? "" : Number(value));
-
-                  if (quantityError !== undefined) {
-                    setQuantityError(undefined);
-                  }
-                }}
-                disabled={isMutating}
-              />
-
-              {quantityError && (
-                <span className="dialog__field-error" role="alert">
-                  {quantityError}
-                </span>
-              )}
-            </label>
-
-            <label className="dialog__field">
-              <span>Priority</span>
-
-              <Select
-                value={priority}
-                options={PRIORITIES}
-                onValueChange={(value) => setPriority(value as Priority)}
-                portal={false}
-                disabled={isMutating}
-                ariaLabel="Priority"
-              />
-            </label>
-
-            <label className="dialog__field">
-              <span>Note</span>
-
-              <input
-                type="text"
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                disabled={isMutating}
-              />
-            </label>
-          </div>
-
-          <div className="dialog__actions">
-            <button
-              type="submit"
-              className="button button--primary"
-              disabled={isMutating}
-            >
-              {isMutating ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </form>
-
-        <section className="dialog__section dialog__danger">
-          <h3>Dismiss item</h3>
-
-          <p>Remove this inventory item from the shopping list</p>
-
-          <div className="dialog__actions">
-            <button
-              type="button"
-              className="button button--danger"
-              disabled={isMutating}
-              onClick={() => void handleDismiss()}
-            >
-              Dismiss
-            </button>
-          </div>
-        </section>
-      </div>
-    </dialog>
+        </div>
+      </section>
+    </Dialog>
   );
 }

@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 
 import { queryKeys } from "../../../api/queryKeys";
+import { Dialog } from "../../../components/dialog/Dialog";
 import { useToast } from "../../../components/toast/ToastContext";
 import { getQrActions } from "../api";
 import type { QrActionKind } from "../types";
@@ -25,7 +25,6 @@ export function InventoryItemQrDialog({
   itemName,
   onClose,
 }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const { showToast } = useToast();
@@ -50,10 +49,6 @@ export function InventoryItemQrDialog({
     () => qrActions.find((action) => action.kind === selectedKind) ?? null,
     [qrActions, selectedKind],
   );
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   async function handleShare() {
     if (selectedAction === null || qrCanvasRef.current === null) {
@@ -86,105 +81,73 @@ export function InventoryItemQrDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className={`dialog ${styles.dialog}`}
+    <Dialog
+      title={itemName}
+      description="Inventory QR code"
       onClose={onClose}
-      onCancel={(event) => {
-        if (isSharing) {
-          event.preventDefault();
-        }
-      }}
-      onClick={(event) => {
-        if (event.target === dialogRef.current && !isSharing) {
-          dialogRef.current?.close();
-        }
-      }}
+      closeDisabled={isSharing}
+      className={styles.dialog}
     >
-      <div className="dialog__content">
-        <header className="dialog__header">
-          <div>
-            <h2 className="dialog__title">{itemName}</h2>
-
-            <p className="dialog__description">Inventory QR code</p>
-          </div>
-
-          <button
-            type="button"
-            className="dialog__close"
-            onClick={() => dialogRef.current?.close()}
-            disabled={isSharing}
-            aria-label="Close"
-          >
-            <X aria-hidden="true" />
-          </button>
-        </header>
-
-        <div
-          className={styles.switcher}
-          role="group"
-          aria-label="QR code action"
+      <div className={styles.switcher} role="group" aria-label="QR code action">
+        <button
+          type="button"
+          className={`${styles.option} ${
+            selectedKind === "decrease" ? styles.optionActive : ""
+          }`}
+          onClick={() => selectKind("decrease")}
+          disabled={isSharing}
+          aria-pressed={selectedKind === "decrease"}
         >
-          <button
-            type="button"
-            className={`${styles.option} ${
-              selectedKind === "decrease" ? styles.optionActive : ""
-            }`}
-            onClick={() => selectKind("decrease")}
-            disabled={isSharing}
-            aria-pressed={selectedKind === "decrease"}
-          >
-            Decrease
-          </button>
+          Decrease
+        </button>
 
-          <button
-            type="button"
-            className={`${styles.option} ${
-              selectedKind === "increase" ? styles.optionActive : ""
-            }`}
-            onClick={() => selectKind("increase")}
-            disabled={isSharing}
-            aria-pressed={selectedKind === "increase"}
-          >
-            Increase
-          </button>
-        </div>
-
-        {isPending ? (
-          <InventoryItemQrSkeleton />
-        ) : isError ? (
-          <p className={styles.error} role="alert">
-            Failed to load QR codes
-          </p>
-        ) : selectedAction === null ? (
-          <p className={styles.error}>QR code not available</p>
-        ) : (
-          <div className={styles.qr}>
-            <div className={styles.qrCard}>
-              <QRCodeSVG value={selectedAction.id} size={220} level="M" />
-            </div>
-
-            <button
-              type="button"
-              className="button button--secondary"
-              onClick={() => void handleShare()}
-              disabled={isSharing}
-            >
-              {isSharing ? "Preparing..." : "Share QR code"}
-            </button>
-
-            <div className={styles.exportQr} aria-hidden="true">
-              <QRCodeCanvas
-                ref={qrCanvasRef}
-                value={selectedAction.id}
-                size={512}
-                level="M"
-              />
-            </div>
-          </div>
-        )}
+        <button
+          type="button"
+          className={`${styles.option} ${
+            selectedKind === "increase" ? styles.optionActive : ""
+          }`}
+          onClick={() => selectKind("increase")}
+          disabled={isSharing}
+          aria-pressed={selectedKind === "increase"}
+        >
+          Increase
+        </button>
       </div>
-    </dialog>
+
+      {isPending ? (
+        <InventoryItemQrSkeleton />
+      ) : isError ? (
+        <p className={styles.error} role="alert">
+          Failed to load QR codes
+        </p>
+      ) : selectedAction === null ? (
+        <p className={styles.error}>QR code not available</p>
+      ) : (
+        <div className={styles.qr}>
+          <div className={styles.qrCard}>
+            <QRCodeSVG value={selectedAction.id} size={220} level="M" />
+          </div>
+
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => void handleShare()}
+            disabled={isSharing}
+          >
+            {isSharing ? "Preparing..." : "Share QR code"}
+          </button>
+
+          <div className={styles.exportQr} aria-hidden="true">
+            <QRCodeCanvas
+              ref={qrCanvasRef}
+              value={selectedAction.id}
+              size={512}
+              level="M"
+            />
+          </div>
+        </div>
+      )}
+    </Dialog>
   );
 }
 

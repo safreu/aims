@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { ConfirmDialog } from "../../../../components/dialogs/ConfirmDialog";
+import { ConfirmDialog } from "../../../../components/dialog/ConfirmDialog";
 import { useToast } from "../../../../components/toast/ToastContext";
 import { deleteHousehold, leaveHousehold } from "../../api";
 
