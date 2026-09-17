@@ -59,8 +59,35 @@
 
 .setStockControls input {
   min-width: 0;
+  min-height: var(--control-height);
+  padding: 0.65rem 0.75rem;
 
   flex: 1;
+
+  color: var(--text);
+  background: var(--bg);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.setStockControls input:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.setStockControls input:focus-visible {
+  border-color: var(--accent);
+
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.setStockControls input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (max-width: 600px) {
@@ -69,7 +96,7 @@
     flex-direction: column;
   }
 
-  .setStockControls .button {
+  .setStockControls :global(.button) {
     width: 100%;
   }
 }
