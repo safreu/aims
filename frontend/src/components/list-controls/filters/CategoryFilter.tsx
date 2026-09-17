@@ -1,4 +1,4 @@
-import { useCategories } from "../../../features/inventory/components/categories/CategoryContex";
+import { useCategories } from "../../../features/inventory/components/categories/CategoryContext";
 import { Select, type SelectOption } from "../../select/Select";
 
 export type CategoryFilterValue = string;

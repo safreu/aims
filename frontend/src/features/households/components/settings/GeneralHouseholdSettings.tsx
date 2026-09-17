@@ -1,6 +1,9 @@
 import { useState, type SubmitEvent } from "react";
+
 import { useToast } from "../../../../components/toast/ToastContext";
 import { renameHousehold } from "../../api";
+
+import styles from "../../pages/HouseholdSettingsPage.module.css";
 
 type Props = {
   householdId: string;
@@ -21,35 +24,43 @@ export function GeneralHouseholdSettings({
   const [isRenaming, setIsRenaming] = useState(false);
 
   const resolvedName = name ?? householdName;
+  const trimmedName = resolvedName.trim();
+
+  const hasChanges = trimmedName !== "" && trimmedName !== householdName;
 
   async function handleRename(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const trimmedName = resolvedName.trim();
-
-    if (trimmedName === "") return;
+    if (!hasChanges) return;
 
     setIsRenaming(true);
 
-    await renameHousehold(householdId, { name: trimmedName })
-      .then(async () => {
-        await onChanged();
-        setName(null);
-      })
-      .catch(() => showToast("Failed to rename household", "error"))
-      .finally(async () => setIsRenaming(false));
+    try {
+      await renameHousehold(householdId, {
+        name: trimmedName,
+      });
+
+      await onChanged();
+      setName(null);
+
+      showToast("Household renamed", "success");
+    } catch {
+      showToast("Failed to rename household", "error");
+    } finally {
+      setIsRenaming(false);
+    }
   }
 
   return (
-    <section className="household-settings-page__section">
-      <header className="household-settings-page__section-header">
+    <section className={styles.section}>
+      <header className={styles.sectionHeader}>
         <h2>General</h2>
         <p>Change the name of this household</p>
       </header>
 
       {currentUserIsOwner ? (
-        <form className="household-settings-page__form" onSubmit={handleRename}>
-          <label className="household-settings-page__field">
+        <form className={styles.form} onSubmit={handleRename}>
+          <label className={styles.field}>
             <span>Household name</span>
 
             <input
@@ -62,19 +73,16 @@ export function GeneralHouseholdSettings({
           <button
             type="submit"
             className="button button--primary"
-            disabled={isRenaming || resolvedName.trim() === ""}
+            disabled={isRenaming || !hasChanges}
           >
             {isRenaming ? "Saving..." : "Save"}
           </button>
         </form>
       ) : (
-        <div className="household-settings-page__readonly-field">
-          <span className="household-settings-page__readonly-label">
-            Household name
-          </span>
-          <span className="household-settings-page__readonly-value">
-            {householdName}
-          </span>
+        <div className={styles.readonlyField}>
+          <span className={styles.readonlyLabel}>Household name</span>
+
+          <span className={styles.readonlyValue}>{householdName}</span>
         </div>
       )}
     </section>

@@ -1,12 +1,8 @@
-import {
-  useCallback,
-  useRef,
-  useState,
-  type PointerEvent,
-  type PropsWithChildren,
-} from "react";
-import "./ToastProvider.css";
+import { useCallback, useRef, useState, type PropsWithChildren } from "react";
+
 import { ToastContext, type ToastType } from "./ToastContext";
+import styles from "./ToastProvider.module.css";
+import { SwipeActions } from "../actions/SwipeActions";
 
 type Toast = {
   id: number;
@@ -24,19 +20,11 @@ type ToastTimers = {
 const MAX_VISIBLE_TOASTS = 3;
 const TOAST_DURATION_MS = 4000;
 const TOAST_EXIT_DURATION_MS = 300;
-const SWIPE_DISMISS_DISTANCE = 60;
-const TAP_MOVEMENT_THRESHOLD = 6;
 
 export function ToastProvider({ children }: PropsWithChildren) {
   const toastContainerRef = useRef<HTMLDivElement>(null);
   const timersRef = useRef(new Map<number, ToastTimers>());
   const nextToastIdRef = useRef(0);
-
-  const pointerRef = useRef<{
-    toastId: number;
-    pointerId: number;
-    startX: number;
-  } | null>(null);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -173,88 +161,50 @@ export function ToastProvider({ children }: PropsWithChildren) {
     [clearToastTimers, scheduleToastDismissal],
   );
 
-  function handlePointerDown(
-    event: PointerEvent<HTMLDivElement>,
-    toastId: number,
-  ) {
-    pointerRef.current = {
-      toastId,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-    };
-  }
-
-  function handlePointerUp(
-    event: PointerEvent<HTMLDivElement>,
-    toastId: number,
-  ) {
-    const pointer = pointerRef.current;
-
-    pointerRef.current = null;
-
-    if (
-      pointer === null ||
-      pointer.toastId !== toastId ||
-      pointer.pointerId !== event.pointerId
-    ) {
-      return;
-    }
-
-    const distance = event.clientX - pointer.startX;
-    const absoluteDistance = Math.abs(distance);
-
-    if (
-      absoluteDistance >= SWIPE_DISMISS_DISTANCE ||
-      absoluteDistance <= TAP_MOVEMENT_THRESHOLD
-    ) {
-      dismissToast(toastId);
-    }
-  }
-
-  function handlePointerCancel() {
-    pointerRef.current = null;
-  }
-
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
 
       <div
         ref={toastContainerRef}
-        className="toast-container"
+        className={styles.container}
         popover="manual"
         aria-live="polite"
       >
         {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`toast toast--${toast.type} ${
-              toast.closing ? "toast--closing" : ""
-            }`}
-            role="button"
-            tabIndex={0}
-            onPointerDown={(event) => handlePointerDown(event, toast.id)}
-            onPointerUp={(event) => handlePointerUp(event, toast.id)}
-            onPointerCancel={handlePointerCancel}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                dismissToast(toast.id);
-              }
-            }}
+          <SwipeActions
+            threshold={60}
+            onSwipeRight={() => dismissToast(toast.id)}
+            onSwipeLeft={() => dismissToast(toast.id)}
+            disabled={toast.closing}
           >
-            <span className="toast__icon" aria-hidden="true">
-              {toastIcon(toast.type)}
-            </span>
+            <div
+              className={`${styles.toast} ${styles[toast.type]} ${
+                toast.closing ? styles.closing : ""
+              }`}
+              role="button"
+              tabIndex={0}
+              onClick={() => dismissToast(toast.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  dismissToast(toast.id);
+                }
+              }}
+            >
+              <span className={styles.icon} aria-hidden="true">
+                {toastIcon(toast.type)}
+              </span>
 
-            <span className="toast__message">{toast.message}</span>
+              <span className={styles.message}>{toast.message}</span>
 
-            {toast.count > 1 && (
-              <span className="toast__count">×{toast.count}</span>
-            )}
+              {toast.count > 1 && (
+                <span className={styles.count}>×{toast.count}</span>
+              )}
 
-            <div className="toast__progress" />
-          </div>
+              <div className={styles.progress} />
+            </div>
+          </SwipeActions>
         ))}
       </div>
     </ToastContext.Provider>

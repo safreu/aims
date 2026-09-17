@@ -30,7 +30,9 @@ export async function register(
 }
 
 export async function getCurrentUser(): Promise<CurrentUser> {
-  return apiJson<CurrentUser>("/auth/me");
+  return apiJson<CurrentUser>("/auth/me", {
+    triggerUnauthorizedHandler: false,
+  });
 }
 
 export async function logout(): Promise<void> {

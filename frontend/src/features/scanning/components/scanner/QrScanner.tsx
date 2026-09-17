@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
-import "./QrScanner.css";
 import {
   BrowserCodeReader,
   BrowserQRCodeReader,
   type IScannerControls,
 } from "@zxing/browser";
+import { useEffect, useRef } from "react";
+
+import styles from "./QrScanner.module.css";
 
 type Props = {
   paused: boolean;
@@ -16,12 +17,12 @@ export function QrScanner({ paused, onScan, onError }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
 
-  const pauseRef = useRef(paused);
+  const pausedRef = useRef(paused);
   const onScanRef = useRef(onScan);
   const onErrorRef = useRef(onError);
 
   useEffect(() => {
-    pauseRef.current = paused;
+    pausedRef.current = paused;
   }, [paused]);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export function QrScanner({ paused, onScan, onError }: Props) {
   useEffect(() => {
     const video = videoRef.current;
 
-    if (video == null) return;
+    if (video === null) return;
 
     const reader = new BrowserQRCodeReader();
 
@@ -50,7 +51,7 @@ export function QrScanner({ paused, onScan, onError }: Props) {
         },
         video,
         (result) => {
-          if (result !== undefined && !pauseRef.current) {
+          if (result !== undefined && !pausedRef.current) {
             onScanRef.current(result.getText());
           }
         },
@@ -61,10 +62,12 @@ export function QrScanner({ paused, onScan, onError }: Props) {
       .catch((error: unknown) => {
         if (error instanceof Error) {
           onErrorRef.current(error);
-        } else {
-          onErrorRef.current(new Error("Failed to start QR scanner"));
+          return;
         }
+
+        onErrorRef.current(new Error("Failed to start QR scanner"));
       });
+
     return () => {
       controlsRef.current?.stop();
       controlsRef.current = null;
@@ -74,8 +77,8 @@ export function QrScanner({ paused, onScan, onError }: Props) {
   }, []);
 
   return (
-    <div className="qr-scanner">
-      <video ref={videoRef} className="qr-scanner__video" muted playsInline />
+    <div className={styles.scanner}>
+      <video ref={videoRef} className={styles.video} muted playsInline />
     </div>
   );
 }

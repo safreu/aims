@@ -1,8 +1,8 @@
 import { Check, ChevronDown } from "lucide-react";
-
-import "./Select.css";
-import { DropdownMenu, DropdownMenuItem } from "../dropdown-menu/DropdownMenu";
 import type { ReactNode } from "react";
+
+import { DropdownMenu, DropdownMenuItem } from "../dropdown-menu/DropdownMenu";
+import styles from "./Select.module.css";
 
 export type SelectOption<T extends string> = {
   value: T;
@@ -37,15 +37,15 @@ export function Select<T extends string>({
       trigger={
         <button
           type="button"
-          className="select__trigger"
+          className={styles.trigger}
           disabled={disabled}
           aria-label={ariaLabel}
         >
-          <span className="select__value">
+          <span className={styles.value}>
             {selectedOption?.label ?? placeholder}
           </span>
 
-          <ChevronDown className="select__icon" />
+          <ChevronDown className={styles.icon} />
         </button>
       }
     >
@@ -54,11 +54,11 @@ export function Select<T extends string>({
           key={option.value}
           onSelect={() => onValueChange(option.value)}
         >
-          <span className="select__option-label">
+          <span className={styles.optionLabel}>
             {option.content ?? option.label}
           </span>
 
-          {option.value === value && <Check className="select__indicator" />}
+          {option.value === value && <Check className={styles.indicator} />}
         </DropdownMenuItem>
       ))}
     </DropdownMenu>

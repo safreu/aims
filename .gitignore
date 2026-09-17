@@ -37,3 +37,5 @@ logs/
 # Operating systems
 .DS_Store
 Thumbs.db
+
+todo.*

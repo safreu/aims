@@ -1,14 +1,18 @@
 import { Navigate, Outlet } from "react-router-dom";
+
 import { AuthErrorScreen } from "../components/AuthErrorScreen";
 import { AuthLoadingScreen } from "../components/AuthLoadingScreen";
 import { useAuth } from "../context/AuthContext";
 
-type Props = { mode: "authenticated" | "guest" };
+type Props = {
+  mode: "authenticated" | "guest";
+};
 
 export function AuthGuard({ mode }: Props) {
-  const { user, loading, initializationError, retryInitialization } = useAuth();
+  const { user, isInitializing, initializationError, retryInitialization } =
+    useAuth();
 
-  if (loading) {
+  if (isInitializing) {
     return <AuthLoadingScreen />;
   }
 

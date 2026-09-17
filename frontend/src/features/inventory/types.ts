@@ -1,17 +1,21 @@
-export type InventoryItemPriority = "default" | "low" | "medium" | "high";
+import type { Priority } from "../../domain/priority";
+
 export type InventoryItemStatus = "active" | "archived";
+
+export type InventoryStockChangeKind = "increase" | "decrease" | "set";
 
 export type InventoryItemCategory = {
   id: string;
   name: string;
 };
+
 export type InventoryItem = {
   id: string;
   name: string;
   category: InventoryItemCategory | null;
   current_stock: number;
   reorder_threshold: number;
-  priority: InventoryItemPriority;
+  priority: Priority;
   shopping_quantity: number;
 };
 
@@ -20,7 +24,7 @@ export type CreateInventoryItemRequest = {
   name: string;
   current_stock: number;
   reorder_threshold: number;
-  priority: InventoryItemPriority;
+  priority: Priority;
 };
 
 export type CreateInventoryItemResponse = {
@@ -39,7 +43,7 @@ export type UpdateInventoryItemRequest = {
   name?: string;
   category_id?: string | null;
   reorder_threshold?: number | null;
-  priority?: InventoryItemPriority;
+  priority?: Priority;
 };
 
 export type ChangeInventoryStockRequest = {
@@ -54,7 +58,7 @@ export type InventoryStockHistoryEntry = {
   id: string;
   sequence_number: number;
   item_id: string;
-  kind: string;
+  kind: InventoryStockChangeKind;
   source: string;
   amount: number | null;
   stock_before: number;
@@ -64,6 +68,16 @@ export type InventoryStockHistoryEntry = {
 };
 
 export type InventoryStockHistoryActor =
-  | { type: "user"; id: string; display_name: string }
-  | { type: "device"; id: string; name: string }
-  | { type: "system" };
+  | {
+      type: "user";
+      id: string;
+      display_name: string;
+    }
+  | {
+      type: "device";
+      id: string;
+      name: string;
+    }
+  | {
+      type: "system";
+    };

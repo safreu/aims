@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
-import { TrackingModeContext, type TrackingMode } from "./TrackingModeContext";
+
 import { useAuth } from "../../../auth/context/AuthContext";
+import { TrackingModeContext, type TrackingMode } from "./TrackingModeContext";
 
 type Props = {
   children: ReactNode;
@@ -9,7 +10,9 @@ type Props = {
 function loadTrackingMode(storageKey: string): TrackingMode {
   const stored = localStorage.getItem(storageKey);
 
-  if (stored === "manual" || stored === "qr") return stored;
+  if (stored === "manual" || stored === "qr") {
+    return stored;
+  }
 
   return "qr";
 }
@@ -17,25 +20,44 @@ function loadTrackingMode(storageKey: string): TrackingMode {
 export function TrackingModeProvider({ children }: Props) {
   const { user } = useAuth();
 
-  const storageKey =
-    user !== null ? `inventory-tracking-mode:${user.id}` : null;
+  if (user === null) {
+    return children;
+  }
 
-  const [trackingMode, setTrackingModeState] = useState<TrackingMode>(() => {
-    if (storageKey === null) return "qr";
-    return loadTrackingMode(storageKey);
-  });
+  return (
+    <AuthenticatedTrackingModeProvider key={user.id} userId={user.id}>
+      {children}
+    </AuthenticatedTrackingModeProvider>
+  );
+}
 
-  if (user === null) return children;
+type AuthenticatedTrackingModeProviderProps = {
+  userId: string;
+  children: ReactNode;
+};
+
+function AuthenticatedTrackingModeProvider({
+  userId,
+  children,
+}: AuthenticatedTrackingModeProviderProps) {
+  const storageKey = `inventory-tracking-mode:${userId}`;
+
+  const [trackingMode, setTrackingModeState] = useState<TrackingMode>(() =>
+    loadTrackingMode(storageKey),
+  );
 
   function setTrackingMode(mode: TrackingMode) {
-    if (storageKey === null) return;
-
     localStorage.setItem(storageKey, mode);
     setTrackingModeState(mode);
   }
 
   return (
-    <TrackingModeContext.Provider value={{ trackingMode, setTrackingMode }}>
+    <TrackingModeContext.Provider
+      value={{
+        trackingMode,
+        setTrackingMode,
+      }}
+    >
       {children}
     </TrackingModeContext.Provider>
   );

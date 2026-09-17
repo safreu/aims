@@ -1,0 +1,239 @@
+.controls {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.main {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.search {
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0 0.75rem;
+
+  flex: 1;
+
+  display: flex;
+  align-items: center;
+
+  background: var(--bg);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.search:hover {
+  border-color: var(--border-hover);
+}
+
+.search:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.searchIcon {
+  width: 1rem;
+  height: 1rem;
+
+  flex-shrink: 0;
+
+  color: var(--text-muted);
+}
+
+.search input {
+  min-width: 0;
+  padding: 0 0.65rem;
+
+  flex: 1;
+
+  color: var(--text);
+  background: transparent;
+
+  border: none;
+  outline: none;
+
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.search input::placeholder {
+  color: var(--text-muted);
+}
+
+.search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.searchClear {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+
+  flex-shrink: 0;
+
+  display: grid;
+  place-items: center;
+
+  color: var(--text-muted);
+  background: transparent;
+
+  border: none;
+  border-radius: var(--radius-sm);
+
+  cursor: pointer;
+}
+
+.searchClear:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.searchClear:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.searchClear svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.filterToggle {
+  min-height: var(--control-height);
+  padding: 0 0.85rem;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+
+  color: var(--text);
+  background: var(--bg);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  font-size: 0.9rem;
+
+  cursor: pointer;
+}
+
+.filterToggle:hover {
+  border-color: var(--border-hover);
+}
+
+.filterToggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.filterToggleOpen {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.filterToggle > svg {
+  width: 1rem;
+  height: 1rem;
+
+  color: var(--text-muted);
+}
+
+.filterCount {
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+
+  border-radius: 999px;
+
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.filters {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.filters > * {
+  width: 100%;
+}
+
+.reset {
+  min-height: var(--control-height);
+  padding: 0 0.75rem;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+
+  color: var(--text-muted);
+  background: transparent;
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  font-size: 0.85rem;
+
+  cursor: pointer;
+}
+
+.reset:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.reset:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.reset:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reset svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+@media (max-width: 700px) {
+  .main {
+    flex-wrap: wrap;
+  }
+
+  .search {
+    flex: 1 1 14rem;
+  }
+
+  .filterToggle {
+    flex: 0 0 auto;
+  }
+
+  .filters > * {
+    min-width: min(11rem, 75vw);
+  }
+}

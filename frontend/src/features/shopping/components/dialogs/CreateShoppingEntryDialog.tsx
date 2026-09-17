@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
-import type { InventoryItemPriority } from "../../../inventory/types";
+import { useState, type SubmitEvent } from "react";
+
+import { Dialog } from "../../../../components/dialog/Dialog";
+import { useToast } from "../../../../components/toast/ToastContext";
+import type { Priority } from "../../../../domain/priority";
 import { createCustomShoppingEntry } from "../../api";
 import { ShoppingEntryFields } from "../fields/ShoppingEntryFields";
-import { useToast } from "../../../../components/toast/ToastContext";
+
+type ShoppingEntryFieldErrors = {
+  title?: string;
+  quantity?: string;
+};
 
 type CreateShoppingEntryDialogProps = {
   householdId: string;
@@ -15,90 +22,99 @@ export function CreateShoppingEntryDialog({
   onCreated,
   onClose,
 }: CreateShoppingEntryDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
   const { showToast } = useToast();
 
   const [title, setTitle] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [priority, setPriority] = useState<InventoryItemPriority>("default");
+  const [quantity, setQuantity] = useState<number | "">(1);
+  const [priority, setPriority] = useState<Priority>("default");
   const [note, setNote] = useState("");
 
   const [isCreating, setIsCreating] = useState(false);
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
+  const [fieldErrors, setFieldErrors] = useState<ShoppingEntryFieldErrors>({});
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const trimmedTitle = title.trim();
+    const errors: ShoppingEntryFieldErrors = {};
 
-    if (trimmedTitle === "") {
-      showToast("Title is required");
+    if (title.trim() === "") {
+      errors.title = "Name is required";
+    }
+
+    if (quantity === "") {
+      errors.quantity = "Quantity is required";
+    } else if (!Number.isInteger(quantity) || quantity < 1) {
+      errors.quantity = "Quantity must be a positive whole number";
+    }
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0 || quantity === "") {
       return;
     }
 
     setIsCreating(true);
 
-    await createCustomShoppingEntry(householdId, {
-      title: trimmedTitle,
-      quantity,
-      priority,
-      note: note.trim() === "" ? null : note.trim(),
-    })
-      .then(async () => {
-        await onCreated();
-        dialogRef.current?.close();
-      })
-      .catch(() => showToast("Failed to create shopping entry", "error"))
-      .finally(() => setIsCreating(false));
+    try {
+      await createCustomShoppingEntry(householdId, {
+        title: title.trim(),
+        quantity,
+        priority,
+        note: note.trim() === "" ? null : note.trim(),
+      });
+
+      await onCreated();
+
+      onClose();
+      showToast("Shopping item added", "success");
+    } catch {
+      showToast("Failed to create shopping item", "error");
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="inventory-item-dialog"
+    <Dialog
+      title="Add shopping item"
+      description="Add something to your shopping list"
       onClose={onClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current) {
-          dialogRef.current?.close();
-        }
-      }}
+      closeDisabled={isCreating}
     >
-      <div className="inventory-item-dialog__content">
-        <header className="inventory-item-dialog__header">
-          <div>
-            <h2>Add shopping item</h2>
-            <p>Add something to your shopping list</p>
-          </div>
+      <form className="dialog__section" onSubmit={handleSubmit}>
+        <ShoppingEntryFields
+          title={title}
+          quantity={quantity}
+          priority={priority}
+          note={note}
+          onTitleChange={(value) => {
+            setTitle(value);
 
-          <button
-            type="button"
-            className="button button--ghost inventory-item-dialog__close"
-            onClick={() => dialogRef.current?.close()}
-          >
-            Close
-          </button>
-        </header>
+            if (fieldErrors.title !== undefined) {
+              setFieldErrors((current) => ({
+                ...current,
+                title: undefined,
+              }));
+            }
+          }}
+          onQuantityChange={(value) => {
+            setQuantity(value);
 
-        <form
-          className="inventory-item-dialog__section"
-          onSubmit={handleSubmit}
-        >
-          <ShoppingEntryFields
-            title={title}
-            quantity={quantity}
-            priority={priority}
-            note={note}
-            onTitleChange={setTitle}
-            onQuantityChange={setQuantity}
-            onPriorityChange={setPriority}
-            onNoteChange={setNote}
-            disabled={isCreating}
-          />
+            if (fieldErrors.quantity !== undefined) {
+              setFieldErrors((current) => ({
+                ...current,
+                quantity: undefined,
+              }));
+            }
+          }}
+          onPriorityChange={setPriority}
+          onNoteChange={setNote}
+          titleError={fieldErrors.title}
+          quantityError={fieldErrors.quantity}
+          disabled={isCreating}
+        />
 
+        <div className="dialog__actions">
           <button
             type="submit"
             className="button button--primary"
@@ -106,8 +122,8 @@ export function CreateShoppingEntryDialog({
           >
             {isCreating ? "Adding..." : "Add item"}
           </button>
-        </form>
-      </div>
-    </dialog>
+        </div>
+      </form>
+    </Dialog>
   );
 }

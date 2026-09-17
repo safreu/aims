@@ -1,0 +1,116 @@
+.dialog {
+  width: min(520px, calc(100% - 2rem));
+  max-width: 520px;
+}
+
+.switcher {
+  width: fit-content;
+  margin: 0 auto;
+  padding: var(--space-xs);
+
+  display: flex;
+
+  background: var(--surface-hover);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.option {
+  padding: var(--space-sm) var(--space-md);
+
+  color: var(--text-muted);
+  background: transparent;
+
+  border: 0;
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+
+  cursor: pointer;
+
+  transition:
+    color 120ms ease,
+    background 120ms ease;
+}
+
+.option:hover {
+  color: var(--text);
+
+  background: var(--surface-active);
+}
+
+.optionActive {
+  color: var(--purple-12);
+
+  background: var(--purple-4);
+}
+
+.optionActive:hover {
+  color: var(--purple-12);
+
+  background: var(--purple-5);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.qrPlaceholder {
+  width: 240px;
+  aspect-ratio: 1;
+
+  display: grid;
+  place-items: center;
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.qrCard {
+  padding: var(--space-md);
+
+  background: #ffffff;
+
+  border-radius: var(--radius-md);
+}
+
+.error {
+  margin: var(--space-md) 0;
+  padding: var(--space-md);
+
+  color: var(--text-h);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+}
+
+.exportQr {
+  position: fixed;
+  top: -10000px;
+  left: -10000px;
+
+  pointer-events: none;
+}
+
+@media (max-width: 600px) {
+  .dialog {
+    width: 100%;
+    max-width: none;
+  }
+
+  .qrPlaceholder {
+    width: min(240px, 100%);
+  }
+}

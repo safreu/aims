@@ -1,7 +1,7 @@
-import type { Sink, LogRecord } from "@logtape/logtape";
+import type { LogRecord, Sink } from "@logtape/logtape";
 
 const MAX_DIAGNOSTIC_ENTRIES = 500;
-const DEDUPLICTATION_WINDOW_MS = 30_000;
+const DEDUPLICATION_WINDOW_MS = 30_000;
 
 export type DiagnosticRecord = {
   record: LogRecord;
@@ -14,16 +14,19 @@ const diagnosticRecords: DiagnosticRecord[] = [];
 
 export const diagnosticSink: Sink = (record) => {
   const now = record.timestamp;
+
   const lastRecord = diagnosticRecords[diagnosticRecords.length - 1];
+
   if (
     lastRecord !== undefined &&
     isSameRecord(lastRecord.record, record) &&
-    now - lastRecord.lastSeen <= DEDUPLICTATION_WINDOW_MS
+    now - lastRecord.lastSeen <= DEDUPLICATION_WINDOW_MS
   ) {
     lastRecord.count += 1;
     lastRecord.lastSeen = now;
     return;
   }
+
   diagnosticRecords.push({
     record,
     count: 1,
@@ -31,8 +34,9 @@ export const diagnosticSink: Sink = (record) => {
     lastSeen: now,
   });
 
-  if (diagnosticRecords.length > MAX_DIAGNOSTIC_ENTRIES)
+  if (diagnosticRecords.length > MAX_DIAGNOSTIC_ENTRIES) {
     diagnosticRecords.shift();
+  }
 };
 
 function isSameRecord(first: LogRecord, second: LogRecord): boolean {

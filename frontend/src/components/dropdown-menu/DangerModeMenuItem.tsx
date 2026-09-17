@@ -1,6 +1,9 @@
 import { useTrackingMode } from "../../features/accounts/components/tracking-mode/TrackingModeContext";
 import { useDangerMode } from "../../features/households/danger-mode/DangerModeContext";
-import { DropdownMenuCheckboxItem } from "./DropdownMenu";
+import {
+  DropdownMenuCheckboxItem,
+  DropdownMenuItemContent,
+} from "./DropdownMenu";
 
 export function DangerModeMenuItem() {
   const { dangerMode, setDangerMode } = useDangerMode();
@@ -13,10 +16,10 @@ export function DangerModeMenuItem() {
       checked={dangerMode}
       onCheckedChange={setDangerMode}
     >
-      <div className="dropdown-menu__item-content">
+      <DropdownMenuItemContent>
         <span>Manual stock controls</span>
         <span>{dangerMode ? "ON" : "OFF"}</span>
-      </div>
+      </DropdownMenuItemContent>
     </DropdownMenuCheckboxItem>
   );
 }

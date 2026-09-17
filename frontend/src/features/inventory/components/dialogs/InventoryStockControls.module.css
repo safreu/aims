@@ -1,0 +1,102 @@
+.controls {
+  margin: var(--space-lg) 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.stockButton {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+
+  display: grid;
+  place-items: center;
+
+  color: var(--text-h);
+  background: var(--surface-hover);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  font: inherit;
+  font-size: 1.5rem;
+
+  cursor: pointer;
+
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.stockButton:hover:not(:disabled) {
+  background: var(--accent);
+
+  border-color: var(--border-hover);
+}
+
+.stockButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.stockButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.setStock {
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.setStockControls {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.setStockControls input {
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0.65rem 0.75rem;
+
+  flex: 1;
+
+  color: var(--text);
+  background: var(--bg);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.setStockControls input:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.setStockControls input:focus-visible {
+  border-color: var(--accent);
+
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.setStockControls input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .setStockControls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .setStockControls :global(.button) {
+    width: 100%;
+  }
+}

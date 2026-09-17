@@ -1,8 +1,14 @@
 import { useState } from "react";
+import { Check, Trash2 } from "lucide-react";
+
+import { SwipeActions } from "../../../../components/actions/SwipeActions";
+import { PriorityIndicator } from "../../../../components/priority/PriorityIndicator";
+import { useToast } from "../../../../components/toast/ToastContext";
+import { deleteCustomShoppingEntry, setCustomShoppingChecked } from "../../api";
 import type { CustomShoppingEntry } from "../../types";
-import { setCustomShoppingChecked } from "../../api";
 import { CustomShoppingEntryDialog } from "../dialogs/CustomShoppingEntryDialog";
-import { PriorityIndicator } from "../../../inventory/components/priority/PriorityIndicator";
+
+import styles from "./ShoppingEntryRow.module.css";
 
 type CustomShoppingEntryRowProps = {
   householdId: string;
@@ -15,65 +21,89 @@ export function CustomShoppingEntryRow({
   entry,
   onChange,
 }: CustomShoppingEntryRowProps) {
+  const { showToast } = useToast();
+
   const [isMutating, setIsMutating] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleCheckedUpdate(checked: boolean) {
     setIsMutating(true);
-    setError(null);
 
-    await setCustomShoppingChecked(householdId, entry.id, { checked })
-      .then(() => onChange())
-      .catch(() => setError("Failed to update shopping list"))
-      .finally(() => setIsMutating(false));
+    try {
+      await setCustomShoppingChecked(householdId, entry.id, { checked });
+
+      await onChange();
+    } catch {
+      showToast("Failed to update shopping list", "error");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleDelete() {
+    setIsMutating(true);
+
+    try {
+      await deleteCustomShoppingEntry(householdId, entry.id);
+
+      await onChange();
+
+      showToast("Shopping item deleted", "success");
+    } catch {
+      showToast("Failed to delete shopping item", "error");
+    } finally {
+      setIsMutating(false);
+    }
   }
 
   return (
-    <li
-      className={`shopping-entry ${entry.checked ? "shopping-entry--checked" : ""}`}
+    <SwipeActions
+      as="li"
+      disabled={isMutating}
+      leftIcon={<Trash2 aria-hidden="true" />}
+      rightIcon={<Check aria-hidden="true" />}
+      leftVariant="danger"
+      rightVariant="success"
+      onSwipeLeft={handleDelete}
+      onSwipeRight={() => handleCheckedUpdate(!entry.checked)}
     >
-      <input
-        className="shopping-entry__checkbox"
-        type="checkbox"
-        checked={entry.checked}
-        disabled={isMutating}
-        aria-label={`Mark ${entry.title} as bought`}
-        onChange={(event) => void handleCheckedUpdate(event.target.checked)}
-      />
+      <div className={`${styles.entry} ${entry.checked ? styles.checked : ""}`}>
+        <input
+          className={styles.checkbox}
+          type="checkbox"
+          checked={entry.checked}
+          disabled={isMutating}
+          aria-label={`Mark ${entry.title} as bought`}
+          onChange={(event) => void handleCheckedUpdate(event.target.checked)}
+        />
 
-      <button
-        type="button"
-        className="shopping-entry__open"
-        onClick={() => setIsDialogOpen(true)}
-      >
-        <div className="shopping-entry__main">
-          <div className="shopping-entry__title">
-            <strong className="shopping-entry__name">{entry.title}</strong>
+        <button
+          type="button"
+          className={styles.open}
+          onClick={() => setIsDialogOpen(true)}
+        >
+          <div className={styles.main}>
+            <div className={styles.title}>
+              <strong className={styles.name}>{entry.title}</strong>
 
-            <PriorityIndicator priority={entry.priority} />
+              <PriorityIndicator priority={entry.priority} />
+            </div>
+
+            <strong className={styles.quantity}>×{entry.quantity}</strong>
           </div>
 
-          <strong className="shopping-entry__quantity">
-            ×{entry.quantity}
-          </strong>
-        </div>
+          {entry.note !== null && <p className={styles.note}>{entry.note}</p>}
+        </button>
 
-        {entry.note !== null && (
-          <p className="shopping-entry__note">{entry.note}</p>
+        {isDialogOpen && (
+          <CustomShoppingEntryDialog
+            householdId={householdId}
+            entry={entry}
+            onChanged={onChange}
+            onClose={() => setIsDialogOpen(false)}
+          />
         )}
-      </button>
-
-      {error !== null && <p className="shopping-entry__error">{error}</p>}
-
-      {isDialogOpen && (
-        <CustomShoppingEntryDialog
-          householdId={householdId}
-          entry={entry}
-          onChanged={onChange}
-          onClose={() => setIsDialogOpen(false)}
-        />
-      )}
-    </li>
+      </div>
+    </SwipeActions>
   );
 }

@@ -1,7 +1,8 @@
-import type { CurrentUser } from "../types";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { getCurrentUser, logout as logoutRequest } from "../api";
+
 import { ApiError, setUnauthorizedHandler } from "../../../api/client";
+import { getCurrentUser, logout as logoutRequest } from "../api";
+import type { CurrentUser } from "../types";
 import { AuthContext } from "./AuthContext";
 
 type AuthProviderProps = {
@@ -10,29 +11,32 @@ type AuthProviderProps = {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<CurrentUser | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const [isInitializing, setIsInitializing] = useState(true);
+
   const [initializationError, setInitializationError] = useState(false);
 
   const loadCurrentUser = useCallback(async () => {
-    return getCurrentUser()
-      .then((currentUser) => {
-        setUser(currentUser);
-        setInitializationError(false);
-      })
-      .catch((error) => {
-        if (error instanceof ApiError && error.status === 401) {
-          setUser(null);
-          setInitializationError(false);
-          return;
-        }
+    try {
+      const currentUser = await getCurrentUser();
 
-        setInitializationError(true);
-      })
-      .finally(() => setLoading(false));
+      setUser(currentUser);
+      setInitializationError(false);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setUser(null);
+        setInitializationError(false);
+        return;
+      }
+
+      setInitializationError(true);
+    } finally {
+      setIsInitializing(false);
+    }
   }, []);
 
   async function retryInitialization() {
-    setLoading(true);
+    setIsInitializing(true);
     setInitializationError(false);
 
     await loadCurrentUser();
@@ -41,12 +45,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   async function refreshUser() {
     try {
       const currentUser = await getCurrentUser();
+
       setUser(currentUser);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         setUser(null);
         return;
       }
+
       throw error;
     }
   }
@@ -61,9 +67,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(null);
     });
 
-    void loadCurrentUser();
+    const timeoutId = window.setTimeout(() => {
+      void loadCurrentUser();
+    }, 0);
 
     return () => {
+      window.clearTimeout(timeoutId);
       setUnauthorizedHandler(null);
     };
   }, [loadCurrentUser]);
@@ -72,8 +81,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     <AuthContext.Provider
       value={{
         user,
-        loading,
-        initializationError: initializationError,
+        isInitializing,
+        initializationError,
         retryInitialization,
         refreshUser,
         logout,
