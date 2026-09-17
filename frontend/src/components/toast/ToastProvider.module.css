@@ -40,7 +40,6 @@
   font-weight: 500;
 
   cursor: pointer;
-  touch-action: pan-y;
 
   animation: toast-enter 200ms ease-out;
 }
