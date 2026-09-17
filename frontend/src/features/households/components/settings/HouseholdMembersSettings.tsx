@@ -1,7 +1,10 @@
 import { useState, type SubmitEvent } from "react";
+
 import { useToast } from "../../../../components/toast/ToastContext";
-import type { Household, HouseholdMember } from "../../types";
 import { addHouseholdMember, removeHouseholdMember } from "../../api";
+import type { Household, HouseholdMember } from "../../types";
+
+import styles from "../../pages/HouseholdSettingsPage.module.css";
 
 type Props = {
   householdId: string;
@@ -21,19 +24,23 @@ export function HouseholdMembersSettings({
   const { showToast } = useToast();
 
   const [memberEmail, setMemberEmail] = useState("");
-  const [isRemoving, setIsRemoving] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   async function handleRemoveMember(memberId: string) {
-    setIsRemoving(true);
+    setRemovingMemberId(memberId);
 
-    await removeHouseholdMember(householdId, memberId)
-      .then(async () => {
-        await onChanged();
-        showToast("Household member removed", "success");
-      })
-      .catch(() => showToast("Failed to remove household member", "error"))
-      .finally(async () => setIsRemoving(false));
+    try {
+      await removeHouseholdMember(householdId, memberId);
+
+      await onChanged();
+
+      showToast("Household member removed", "success");
+    } catch {
+      showToast("Failed to remove household member", "error");
+    } finally {
+      setRemovingMemberId(null);
+    }
   }
 
   async function handleAddMember(event: SubmitEvent<HTMLFormElement>) {
@@ -45,56 +52,63 @@ export function HouseholdMembersSettings({
 
     setIsAdding(true);
 
-    await addHouseholdMember(householdId, { email })
-      .then(async () => {
-        await onChanged();
-        setMemberEmail("");
-        showToast("Household member added", "success");
-      })
-      .catch(() => showToast("Failed to add household member", "error"))
-      .finally(async () => setIsAdding(false));
+    try {
+      await addHouseholdMember(householdId, {
+        email,
+      });
+
+      await onChanged();
+
+      setMemberEmail("");
+
+      showToast("Household member added", "success");
+    } catch {
+      showToast("Failed to add household member", "error");
+    } finally {
+      setIsAdding(false);
+    }
   }
 
   return (
-    <section className="household-settings-page__section">
-      <header className="household-settings-page__section-header">
+    <section className={styles.section}>
+      <header className={styles.sectionHeader}>
         <h2>Members</h2>
         <p>Manage who has access to this household</p>
       </header>
 
-      <div className="household-settings-page__members">
-        {members.map((member) => (
-          <div className="household-settings-page__member" key={member.user_id}>
-            <div className="household-settings-page__member-info">
-              <span className="household-settings-page__member-name">
-                {member.display_name}
-              </span>
+      <div className={styles.members}>
+        {members.map((member) => {
+          const isRemovingThisMember = removingMemberId === member.user_id;
 
-              <span className="household-settings-page__member-role">
-                {member.role}
-              </span>
+          return (
+            <div className={styles.member} key={member.user_id}>
+              <div className={styles.memberInfo}>
+                <span className={styles.memberName}>{member.display_name}</span>
+
+                <span className={styles.memberRole}>{member.role}</span>
+              </div>
+
+              {currentUserIsOwner && member.role !== "owner" && (
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => void handleRemoveMember(member.user_id)}
+                  disabled={removingMemberId !== null}
+                >
+                  {isRemovingThisMember ? "Removing..." : "Remove"}
+                </button>
+              )}
             </div>
-
-            {currentUserIsOwner && member.role !== "owner" && (
-              <button
-                type="button"
-                className="button button--ghost"
-                onClick={() => handleRemoveMember(member.user_id)}
-                disabled={isRemoving}
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {currentUserIsOwner && householdKind === "shared" && (
         <form
-          className="household-settings-page__form household-settings-page__add-member"
+          className={`${styles.form} ${styles.addMember}`}
           onSubmit={handleAddMember}
         >
-          <label className="household-settings-page__field">
+          <label className={styles.field}>
             <span>Add member</span>
 
             <input
@@ -102,6 +116,7 @@ export function HouseholdMembersSettings({
               value={memberEmail}
               onChange={(event) => setMemberEmail(event.target.value)}
               placeholder="Email address"
+              autoComplete="email"
               disabled={isAdding}
             />
           </label>

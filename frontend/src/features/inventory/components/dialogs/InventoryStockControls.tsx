@@ -1,11 +1,14 @@
 import { useState } from "react";
+
 import { useToast } from "../../../../components/toast/ToastContext";
-import type { InventoryItem } from "../../types";
 import {
   decreaseInventoryStock,
   increaseInventoryStock,
   setInventoryStock,
 } from "../../api";
+import type { InventoryItem } from "../../types";
+
+import styles from "./InventoryStockControls.module.css";
 
 type Props = {
   householdId: string;
@@ -41,7 +44,10 @@ export function InventoryStockControls({
 
   function handleIncreaseStock() {
     runMutation(
-      () => increaseInventoryStock(householdId, item.id, { amount: 1 }),
+      () =>
+        increaseInventoryStock(householdId, item.id, {
+          amount: 1,
+        }),
       "Stock increased",
       "Failed to increase stock",
     );
@@ -49,7 +55,10 @@ export function InventoryStockControls({
 
   function handleDecreaseStock() {
     runMutation(
-      () => decreaseInventoryStock(householdId, item.id, { amount: 1 }),
+      () =>
+        decreaseInventoryStock(householdId, item.id, {
+          amount: 1,
+        }),
       "Stock decreased",
       "Failed to decrease stock",
     );
@@ -58,10 +67,14 @@ export function InventoryStockControls({
   function handleSetStock() {
     if (newStock === "") return;
 
+    const stock = Number(newStock);
+
+    if (!Number.isFinite(stock) || stock < 0) return;
+
     runMutation(
       async () => {
         await setInventoryStock(householdId, item.id, {
-          stock: Number(newStock),
+          stock,
         });
 
         setNewStock("");
@@ -71,24 +84,29 @@ export function InventoryStockControls({
     );
   }
 
+  const parsedStock = Number(newStock);
+
+  const canSetStock =
+    newStock !== "" && Number.isFinite(parsedStock) && parsedStock >= 0;
+
   return (
-    <section className="inventory-item-dialog__section">
+    <section className="dialog__section">
       <h3>Stock</h3>
 
-      <div className="inventory-item-dialog__stock-controls">
+      <div className={styles.controls}>
         <button
           type="button"
-          className="inventory-item-dialog__stock-button"
+          className={styles.stockButton}
           onClick={handleDecreaseStock}
           disabled={item.current_stock === 0 || isMutating}
           aria-label="Decrease stock by one"
         >
-          -
+          −
         </button>
 
         <button
           type="button"
-          className="inventory-item-dialog__stock-button"
+          className={styles.stockButton}
           onClick={handleIncreaseStock}
           disabled={isMutating}
           aria-label="Increase stock by one"
@@ -97,29 +115,31 @@ export function InventoryStockControls({
         </button>
       </div>
 
-      <div className="inventory-item-dialog__set-stock">
-        <label className="inventory-item-dialog__field">
+      <div className={styles.setStock}>
+        <label className="dialog__field">
           <span>Set exact stock</span>
+
+          <div className={styles.setStockControls}>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              placeholder={String(item.current_stock)}
+              value={newStock}
+              onChange={(event) => setNewStock(event.target.value)}
+              disabled={isMutating}
+            />
+
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={handleSetStock}
+              disabled={isMutating || !canSetStock}
+            >
+              {isMutating ? "Updating..." : "Set stock"}
+            </button>
+          </div>
         </label>
-
-        <div className="inventory-item-dialog__set-stock-controls">
-          <input
-            type="number"
-            min="0"
-            placeholder={String(item.current_stock)}
-            value={newStock}
-            onChange={(event) => setNewStock(event.target.value)}
-          />
-
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={handleSetStock}
-            disabled={isMutating || newStock === ""}
-          >
-            Set stock
-          </button>
-        </div>
       </div>
     </section>
   );

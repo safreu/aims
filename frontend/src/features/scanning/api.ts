@@ -2,9 +2,7 @@ import { apiJson, apiRequest } from "../../api/client";
 import type { QrAction } from "./types";
 
 export async function getQrActions(householdId: string): Promise<QrAction[]> {
-  return apiJson<QrAction[]>(`/households/${householdId}/qr`, {
-    method: "GET",
-  });
+  return apiJson<QrAction[]>(`/households/${householdId}/qr`);
 }
 
 export async function createQrAction(householdId: string): Promise<void> {
@@ -22,6 +20,6 @@ export async function executeQrAction(
     headers: {
       Authorization: `Bearer ${deviceToken}`,
     },
-    handleUnauthorized: false,
+    triggerUnauthorizedHandler: false,
   });
 }

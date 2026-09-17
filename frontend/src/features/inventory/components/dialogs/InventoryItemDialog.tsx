@@ -1,18 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import Skeleton from "react-loading-skeleton";
+
+import { queryKeys } from "../../../../api/queryKeys";
+import { Dialog } from "../../../../components/dialog/Dialog";
+import { useTrackingMode } from "../../../accounts/components/tracking-mode/TrackingModeContext";
+import { useDangerMode } from "../../../households/danger-mode/DangerModeContext";
+import { InventoryItemQrDialog } from "../../../scanning/components/InventoryItemQrDialog";
 import { getInventoryItem } from "../../api";
 import { InventoryStockHistory } from "../history/InventoryStockHistory";
-import "./InventoryItemDialog.css";
-import { useDangerMode } from "../../../households/danger-mode/DangerModeContext";
-import { useTrackingMode } from "../../../accounts/components/tracking-mode/TrackingModeContext";
-import { InventoryItemQrDialog } from "../../../scanning/components/InventoryItemQrDialog";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../../../../api/queryKeys";
-import Skeleton from "react-loading-skeleton";
+import { InventoryItemArchive } from "./InventoryItemArchive";
 import { InventoryItemDetails } from "./InventoryItemDetails";
 import { InventoryStockControls } from "./InventoryStockControls";
-import { InventoryItemArchive } from "./InventoryItemArchive";
 
-type InventoryItemDialogProps = {
+import styles from "./InventoryItemDialog.module.css";
+
+type Props = {
   householdId: string;
   itemId: string;
   onChanged: () => Promise<void>;
@@ -24,9 +27,7 @@ export function InventoryItemDialog({
   itemId,
   onChanged,
   onClose,
-}: InventoryItemDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
+}: Props) {
   const { dangerMode } = useDangerMode();
   const { trackingMode } = useTrackingMode();
 
@@ -42,18 +43,9 @@ export function InventoryItemDialog({
   });
 
   const [showHistory, setShowHistory] = useState(false);
-
   const [showQrCodes, setShowQrCodes] = useState(false);
 
   const showStockControls = dangerMode || trackingMode === "manual";
-
-  function handleClose() {
-    void onChanged().finally(() => onClose());
-  }
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   async function refreshItem() {
     await Promise.all([
@@ -77,36 +69,17 @@ export function InventoryItemDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="inventory-item-dialog"
-      onClose={handleClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current) {
-          dialogRef.current?.close();
-        }
-      }}
-    >
-      <div className="inventory-item-dialog__content">
-        <header className="inventory-item-dialog__header">
-          <div>
-            <h2>{item?.name ?? "Inventory item"}</h2>
-            <p>Manage item details and stock</p>
-          </div>
-
-          <button
-            type="button"
-            className="button button--ghost inventory-item-dialog__close"
-            onClick={() => dialogRef.current?.close()}
-          >
-            Close
-          </button>
-        </header>
-
+    <>
+      <Dialog
+        title={item?.name ?? "Inventory item"}
+        description="Manage item details and stock"
+        onClose={onClose}
+        className={styles.dialog}
+      >
         {isPending ? (
           <InventoryItemDialogSkeleton />
         ) : isError ? (
-          <p className="inventory-item-dialog__error">
+          <p className={styles.error} role="alert">
             Failed to load inventory item
           </p>
         ) : (
@@ -116,6 +89,7 @@ export function InventoryItemDialog({
               item={item}
               onChanged={refreshItem}
             />
+
             {showStockControls && (
               <InventoryStockControls
                 householdId={householdId}
@@ -124,39 +98,44 @@ export function InventoryItemDialog({
               />
             )}
 
-            <section className="inventory-item-dialog__section">
-              <div className="inventory-item-dialog__section-header">
+            {trackingMode === "qr" && (
+              <section className="dialog__section">
+                <div className="dialog__section-header">
+                  <div>
+                    <h3>QR codes</h3>
+                    <p>View or share the QR codes for this item</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="button button--secondary"
+                    onClick={() => setShowQrCodes(true)}
+                  >
+                    Show QR codes
+                  </button>
+                </div>
+              </section>
+            )}
+
+            <section className="dialog__section">
+              <div className="dialog__section-header">
                 <div>
-                  <h3>QR codes</h3>
-                  <p>View or share the QR codes for this item</p>
+                  <h3>History</h3>
+                  <p>Recent changes to this item's stock</p>
                 </div>
 
                 <button
                   type="button"
                   className="button button--secondary"
-                  onClick={() => setShowQrCodes(true)}
+                  onClick={() => setShowHistory((current) => !current)}
+                  aria-expanded={showHistory}
                 >
-                  Show QR codes
+                  {showHistory ? "Hide history" : "Show history"}
                 </button>
               </div>
-            </section>
-
-            <section className="inventory-item-dialog__section">
-              <div className="inventory-item-dialog__section-header">
-                <h3>History</h3>
-                <p>Recent changes to this item's stock</p>
-              </div>
-
-              <button
-                type="button"
-                className="button button--secondary"
-                onClick={() => setShowHistory((current) => !current)}
-              >
-                {showHistory ? "Hide history" : "Show history"}
-              </button>
 
               {showHistory && (
-                <div className="inventory-item-dialog__history">
+                <div className={styles.history}>
                   <InventoryStockHistory
                     householdId={householdId}
                     itemId={itemId}
@@ -168,41 +147,47 @@ export function InventoryItemDialog({
             <InventoryItemArchive
               householdId={householdId}
               item={item}
-              onArchived={() => dialogRef.current?.close()}
+              onArchived={onClose}
             />
           </>
         )}
+      </Dialog>
 
-        {showQrCodes && (
-          <InventoryItemQrDialog
-            householdId={householdId}
-            itemId={itemId}
-            itemName={item?.name ?? ""}
-            onClose={() => setShowQrCodes(false)}
-          />
-        )}
-      </div>
-    </dialog>
+      {showQrCodes && item && (
+        <InventoryItemQrDialog
+          householdId={householdId}
+          itemId={itemId}
+          itemName={item.name}
+          onClose={() => setShowQrCodes(false)}
+        />
+      )}
+    </>
   );
 }
 
 function InventoryItemDialogSkeleton() {
   return (
-    <>
-      <section className="inventory-item-dialog__section">
-        <h3>Details</h3>
+    <section className="dialog__section">
+      <h3>Details</h3>
 
-        <div className="inventory-item-dialog__fields">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="inventory-item-dialog__field">
-              <Skeleton width="6rem" height="0.85rem" />
-              <Skeleton height={44} borderRadius="var(--radius-sm)" />
-            </div>
-          ))}
-        </div>
+      <div className="dialog__fields">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="dialog__field">
+            <Skeleton width="6rem" height="0.85rem" />
 
-        <Skeleton width="8rem" height={40} borderRadius="var(--radius-md)" />
-      </section>
-    </>
+            <Skeleton
+              height="var(--control-height)"
+              borderRadius="var(--radius-sm)"
+            />
+          </div>
+        ))}
+      </div>
+
+      <Skeleton
+        width="8rem"
+        height="var(--control-height)"
+        borderRadius="var(--radius-sm)"
+      />
+    </section>
   );
 }

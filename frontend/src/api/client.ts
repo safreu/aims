@@ -19,17 +19,20 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 }
 
 type ApiRequestOptions = RequestInit & {
-  handleUnauthorized?: boolean;
+  triggerUnauthorizedHandler?: boolean;
 };
 
 export async function apiRequest(
   path: string,
   options?: ApiRequestOptions,
 ): Promise<Response> {
-  const { handleUnauthorized = true, ...requestOptions } = options ?? {};
+  const { triggerUnauthorizedHandler = true, ...requestOptions } =
+    options ?? {};
+
   const method = requestOptions.method ?? "GET";
 
   let response: Response;
+
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...requestOptions,
@@ -45,7 +48,7 @@ export async function apiRequest(
     throw error;
   }
 
-  if (response.status === 401 && handleUnauthorized) {
+  if (response.status === 401 && triggerUnauthorizedHandler) {
     unauthorizedHandler?.();
   }
 
@@ -74,7 +77,7 @@ export async function apiRequest(
 
 export async function apiJson<T>(
   path: string,
-  options?: RequestInit,
+  options?: ApiRequestOptions,
 ): Promise<T> {
   const response = await apiRequest(path, options);
 
@@ -82,7 +85,9 @@ export async function apiJson<T>(
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) {
+    return error.message;
+  }
 
   return String(error);
 }

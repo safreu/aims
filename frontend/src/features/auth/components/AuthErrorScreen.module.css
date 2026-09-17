@@ -1,0 +1,36 @@
+.container {
+  min-height: 100svh;
+  padding: var(--space-lg);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--bg);
+}
+
+.content {
+  width: min(100%, 420px);
+  padding: var(--space-xl);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.title {
+  margin: 0;
+}
+
+.description {
+  margin: 0;
+
+  color: var(--text-muted);
+
+  line-height: 1.5;
+}

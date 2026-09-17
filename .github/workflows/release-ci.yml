@@ -1,0 +1,91 @@
+name: Release CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+concurrency:
+  group: release-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify-release:
+    name: Verify release
+    if: github.event.pull_request.head.ref == 'dev'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Verify release version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="$(
+            cargo metadata --no-deps --format-version 1 \
+              | jq -r '.packages[] | select(.name == "backend") | .version'
+          )"
+
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "Could not determine backend version"
+            exit 1
+          fi
+
+          echo "Release version: $VERSION"
+
+          if git ls-remote --exit-code \
+            "https://github.com/${GITHUB_REPOSITORY}.git" \
+            "refs/tags/v${VERSION}" >/dev/null 2>&1
+          then
+            echo "Tag v${VERSION} already exists"
+            exit 1
+          fi
+
+          echo "Release version v${VERSION} is available"
+
+  docker:
+    name: Build Docker images
+    if: github.event.pull_request.head.ref == 'dev'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: false
+          tags: aims-backend:release-check
+          cache-from: type=gha,scope=release-backend
+          cache-to: type=gha,mode=max,scope=release-backend
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: false
+          tags: aims-frontend:release-check
+          cache-from: type=gha,scope=release-frontend
+          cache-to: type=gha,mode=max,scope=release-frontend

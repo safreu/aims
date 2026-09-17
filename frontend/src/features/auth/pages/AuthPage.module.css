@@ -1,0 +1,181 @@
+.page {
+  min-height: 100svh;
+  padding: var(--space-lg);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--bg);
+}
+
+.container {
+  width: 100%;
+  max-width: 420px;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.brand {
+  text-align: center;
+}
+
+.brand h1 {
+  margin: 0;
+
+  color: var(--text-h);
+
+  font-size: 1.75rem;
+}
+
+.brand p {
+  margin: var(--space-xs) 0 0;
+
+  color: var(--text-muted);
+}
+
+.card {
+  padding: var(--space-lg);
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.18);
+}
+
+.cardHeader {
+  margin-bottom: var(--space-lg);
+}
+
+.cardHeader h2 {
+  margin: 0 0 var(--space-xs);
+
+  color: var(--text-h);
+
+  font-size: 1.25rem;
+}
+
+.cardHeader p {
+  margin: 0;
+
+  color: var(--text-muted);
+
+  font-size: 0.9rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+
+  color: var(--text);
+
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.field input {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0.65rem 0.75rem;
+
+  color: var(--text);
+
+  background: var(--bg);
+
+  border: 1px solid var(--gray-6);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.field input:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.field input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.field input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submit {
+  width: 100%;
+  min-height: var(--control-height);
+  margin-top: var(--space-xs);
+
+  justify-content: center;
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-sm);
+
+  color: var(--danger);
+
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-radius: var(--radius-sm);
+
+  font-size: 0.875rem;
+}
+
+.switch {
+  margin: var(--space-lg) 0 0;
+  padding-top: var(--space-md);
+
+  color: var(--text-muted);
+
+  border-top: 1px solid var(--gray-4);
+
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.switch a {
+  color: var(--purple-11);
+
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.switch a:hover {
+  text-decoration: underline;
+}
+
+.switch a:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+
+  border-radius: 2px;
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: var(--space-md);
+  }
+
+  .card {
+    padding: var(--space-md);
+  }
+}

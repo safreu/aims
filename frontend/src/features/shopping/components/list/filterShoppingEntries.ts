@@ -1,18 +1,20 @@
+import type { CategoryFilterValue } from "../../../../components/list-controls/filters/CategoryFilter";
 import type { PriorityFilterValue } from "../../../../components/list-controls/filters/PriorityFilter";
 import type { ShoppingList } from "../../types";
 
 type ShoppingFilters = {
   search: string;
-  category: string;
+  category: CategoryFilterValue;
   priority: PriorityFilterValue;
 };
+
 export function filterShoppingEntries(
   items: ShoppingList,
   filters: ShoppingFilters,
 ): ShoppingList {
   const normalizedSearch = filters.search.trim().toLowerCase();
 
-  const inventory_entries = items.inventory_entries.filter((item) => {
+  const inventoryEntries = items.inventory_entries.filter((item) => {
     const matchesSearch =
       normalizedSearch === "" ||
       item.name.toLowerCase().includes(normalizedSearch);
@@ -29,7 +31,7 @@ export function filterShoppingEntries(
     return matchesSearch && matchesCategory && matchesPriority;
   });
 
-  const custom_entries = items.custom_entries.filter((item) => {
+  const customEntries = items.custom_entries.filter((item) => {
     const matchesSearch =
       normalizedSearch === "" ||
       item.title.toLowerCase().includes(normalizedSearch);
@@ -41,7 +43,7 @@ export function filterShoppingEntries(
   });
 
   return {
-    inventory_entries,
-    custom_entries,
+    inventory_entries: inventoryEntries,
+    custom_entries: customEntries,
   };
 }

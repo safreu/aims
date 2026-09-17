@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import "./InventoryItemQrDialog.css";
-import type { QrActionKind } from "../types";
-import { getQrActions } from "../api";
-import { useToast } from "../../../components/toast/ToastContext";
-import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
-import { shareQrCard } from "../utils/qrShare";
 import { useQuery } from "@tanstack/react-query";
-import { queryKeys } from "../../../api/queryKeys";
+import { useMemo, useRef, useState } from "react";
 import Skeleton from "react-loading-skeleton";
+import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
+
+import { queryKeys } from "../../../api/queryKeys";
+import { Dialog } from "../../../components/dialog/Dialog";
+import { useToast } from "../../../components/toast/ToastContext";
+import { getQrActions } from "../api";
+import type { QrActionKind } from "../types";
+import { shareQrCard } from "../utils/qrShare";
+
+import styles from "./InventoryItemQrDialog.module.css";
 
 type Props = {
   householdId: string;
@@ -22,7 +25,6 @@ export function InventoryItemQrDialog({
   itemName,
   onClose,
 }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const { showToast } = useToast();
@@ -35,12 +37,12 @@ export function InventoryItemQrDialog({
     queryKey: queryKeys.inventory.qrActions(householdId, itemId),
     queryFn: async () => {
       const actions = await getQrActions(householdId);
+
       return actions.filter((action) => action.item_id === itemId);
     },
   });
 
   const [selectedKind, setSelectedKind] = useState<QrActionKind>("increase");
-
   const [isSharing, setIsSharing] = useState(false);
 
   const selectedAction = useMemo(
@@ -49,7 +51,9 @@ export function InventoryItemQrDialog({
   );
 
   async function handleShare() {
-    if (selectedAction === null || qrCanvasRef.current === null) return;
+    if (selectedAction === null || qrCanvasRef.current === null) {
+      return;
+    }
 
     setIsSharing(true);
 
@@ -70,106 +74,87 @@ export function InventoryItemQrDialog({
     }
   }
 
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
+  function selectKind(kind: QrActionKind) {
+    if (isSharing) return;
+
+    setSelectedKind(kind);
+  }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="inventory-item-qr-dialog"
+    <Dialog
+      title={itemName}
+      description="Inventory QR code"
       onClose={onClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current) {
-          dialogRef.current?.close();
-        }
-      }}
+      closeDisabled={isSharing}
+      className={styles.dialog}
     >
-      <div className="inventory-item-qr-dialog__content">
-        <header className="inventory-item-qr-dialog__header">
-          <div>
-            <h2>{itemName}</h2>
-            <p>Inventory QR code</p>
-          </div>
+      <div className={styles.switcher} role="group" aria-label="QR code action">
+        <button
+          type="button"
+          className={`${styles.option} ${
+            selectedKind === "decrease" ? styles.optionActive : ""
+          }`}
+          onClick={() => selectKind("decrease")}
+          disabled={isSharing}
+          aria-pressed={selectedKind === "decrease"}
+        >
+          Decrease
+        </button>
 
-          <button
-            type="button"
-            className="button button--ghost"
-            onClick={() => dialogRef.current?.close()}
-          >
-            Close
-          </button>
-        </header>
-
-        <div className="inventory-item-qr-dialog__switcher">
-          <button
-            type="button"
-            className={`inventory-item-qr-dialog__option ${
-              selectedKind === "decrease"
-                ? "inventory-item-qr-dialog__option--active"
-                : ""
-            }`}
-            onClick={() => setSelectedKind("decrease")}
-          >
-            Decrease
-          </button>
-
-          <button
-            type="button"
-            className={`inventory-item-qr-dialog__option ${
-              selectedKind === "increase"
-                ? "inventory-item-qr-dialog__option--active"
-                : ""
-            }`}
-            onClick={() => setSelectedKind("increase")}
-          >
-            Increase
-          </button>
-        </div>
-
-        {isPending ? (
-          <InventoryItemQrSkeleton />
-        ) : isError ? (
-          <p className="inventory-item-qr-dialog__error">
-            Failed to load QR codes
-          </p>
-        ) : selectedAction === null ? (
-          <p className="inventory-item-qr-dialog__error">
-            QR code not available
-          </p>
-        ) : (
-          <div className="inventory-item-qr-dialog__qr">
-            <div className="inventory-item-qr-dialog__qr-card">
-              <QRCodeSVG value={selectedAction.id} size={220} level="M" />
-            </div>
-
-            <button
-              type="button"
-              className="button button--secondary"
-              onClick={() => void handleShare()}
-              disabled={isSharing}
-            >
-              {isSharing ? "Preparing..." : "Share QR code"}
-            </button>
-
-            <div className="inventory-item-qr-dialog__export-qr">
-              <QRCodeCanvas
-                ref={qrCanvasRef}
-                value={selectedAction.id}
-                size={512}
-                level="M"
-              />
-            </div>
-          </div>
-        )}
+        <button
+          type="button"
+          className={`${styles.option} ${
+            selectedKind === "increase" ? styles.optionActive : ""
+          }`}
+          onClick={() => selectKind("increase")}
+          disabled={isSharing}
+          aria-pressed={selectedKind === "increase"}
+        >
+          Increase
+        </button>
       </div>
-    </dialog>
+
+      {isPending ? (
+        <InventoryItemQrSkeleton />
+      ) : isError ? (
+        <p className={styles.error} role="alert">
+          Failed to load QR codes
+        </p>
+      ) : selectedAction === null ? (
+        <p className={styles.error}>QR code not available</p>
+      ) : (
+        <div className={styles.qr}>
+          <div className={styles.qrCard}>
+            <QRCodeSVG value={selectedAction.id} size={220} level="M" />
+          </div>
+
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => void handleShare()}
+            disabled={isSharing}
+          >
+            {isSharing ? "Preparing..." : "Share QR code"}
+          </button>
+
+          <div className={styles.exportQr} aria-hidden="true">
+            <QRCodeCanvas
+              ref={qrCanvasRef}
+              value={selectedAction.id}
+              size={512}
+              level="M"
+            />
+          </div>
+        </div>
+      )}
+    </Dialog>
   );
 }
+
 function InventoryItemQrSkeleton() {
   return (
-    <div className="inventory-item-qr-dialog__qr">
-      <div className="inventory-item-qr-dialog__qr-placeholder">
+    <div className={styles.qr} aria-label="Loading QR code">
+      <div className={styles.qrPlaceholder}>
         <Skeleton width={200} height={200} borderRadius="var(--radius-md)" />
       </div>
 

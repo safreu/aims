@@ -1,0 +1,43 @@
+.page {
+  min-height: 100svh;
+  padding: var(--space-lg);
+
+  display: flex;
+  justify-content: center;
+
+  background: var(--bg);
+}
+
+.content {
+  width: 100%;
+  max-width: 1200px;
+  padding-top: var(--space-xl);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.card {
+  margin-top: var(--space-md);
+  padding: var(--space-lg);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: var(--space-md);
+  }
+
+  .card {
+    padding: var(--space-md);
+  }
+}

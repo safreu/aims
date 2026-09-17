@@ -1,69 +1,95 @@
-import { NavLink, Outlet, useParams } from "react-router-dom";
-import "./HouseholdLayout.css";
+import type { ReactNode } from "react";
 import { Boxes, ScanLine, ShoppingCart } from "lucide-react";
+import { NavLink, Outlet, useParams } from "react-router-dom";
+
 import { AppHeader } from "../../../components/layout/AppHeader";
-import { HouseholdEventsProvider } from "../events/HouseholdEventsProvider";
+import { useTrackingMode } from "../../accounts/components/tracking-mode/TrackingModeContext";
 import { CategoryProvider } from "../../inventory/components/categories/CategoryProvider";
 import { DangerModeProvider } from "../danger-mode/DangerModeProvider";
-import { useTrackingMode } from "../../accounts/components/tracking-mode/TrackingModeContext";
+import { HouseholdEventsProvider } from "../events/HouseholdEventsProvider";
+
+import styles from "./HouseholdLayout.module.css";
 
 export function HouseholdLayout() {
   const { householdId } = useParams();
   const { trackingMode } = useTrackingMode();
 
   if (householdId === undefined) {
-    throw new Error("HouseholdLayout requires a HouseholdId");
+    throw new Error("HouseholdLayout requires a householdId");
   }
 
-  const navigationClassName = ({ isActive }: { isActive: boolean }) =>
-    `household-navigation__link${isActive ? " active" : ""}`;
+  function navigationClassName({ isActive }: { isActive: boolean }) {
+    return `${styles.navigationLink}${
+      isActive ? ` ${styles.navigationLinkActive}` : ""
+    }`;
+  }
 
+  function scanClassName({ isActive }: { isActive: boolean }) {
+    return `${styles.scan}${isActive ? ` ${styles.scanActive}` : ""}`;
+  }
+
+  return (
+    <HouseholdProviders key={householdId} householdId={householdId}>
+      <div className={styles.layout}>
+        <AppHeader householdId={householdId} />
+
+        <main className={styles.content}>
+          <Outlet />
+        </main>
+
+        <nav className={styles.navigation} aria-label="Household navigation">
+          <div className={styles.navigationContainer}>
+            <NavLink
+              to={`/households/${householdId}/inventory`}
+              className={navigationClassName}
+            >
+              <Boxes className={styles.navigationIcon} aria-hidden="true" />
+
+              <span>Inventory</span>
+            </NavLink>
+
+            {trackingMode === "qr" && (
+              <NavLink
+                to={`/households/${householdId}/scanner`}
+                className={scanClassName}
+                aria-label="Scan QR code"
+              >
+                <ScanLine className={styles.scanIcon} aria-hidden="true" />
+              </NavLink>
+            )}
+
+            <NavLink
+              to={`/households/${householdId}/shopping`}
+              className={navigationClassName}
+            >
+              <ShoppingCart
+                className={styles.navigationIcon}
+                aria-hidden="true"
+              />
+
+              <span>Shopping</span>
+            </NavLink>
+          </div>
+        </nav>
+      </div>
+    </HouseholdProviders>
+  );
+}
+
+type HouseholdProvidersProps = {
+  householdId: string;
+  children: ReactNode;
+};
+
+function HouseholdProviders({
+  householdId,
+  children,
+}: HouseholdProvidersProps) {
   return (
     <DangerModeProvider>
       <HouseholdEventsProvider householdId={householdId}>
         <CategoryProvider householdId={householdId}>
-          <div className="household-layout">
-            <AppHeader householdId={householdId} />
-
-            <main className="household-content">
-              <Outlet />
-            </main>
-
-            <nav
-              className="household-navigation"
-              aria-label="Household navigation"
-            >
-              <div className="household-navigation__container">
-                <NavLink
-                  to={`/households/${householdId}/inventory`}
-                  className={navigationClassName}
-                >
-                  <Boxes className="household-navigation__icon" />
-                  <span>Inventory</span>
-                </NavLink>
-
-                {trackingMode === "qr" && (
-                  <NavLink
-                    to={`/households/${householdId}/scanner`}
-                    className={({ isActive }) =>
-                      `household-navigation__scan${isActive ? " active" : ""}`
-                    }
-                    aria-label="Scan QR code"
-                  >
-                    <ScanLine className="household-navigation__scan-icon" />
-                  </NavLink>
-                )}
-
-                <NavLink
-                  to={`/households/${householdId}/shopping`}
-                  className={navigationClassName}
-                >
-                  <ShoppingCart className="household-navigation__icon" />
-                  <span>Shopping</span>
-                </NavLink>
-              </div>
-            </nav>
-          </div>
+          {children}
         </CategoryProvider>
       </HouseholdEventsProvider>
     </DangerModeProvider>

@@ -1,0 +1,48 @@
+.device {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.deviceLabel {
+  color: var(--text-muted);
+
+  font-size: 0.8rem;
+}
+
+.device strong {
+  color: var(--text-h);
+
+  font-size: 1rem;
+}
+
+.qr {
+  width: fit-content;
+  margin: 0 auto;
+  padding: var(--space-md);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #fff;
+
+  border-radius: var(--radius-md);
+}
+
+.qr svg {
+  display: block;
+
+  max-width: 100%;
+  height: auto;
+}
+
+.hint {
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .qr {
+    padding: var(--space-sm);
+  }
+}

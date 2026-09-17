@@ -1,9 +1,15 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MoreVertical } from "lucide-react";
 import { useState } from "react";
-import type { Device, DeviceKind } from "../types";
+import Skeleton from "react-loading-skeleton";
+
+import { queryKeys } from "../../../api/queryKeys";
+import { ConfirmDialog } from "../../../components/dialog/ConfirmDialog";
 import {
-  getLocalDeviceCredentials,
-  removeLocalDeviceCredential,
-} from "../localDevice";
+  DropdownMenu,
+  DropdownMenuItem,
+} from "../../../components/dropdown-menu/DropdownMenu";
+import { useToast } from "../../../components/toast/ToastContext";
 import {
   getDevices,
   issueDeviceCredential,
@@ -12,22 +18,21 @@ import {
   revokeDevice,
   rotateDeviceCredential,
 } from "../api";
-import { useToast } from "../../../components/toast/ToastContext";
-
-import "./DeviceList.css";
-import { ConfirmDialog } from "../../../components/dialogs/ConfirmDialog";
-import { RenameDeviceDialog } from "./Dialogs/RenameDeviceDialog";
-import { RegisterOtherDeviceDialog } from "./Dialogs/RegisterOtherDeviceDialog";
-import { ProvisioningDeviceDialog } from "./Dialogs/ProvisioningDeviceDialog";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Skeleton from "react-loading-skeleton";
-import { queryKeys } from "../../../api/queryKeys";
+import {
+  getLocalDeviceCredentials,
+  removeLocalDeviceCredential,
+} from "../localDevice";
+import type { Device, DeviceKind } from "../types";
+import { ProvisioningDeviceDialog } from "./dialogs/ProvisioningDeviceDialog";
+import { RegisterOtherDeviceDialog } from "./dialogs/RegisterOtherDeviceDialog";
+import { RenameDeviceDialog } from "./dialogs/RenameDeviceDialog";
+import styles from "./DeviceList.module.css";
 
 type Props = {
   householdId: string;
 };
 
-type ProvisingDevice = {
+type ProvisioningDevice = {
   deviceId: string;
   deviceName: string;
   token: string;
@@ -35,6 +40,7 @@ type ProvisingDevice = {
 
 export function DeviceList({ householdId }: Props) {
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
 
   const [showRegisterOtherDeviceDialog, setShowRegisterOtherDeviceDialog] =
     useState(false);
@@ -46,11 +52,7 @@ export function DeviceList({ householdId }: Props) {
   const [isRenaming, setIsRenaming] = useState(false);
 
   const [provisioningDevice, setProvisioningDevice] =
-    useState<ProvisingDevice | null>(null);
-
-  const [openActionsDeviceId, setOpenActionsDeviceId] = useState<string | null>(
-    null,
-  );
+    useState<ProvisioningDevice | null>(null);
 
   const [isRegisteringOtherDevice, setIsRegisteringOtherDevice] =
     useState(false);
@@ -67,8 +69,6 @@ export function DeviceList({ householdId }: Props) {
     queryKey: queryKeys.devices(householdId),
     queryFn: () => getDevices(householdId),
   });
-
-  const queryClient = useQueryClient();
 
   const currentDevice = devices.find(
     (device) => device.id === localCredential?.deviceId,
@@ -132,6 +132,7 @@ export function DeviceList({ householdId }: Props) {
       )
       .then((provisioningData) => {
         setProvisioningDevice(provisioningData);
+
         return queryClient.invalidateQueries({
           queryKey: queryKeys.devices(householdId),
         });
@@ -154,14 +155,13 @@ export function DeviceList({ householdId }: Props) {
           deviceName: device.name,
           token: credential.token,
         });
-        setOpenActionsDeviceId(null);
       })
       .catch(() => showToast("Failed to generate setup QR code", "error"))
       .finally(() => setIsRotatingCredential(false));
   }
 
   return (
-    <div className="device-list">
+    <div className={styles.list}>
       <button
         type="button"
         className="button button--secondary"
@@ -173,79 +173,58 @@ export function DeviceList({ householdId }: Props) {
       {isPending ? (
         <DeviceRowsSkeleton />
       ) : isError ? (
-        <p className="device-list__empty">Failed to load devices</p>
+        <p className={styles.empty}>Failed to load devices</p>
       ) : devices.length === 0 ? (
-        <p className="device-list__empty">No devices registered</p>
+        <p className={styles.empty}>No devices registered</p>
       ) : (
         devices.map((device) => {
           const isCurrentDevice = device.id === currentDevice?.id;
 
           return (
-            <div key={device.id} className="device-list__item">
-              <div className="device-list__item-info">
-                <span className="device-list__item-name">{device.name}</span>
+            <div key={device.id} className={styles.item}>
+              <div className={styles.itemInfo}>
+                <span className={styles.itemName}>{device.name}</span>
 
-                <div className="device-list__item-meta">
-                  <span className="device-list__item-kind">{device.kind}</span>
+                <div className={styles.itemMeta}>
+                  <span className={styles.itemKind}>{device.kind}</span>
 
                   {isCurrentDevice && (
-                    <span className="device-list__badge">This device</span>
+                    <span className={styles.badge}>This device</span>
                   )}
                 </div>
               </div>
 
-              <div className="device-list__actions-wrapper">
-                <button
-                  type="button"
-                  className="device-list__manage-button"
-                  onClick={() =>
-                    setOpenActionsDeviceId((current) =>
-                      current === device.id ? null : device.id,
-                    )
-                  }
-                  aria-label={`Manage ${device.id}`}
-                  aria-expanded={openActionsDeviceId === device.id}
-                >
-                  ...
-                </button>
+              <DropdownMenu
+                trigger={
+                  <button
+                    type="button"
+                    className={styles.manageButton}
+                    aria-label={`Manage ${device.name}`}
+                  >
+                    <MoreVertical />
+                  </button>
+                }
+              >
+                <DropdownMenuItem onSelect={() => setDeviceToRename(device)}>
+                  Rename
+                </DropdownMenuItem>
 
-                {openActionsDeviceId === device.id && (
-                  <div className="device-list__actions-menu">
-                    <button
-                      type="button"
-                      className="device-list__menu-action"
-                      onClick={() => {
-                        setOpenActionsDeviceId(null);
-                        setDeviceToRename(device);
-                      }}
-                    >
-                      Rename
-                    </button>
-
-                    {!isCurrentDevice && (
-                      <button
-                        type="button"
-                        className="device-list__menu-action"
-                        disabled={isRotatingCredential}
-                        onClick={() => void handleShowSetupQr(device)}
-                      >
-                        Show setup QR
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      className="device-list__menu-action device-list__menu-action--danger"
-                      onClick={() => {
-                        setOpenActionsDeviceId(null);
-                        setDeviceToRevoke(device);
-                      }}
-                    >
-                      Revoke
-                    </button>
-                  </div>
+                {!isCurrentDevice && (
+                  <DropdownMenuItem
+                    disabled={isRotatingCredential}
+                    onSelect={() => void handleShowSetupQr(device)}
+                  >
+                    Show setup QR
+                  </DropdownMenuItem>
                 )}
-              </div>
+
+                <DropdownMenuItem
+                  className={styles.dangerAction}
+                  onSelect={() => setDeviceToRevoke(device)}
+                >
+                  Revoke
+                </DropdownMenuItem>
+              </DropdownMenu>
             </div>
           );
         })
@@ -299,11 +278,11 @@ function DeviceRowsSkeleton() {
   return (
     <>
       {Array.from({ length: 2 }).map((_, index) => (
-        <div key={index} className="device-list__item">
-          <div className="device-list__item-info">
+        <div key={index} className={styles.item}>
+          <div className={styles.itemInfo}>
             <Skeleton width="8rem" height="0.95rem" />
 
-            <div className="device-list__item-meta">
+            <div className={styles.itemMeta}>
               <Skeleton width="4rem" height="0.75rem" />
             </div>
           </div>

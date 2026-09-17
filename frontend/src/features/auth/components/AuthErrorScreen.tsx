@@ -1,16 +1,18 @@
+import styles from "./AuthErrorScreen.module.css";
+
 type Props = {
   onRetry: () => void;
 };
 
 export function AuthErrorScreen({ onRetry }: Props) {
   return (
-    <main className="auth-status">
-      <div className="auth-status__content">
-        <h1>Unable to connect</h1>
+    <main className={styles.container}>
+      <div className={styles.content} role="alert">
+        <h1 className={styles.title}>Unable to connect</h1>
 
-        <p>
+        <p className={styles.description}>
           Aims could not determine your login status. Check your connection and
-          try again
+          try again.
         </p>
 
         <button

@@ -1,0 +1,210 @@
+.layout {
+  --household-navigation-height: 82px;
+
+  min-height: 100svh;
+
+  color: var(--text);
+  background: var(--bg);
+}
+
+.content {
+  width: 100%;
+  max-width: 1200px;
+
+  margin: 0 auto;
+  padding: var(--space-lg);
+
+  /*
+   * Leave room for the persistent header and bottom navigation.
+   */
+  padding-top: calc(var(--header-height) + var(--space-lg));
+  padding-bottom: calc(var(--household-navigation-height) + var(--space-lg));
+}
+
+.navigation {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+
+  z-index: 20;
+
+  padding: var(--space-sm) var(--space-lg)
+    max(var(--space-sm), env(safe-area-inset-bottom));
+
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+
+  backdrop-filter: blur(12px);
+}
+
+.navigationContainer {
+  position: relative;
+
+  width: fit-content;
+
+  margin: 0 auto;
+  padding: var(--space-xs);
+
+  display: grid;
+  grid-template-columns: repeat(2, minmax(140px, 180px));
+  gap: var(--space-xs);
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+
+  box-shadow: 0 8px 28px rgb(0 0 0 / 35%);
+}
+
+.navigationLink {
+  min-height: 58px;
+  padding: var(--space-sm) var(--space-md);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+
+  color: var(--text-muted);
+
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+
+  background: transparent;
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.navigationLink:hover {
+  color: var(--text-h);
+
+  background: var(--surface-hover);
+}
+
+.navigationLinkActive {
+  color: var(--purple-11);
+
+  background: var(--purple-4);
+
+  border-color: var(--border);
+}
+
+.navigationLink:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.navigationIcon {
+  width: 1.35rem;
+  height: 1.35rem;
+
+  flex-shrink: 0;
+}
+
+.scan {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+
+  z-index: 3;
+
+  width: 74px;
+  height: 74px;
+
+  display: grid;
+  place-items: center;
+
+  color: var(--purple-12);
+  background: var(--accent);
+
+  border: 1px solid var(--border-hover);
+  border-radius: 50%;
+
+  text-decoration: none;
+
+  transform: translate(-50%, -50%);
+
+  /*
+   * Stronger shadow than the normal navigation so the scanner
+   * visually sits above the two navigation items.
+   */
+  box-shadow:
+    0 10px 24px rgb(0 0 0 / 50%),
+    0 3px 8px rgb(0 0 0 / 45%),
+    0 0 0 3px color-mix(in srgb, var(--surface) 85%, transparent);
+
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.scan:hover {
+  background: var(--accent-hover);
+
+  transform: translate(-50%, -50%) scale(1.04);
+
+  box-shadow:
+    0 12px 28px rgb(0 0 0 / 55%),
+    0 4px 10px rgb(0 0 0 / 50%),
+    0 0 0 3px color-mix(in srgb, var(--surface) 85%, transparent);
+}
+
+.scanActive {
+  background: var(--purple-11);
+}
+
+.scan:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+.scanIcon {
+  width: 1.9rem;
+  height: 1.9rem;
+
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .content {
+    padding: var(--space-md);
+
+    padding-top: calc(var(--header-height-mobile) + var(--space-md));
+    padding-bottom: calc(var(--household-navigation-height) + var(--space-md));
+  }
+
+  .navigation {
+    padding: var(--space-sm) var(--space-sm)
+      max(var(--space-sm), env(safe-area-inset-bottom));
+  }
+
+  .navigationContainer {
+    width: 100%;
+    max-width: 420px;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .navigationLink {
+    min-height: 56px;
+    padding: var(--space-sm);
+
+    font-size: 0.75rem;
+  }
+
+  .navigationIcon {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+}

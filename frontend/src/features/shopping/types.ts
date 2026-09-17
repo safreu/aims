@@ -1,4 +1,4 @@
-export type ShoppingPriority = "default" | "low" | "medium" | "high";
+import type { Priority } from "../../domain/priority";
 
 export type ShoppingCategory = {
   id: string;
@@ -10,7 +10,7 @@ export type InventoryShoppingEntry = {
   name: string;
   category: ShoppingCategory | null;
   quantity: number;
-  priority: ShoppingPriority;
+  priority: Priority;
   note: string | null;
   checked: boolean;
 };
@@ -19,7 +19,7 @@ export type CustomShoppingEntry = {
   id: string;
   title: string;
   quantity: number;
-  priority: ShoppingPriority;
+  priority: Priority;
   note: string | null;
   checked: boolean;
 };
@@ -44,14 +44,14 @@ export type SetShoppingCheckedRequest = {
 export type CreateCustomShoppingRequest = {
   title: string;
   quantity: number;
-  priority: ShoppingPriority;
+  priority: Priority;
   note: string | null;
 };
 
 export type UpdateCustomShoppingRequest = {
   title?: string;
   quantity?: number;
-  priority?: ShoppingPriority;
+  priority?: Priority;
   note?: string | null;
 };
 

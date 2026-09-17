@@ -1,0 +1,40 @@
+.trigger {
+  padding: 0;
+
+  display: inline-flex;
+  align-items: center;
+
+  color: inherit;
+  background: transparent;
+
+  border: 0;
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+
+  cursor: pointer;
+}
+
+.trigger:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.check {
+  width: 1rem;
+  height: 1rem;
+  margin-left: auto;
+
+  flex-shrink: 0;
+
+  color: var(--purple-11);
+}

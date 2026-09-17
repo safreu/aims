@@ -1,0 +1,33 @@
+.container {
+  min-height: 100svh;
+  padding: var(--space-xl) var(--space-md);
+
+  display: flex;
+  justify-content: center;
+
+  background: var(--bg);
+}
+
+.content {
+  width: 100%;
+  max-width: 1200px;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.card {
+  width: 100%;
+  max-width: 600px;
+  padding: var(--space-lg);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}

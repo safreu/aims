@@ -128,7 +128,9 @@ export async function getInventoryStockHistory(
   householdId: string,
   itemId: string,
 ): Promise<InventoryStockHistoryEntry[]> {
-  return apiJson(`/inventory/${householdId}/items/${itemId}/history`);
+  return apiJson<InventoryStockHistoryEntry[]>(
+    `/inventory/${householdId}/items/${itemId}/history`,
+  );
 }
 
 export async function getInventoryItem(

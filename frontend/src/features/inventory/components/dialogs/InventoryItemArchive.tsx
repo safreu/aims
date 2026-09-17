@@ -1,7 +1,10 @@
 import { useState } from "react";
+
 import { useToast } from "../../../../components/toast/ToastContext";
-import type { InventoryItem } from "../../types";
 import { archiveInventoryItem } from "../../api";
+import type { InventoryItem } from "../../types";
+
+import styles from "./InventoryItemDialog.module.css";
 
 type Props = {
   householdId: string;
@@ -27,9 +30,10 @@ export function InventoryItemArchive({ householdId, item, onArchived }: Props) {
   }
 
   return (
-    <section className="inventory-item-dialog__section inventory-item-dialog__danger">
+    <section className={`dialog__section ${styles.danger}`}>
       <h3>Archive item</h3>
-      <p>The item will disappear from the active inventory</p>
+
+      <p>The item will disappear from the active inventory.</p>
 
       <button
         type="button"
@@ -37,7 +41,7 @@ export function InventoryItemArchive({ householdId, item, onArchived }: Props) {
         onClick={handleArchive}
         disabled={isArchiving}
       >
-        Archive item
+        {isArchiving ? "Archiving..." : "Archive item"}
       </button>
     </section>
   );

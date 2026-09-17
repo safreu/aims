@@ -14,19 +14,19 @@ on:
       - "Cargo.lock"
       - "rust-toolchain.toml"
       - ".github/workflows/backend-ci.yml"
-    
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-    
+
 permissions:
   contents: read
 
 jobs:
   backend:
-    name: Format, lint and test
+    name: Format, lint and SQLx
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:17
@@ -43,6 +43,11 @@ jobs:
           --health-retries 5
 
     env:
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_NAME: aims_test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/aims_test
       SQLX_OFFLINE: true
 
@@ -56,6 +61,11 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
 
+      - name: Install SQLx CLI
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sqlx-cli
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
@@ -67,32 +77,42 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Run tests
-        run: cargo test --workspace --all-features
+      - name: Run database migrations
+        run: ./scripts/sqlx.sh migrate run --source backend/migrations
+
+      - name: Check SQLx metadata
+        env:
+          SQLX_OFFLINE: false
+        run: ./scripts/sqlx.sh prepare --workspace --check -- --all-targets --all-features
 
   coverage:
-    name: Test coverage
+    name: Test and coverage
     runs-on: ubuntu-latest
 
     services:
       postgres:
-          image: postgres:17
-          env:
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: postgres
-            POSTGRES_DB: aims_test
-          ports:
-            - 5432:5432
-          options: >-
-            --health-cmd "pg_isready -U postgres -d aims_test"
-            --health-interval 10s
-            --health-timeout 5s
-            --health-retries 5
-        
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aims_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d aims_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_NAME: aims_test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/aims_test
       SQLX_OFFLINE: true
-      
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -112,7 +132,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Run tests with coverage
-        run: cargo llvm-cov --workspace --all-features --no-report
+        run: cargo llvm-cov --workspace --all-targets --all-features --no-report
 
       - name: Generate LCOV report
         run: cargo llvm-cov report --lcov --output-path lcov.info
