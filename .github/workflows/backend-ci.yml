@@ -61,6 +61,11 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
 
+      - name: Install SQLx CLI
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sqlx-cli
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
@@ -98,7 +103,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      
+
     env:
       DATABASE_USER: postgres
       DATABASE_PASSWORD: postgres
