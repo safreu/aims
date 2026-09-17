@@ -1,12 +1,13 @@
+import { X } from "lucide-react";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 
 import { useToast } from "../../../../components/toast/ToastContext";
+import type { Priority } from "../../../../domain/priority";
 import {
   deleteCustomShoppingEntry,
   updateCustomShoppingEntry,
 } from "../../api";
 import type { CustomShoppingEntry } from "../../types";
-import type { Priority } from "../../../../domain/priority";
 import { ShoppingEntryFields } from "../fields/ShoppingEntryFields";
 
 type ShoppingEntryFieldErrors = {
@@ -129,11 +130,12 @@ export function CustomShoppingEntryDialog({
 
           <button
             type="button"
-            className="button button--ghost"
+            className="dialog__close"
             onClick={() => dialogRef.current?.close()}
             disabled={isMutating}
+            aria-label="Close"
           >
-            Close
+            <X aria-hidden="true" />
           </button>
         </header>
 

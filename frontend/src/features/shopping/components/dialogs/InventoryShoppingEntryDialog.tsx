@@ -1,9 +1,10 @@
+import { X } from "lucide-react";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 
-import { useToast } from "../../../../components/toast/ToastContext";
 import { Select } from "../../../../components/select/Select";
-import { updateInventoryItem } from "../../../inventory/api";
+import { useToast } from "../../../../components/toast/ToastContext";
 import { PRIORITIES, type Priority } from "../../../../domain/priority";
+import { updateInventoryItem } from "../../../inventory/api";
 import {
   dismissShoppingItem,
   setShoppingNote,
@@ -119,11 +120,12 @@ export function InventoryShoppingEntryDialog({
 
           <button
             type="button"
-            className="button button--ghost"
+            className="dialog__close"
             onClick={() => dialogRef.current?.close()}
             disabled={isMutating}
+            aria-label="Close"
           >
-            Close
+            <X aria-hidden="true" />
           </button>
         </header>
 

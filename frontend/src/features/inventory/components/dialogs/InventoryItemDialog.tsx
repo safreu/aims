@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 
@@ -94,10 +95,11 @@ export function InventoryItemDialog({
 
           <button
             type="button"
-            className="button button--ghost"
+            className="dialog__close"
             onClick={() => dialogRef.current?.close()}
+            aria-label="Close"
           >
-            Close
+            <X aria-hidden="true" />
           </button>
         </header>
 
@@ -128,6 +130,7 @@ export function InventoryItemDialog({
                 <div className="dialog__section-header">
                   <div>
                     <h3>QR codes</h3>
+
                     <p>View or share the QR codes for this item</p>
                   </div>
 
@@ -146,6 +149,7 @@ export function InventoryItemDialog({
               <div className="dialog__section-header">
                 <div>
                   <h3>History</h3>
+
                   <p>Recent changes to this item's stock</p>
                 </div>
 

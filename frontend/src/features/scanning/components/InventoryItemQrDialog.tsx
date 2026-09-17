@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
@@ -43,7 +44,6 @@ export function InventoryItemQrDialog({
   });
 
   const [selectedKind, setSelectedKind] = useState<QrActionKind>("increase");
-
   const [isSharing, setIsSharing] = useState(false);
 
   const selectedAction = useMemo(
@@ -111,11 +111,12 @@ export function InventoryItemQrDialog({
 
           <button
             type="button"
-            className="button button--ghost"
+            className="dialog__close"
             onClick={() => dialogRef.current?.close()}
             disabled={isSharing}
+            aria-label="Close"
           >
-            Close
+            <X aria-hidden="true" />
           </button>
         </header>
 

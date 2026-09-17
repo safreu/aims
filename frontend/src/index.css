@@ -267,8 +267,9 @@ html {
 
 .dialog__header {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
 }
 
 .dialog__title {
@@ -286,6 +287,50 @@ html {
 
   font-size: 0.9rem;
   line-height: 1.4;
+}
+
+.dialog__close {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--text-muted);
+  background: transparent;
+
+  border: 0;
+  border-radius: var(--radius-sm);
+
+  cursor: pointer;
+
+  transition:
+    color 120ms ease,
+    background 120ms ease;
+}
+
+.dialog__close:hover:not(:disabled) {
+  color: var(--text-h);
+  background: var(--surface-hover);
+}
+
+.dialog__close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.dialog__close:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dialog__close svg {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .dialog__field {
@@ -420,23 +465,6 @@ html {
   font-size: 0.875rem;
 }
 
-@media (max-width: 600px) {
-  .dialog__section-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .dialog__section-header .button {
-    width: 100%;
-  }
-}
-
-@media (max-width: 600px) {
-  .dialog__fields {
-    grid-template-columns: 1fr;
-  }
-}
-
 .form-error {
   margin: 0;
 
@@ -449,6 +477,23 @@ html {
 @media (max-width: 600px) {
   .dialog {
     width: calc(100% - 2rem);
+  }
+
+  .dialog__content {
+    padding: var(--space-md);
+  }
+
+  .dialog__fields {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog__section-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dialog__section-header .button {
+    width: 100%;
   }
 
   .dialog__actions {

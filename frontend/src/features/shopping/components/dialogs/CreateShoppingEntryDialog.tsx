@@ -1,9 +1,10 @@
+import { X } from "lucide-react";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 
 import { useToast } from "../../../../components/toast/ToastContext";
+import type { Priority } from "../../../../domain/priority";
 import { createCustomShoppingEntry } from "../../api";
 import { ShoppingEntryFields } from "../fields/ShoppingEntryFields";
-import type { Priority } from "../../../../domain/priority";
 
 type ShoppingEntryFieldErrors = {
   title?: string;
@@ -108,11 +109,12 @@ export function CreateShoppingEntryDialog({
 
           <button
             type="button"
-            className="button button--ghost"
+            className="dialog__close"
             onClick={() => dialogRef.current?.close()}
             disabled={isCreating}
+            aria-label="Close"
           >
-            Close
+            <X aria-hidden="true" />
           </button>
         </header>
 

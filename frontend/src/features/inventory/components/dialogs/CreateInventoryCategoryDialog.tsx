@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 
 import { useToast } from "../../../../components/toast/ToastContext";
@@ -80,11 +81,12 @@ export function CreateInventoryCategoryDialog({
 
           <button
             type="button"
-            className="button button--ghost"
+            className="dialog__close"
             onClick={() => dialogRef.current?.close()}
             disabled={isCreating}
+            aria-label="Close"
           >
-            Close
+            <X aria-hidden="true" />
           </button>
         </header>
 
