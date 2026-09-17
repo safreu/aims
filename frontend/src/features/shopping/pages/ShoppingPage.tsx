@@ -95,6 +95,11 @@ export function ShoppingPage() {
   const orderedItems = orderShoppingEntries(visibleItems, orderBy);
 
   useEffect(() => {
+    const unsubscribeShopping = subscribe(
+      "shopping_list_changed",
+      () => void refreshShoppingList(),
+    );
+
     const unsubscribeCategories = subscribe(
       "inventory_categories_changed",
       () => void refreshShoppingList(),
@@ -106,11 +111,11 @@ export function ShoppingPage() {
     );
 
     return () => {
+      unsubscribeShopping();
       unsubscribeCategories();
       unsubscribeResync();
     };
   }, [subscribe, refreshShoppingList]);
-
   const remainingInventoryCount =
     shoppingList?.inventory_entries.filter((entry) => !entry.checked).length ??
     0;

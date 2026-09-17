@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Check, X } from "lucide-react";
 
 import { PriorityIndicator } from "../../../../components/priority/PriorityIndicator";
 import { useToast } from "../../../../components/toast/ToastContext";
@@ -59,12 +60,12 @@ export function InventoryShoppingEntryRow({
     <SwipeActions
       as="li"
       disabled={isMutating}
-      onSwipeRight={() => handleCheckedUpdate(!entry.checked)}
-      rightLabel={entry.checked ? "Uncheck" : "Check"}
+      rightIcon={<Check aria-hidden="true" />}
       rightVariant="success"
-      onSwipeLeft={handleDismiss}
-      leftLabel="Dismiss"
+      onSwipeRight={() => handleCheckedUpdate(!entry.checked)}
+      leftIcon={<X aria-hidden="true" />}
       leftVariant="danger"
+      onSwipeLeft={handleDismiss}
     >
       <div className={`${styles.entry} ${entry.checked ? styles.checked : ""}`}>
         <input

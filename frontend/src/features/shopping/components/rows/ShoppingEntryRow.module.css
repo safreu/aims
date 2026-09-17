@@ -165,10 +165,6 @@
   font-size: 0.85rem;
 }
 
-.checked {
-  opacity: 0.72;
-}
-
 .checked .name {
   color: var(--text-muted);
 

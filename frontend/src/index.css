@@ -113,8 +113,9 @@ body,
 body {
   margin: 0;
   min-width: 320px;
-  background: var(--bg);
   padding-top: env(safe-area-inset-top);
+
+  background: var(--bg);
 }
 
 button,
@@ -141,6 +142,7 @@ input[type="number"] {
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
+
   -webkit-appearance: none;
 }
 
@@ -204,6 +206,7 @@ p {
 
 .button:disabled {
   opacity: 0.6;
+
   cursor: not-allowed;
 }
 
@@ -219,6 +222,7 @@ p {
 .button--secondary {
   color: var(--text-h);
   background: var(--secondary);
+
   border-color: var(--border);
 }
 
@@ -229,6 +233,7 @@ p {
 .button--ghost {
   color: var(--text-muted);
   background: var(--secondary);
+
   border-color: var(--border);
 }
 
@@ -240,6 +245,7 @@ p {
 .button--danger {
   color: var(--text-h);
   background: transparent;
+
   border-color: var(--danger);
 }
 
@@ -250,6 +256,8 @@ p {
 html {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Dialog */
 
 .dialog {
   width: min(440px, calc(100% - 2rem));
@@ -270,18 +278,27 @@ html {
 }
 
 .dialog__content {
-  padding: var(--space-lg);
-
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
 }
 
+/* Sticky dialog header */
+
 .dialog__header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
+  padding: var(--space-lg);
+
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-md);
+
+  background: var(--surface);
+
+  border-bottom: 1px solid var(--border);
 }
 
 .dialog__title {
@@ -306,11 +323,11 @@ html {
   height: 2rem;
   padding: 0;
 
-  flex: 0 0 auto;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
+  flex: 0 0 auto;
 
   color: var(--text-muted);
   background: transparent;
@@ -337,6 +354,7 @@ html {
 
 .dialog__close:disabled {
   opacity: 0.6;
+
   cursor: not-allowed;
 }
 
@@ -344,6 +362,8 @@ html {
   width: 1.1rem;
   height: 1.1rem;
 }
+
+/* Dialog fields */
 
 .dialog__field {
   display: flex;
@@ -390,6 +410,7 @@ html {
 .dialog__field > input:disabled,
 .dialog__field > textarea:disabled {
   opacity: 0.6;
+
   cursor: not-allowed;
 }
 
@@ -438,13 +459,16 @@ html {
 }
 
 .dialog__field--error > input:focus-visible,
-.dialog__field--error > textarea:focus-visible {
+.dialog__field--field-error > textarea:focus-visible {
   border-color: var(--danger);
 
   outline-color: var(--danger);
 }
 
+/* Dialog sections */
+
 .dialog__section {
+  margin: 0 var(--space-lg);
   padding: var(--space-lg) 0;
 
   display: flex;
@@ -452,6 +476,10 @@ html {
   gap: var(--space-lg);
 
   border-top: 1px solid var(--border);
+}
+
+.dialog__header + .dialog__section {
+  border-top: 0;
 }
 
 .dialog__section > h3 {
@@ -490,13 +518,20 @@ html {
   line-height: 1.4;
 }
 
+/* Mobile */
+
 @media (max-width: 600px) {
   .dialog {
     width: calc(100% - 2rem);
   }
 
-  .dialog__content {
+  .dialog__header {
     padding: var(--space-md);
+  }
+
+  .dialog__section {
+    margin-right: var(--space-md);
+    margin-left: var(--space-md);
   }
 
   .dialog__fields {

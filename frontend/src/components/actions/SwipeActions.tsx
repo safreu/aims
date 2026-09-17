@@ -20,8 +20,8 @@ type Props = {
   onSwipeRight?: () => void | Promise<void>;
   onSwipeLeft?: () => void | Promise<void>;
 
-  rightLabel?: string;
-  leftLabel?: string;
+  rightIcon?: ReactNode;
+  leftIcon?: ReactNode;
 
   rightVariant?: SwipeActionVariant;
   leftVariant?: SwipeActionVariant;
@@ -38,8 +38,8 @@ export function SwipeActions({
   children,
   onSwipeRight,
   onSwipeLeft,
-  rightLabel,
-  leftLabel,
+  rightIcon,
+  leftIcon,
   rightVariant = "success",
   leftVariant = "danger",
   threshold = DEFAULT_THRESHOLD,
@@ -98,7 +98,6 @@ export function SwipeActions({
         return;
       }
 
-      // The user is scrolling vertically rather than swiping.
       if (Math.abs(deltaY) >= Math.abs(deltaX)) {
         resetGesture();
         return;
@@ -174,25 +173,25 @@ export function SwipeActions({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
     >
-      {rightLabel !== undefined && (
+      {rightIcon !== undefined && (
         <div
           className={`${styles.action} ${styles.actionRight} ${
             styles[rightVariant]
           }`}
           aria-hidden="true"
         >
-          <span>{rightLabel}</span>
+          {rightIcon}
         </div>
       )}
 
-      {leftLabel !== undefined && (
+      {leftIcon !== undefined && (
         <div
           className={`${styles.action} ${styles.actionLeft} ${
             styles[leftVariant]
           }`}
           aria-hidden="true"
         >
-          <span>{leftLabel}</span>
+          {leftIcon}
         </div>
       )}
 

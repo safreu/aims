@@ -1,13 +1,14 @@
 import { useState } from "react";
+import { Check, Trash2 } from "lucide-react";
 
-import { useToast } from "../../../../components/toast/ToastContext";
+import { SwipeActions } from "../../../../components/actions/SwipeActions";
 import { PriorityIndicator } from "../../../../components/priority/PriorityIndicator";
-import { setCustomShoppingChecked } from "../../api";
+import { useToast } from "../../../../components/toast/ToastContext";
+import { deleteCustomShoppingEntry, setCustomShoppingChecked } from "../../api";
 import type { CustomShoppingEntry } from "../../types";
 import { CustomShoppingEntryDialog } from "../dialogs/CustomShoppingEntryDialog";
 
 import styles from "./ShoppingEntryRow.module.css";
-import { SwipeActions } from "../../../../components/actions/SwipeActions";
 
 type CustomShoppingEntryRowProps = {
   householdId: string;
@@ -39,15 +40,34 @@ export function CustomShoppingEntryRow({
     }
   }
 
+  async function handleDelete() {
+    setIsMutating(true);
+
+    try {
+      await deleteCustomShoppingEntry(householdId, entry.id);
+
+      await onChange();
+
+      showToast("Shopping item deleted", "success");
+    } catch {
+      showToast("Failed to delete shopping item", "error");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
   return (
     <SwipeActions
       as="li"
       disabled={isMutating}
-      onSwipeRight={() => handleCheckedUpdate(!entry.checked)}
-      rightLabel={entry.checked ? "Uncheck" : "Check"}
+      leftIcon={<Trash2 aria-hidden="true" />}
+      rightIcon={<Check aria-hidden="true" />}
+      leftVariant="danger"
       rightVariant="success"
+      onSwipeLeft={handleDelete}
+      onSwipeRight={() => handleCheckedUpdate(!entry.checked)}
     >
-      <li className={`${styles.entry} ${entry.checked ? styles.checked : ""}`}>
+      <div className={`${styles.entry} ${entry.checked ? styles.checked : ""}`}>
         <input
           className={styles.checkbox}
           type="checkbox"
@@ -83,7 +103,7 @@ export function CustomShoppingEntryRow({
             onClose={() => setIsDialogOpen(false)}
           />
         )}
-      </li>
+      </div>
     </SwipeActions>
   );
 }
