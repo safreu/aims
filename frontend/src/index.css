@@ -132,6 +132,18 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Remove native number input controls. */
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
 h1,
 h2,
 h3,
