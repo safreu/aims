@@ -2,19 +2,16 @@ use std::sync::Arc;
 
 use crate::{
     modules::{
-        accounts::{
-            domain::{UserEvent, UserId},
-            ports::UserEventPublisher,
-        },
+        accounts::domain::UserId,
         households::{
-            domain::{HouseholdEvent, HouseholdId, HouseholdRole},
+            domain::{HouseholdApplicationEvent, HouseholdId, HouseholdRole},
             ports::{
-                HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher,
-                HouseholdRepository, HouseholdRepositoryError,
+                HouseholdAccessError, HouseholdAccessPolicy, HouseholdRepository,
+                HouseholdRepositoryError,
             },
         },
     },
-    shared::application::InternalError,
+    shared::application::{InternalError, events::ApplicationResult},
 };
 
 pub struct RemoveHouseholdMemberCommand {
@@ -26,29 +23,23 @@ pub struct RemoveHouseholdMemberCommand {
 pub struct RemoveHouseholdMemberService {
     household_repository: Arc<dyn HouseholdRepository>,
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
-    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
-    user_events_publisher: Arc<dyn UserEventPublisher>,
 }
 
 impl RemoveHouseholdMemberService {
     pub fn new(
         household_repository: Arc<dyn HouseholdRepository>,
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
-        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
-        user_events_publisher: Arc<dyn UserEventPublisher>,
     ) -> Self {
         Self {
             household_repository,
             household_access_policy,
-            household_events_publisher,
-            user_events_publisher,
         }
     }
 
     pub async fn execute(
         &self,
         command: RemoveHouseholdMemberCommand,
-    ) -> Result<(), RemoveHouseholdMemberError> {
+    ) -> Result<ApplicationResult<()>, RemoveHouseholdMemberError> {
         let requester = self
             .household_access_policy
             .require_member(&command.household_id, &command.requester_id)
@@ -98,30 +89,12 @@ impl RemoveHouseholdMemberService {
                 }
             })?;
 
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::HouseholdChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    "Failed to publish household changed event"
-                );
-                RemoveHouseholdMemberError::Internal(InternalError::Failed)
-            })?;
-
-        self.user_events_publisher
-            .publish(command.member_id, UserEvent::HouseholdMembershipChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    member_id = %command.member_id,
-                    "Failed to publish user membership changed event"
-                );
-                RemoveHouseholdMemberError::Internal(InternalError::Failed)
-            })?;
-
-        Ok(())
+        Ok(
+            ApplicationResult::new(()).with_event(HouseholdApplicationEvent::MemberRemoved {
+                household_id: command.household_id,
+                member_id: command.member_id,
+            }),
+        )
     }
 }
 
@@ -139,29 +112,25 @@ pub enum RemoveHouseholdMemberError {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
 
     use chrono::Utc;
 
-    use super::*;
     use crate::{
-        modules::{
-            accounts::adapters::BroadcastUserEvents,
-            households::{
-                adapters::{
-                    BroadcastHouseholdEvents, DefaultHouseholdAccessPolicy,
-                    InMemoryHouseholdRepository,
-                },
-                application::RemoveHouseholdMemberCommand,
-                domain::{HouseholdKind, HouseholdMember},
-                ports::HouseholdRepository,
-            },
+        modules::households::{
+            adapters::{DefaultHouseholdAccessPolicy, InMemoryHouseholdRepository},
+            domain::{HouseholdApplicationEvent, HouseholdKind, HouseholdMember, HouseholdRole},
+            ports::HouseholdRepository,
         },
+        shared::application::events::AppEvent,
         test_helpers::{
             FailingHouseholdRepository, MissingOnRemoveHouseholdRepository,
             build_remove_household_member_service, create_owned_household,
             create_shared_household_fixture, insert_member, insert_user,
         },
     };
+
+    use super::*;
 
     #[tokio::test]
     async fn owner_can_remove_member() {
@@ -181,16 +150,27 @@ mod tests {
                 household_id: fixture.household.id(),
                 member_id: member.id(),
             })
-            .await;
+            .await
+            .expect("Removing member should succeed");
 
-        assert!(result.is_ok());
+        let (_, events) = result.into_parts();
 
         let stored = household_repository
             .find_member(&fixture.household.id(), &member.id())
             .await
             .expect("Membership lookup should succeed");
 
-        assert!(stored.is_none())
+        assert!(stored.is_none());
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Household(
+                HouseholdApplicationEvent::MemberRemoved {
+                    household_id: fixture.household.id(),
+                    member_id: member.id(),
+                }
+            )]
+        );
     }
 
     #[tokio::test]
@@ -211,16 +191,27 @@ mod tests {
                 household_id: fixture.household.id(),
                 member_id: member.id(),
             })
-            .await;
+            .await
+            .expect("Removing member should succeed");
 
-        assert!(result.is_ok());
+        let (_, events) = result.into_parts();
 
         let stored = household_repository
             .find_member(&fixture.household.id(), &member.id())
             .await
             .expect("Membership lookup should succeed");
 
-        assert!(stored.is_none())
+        assert!(stored.is_none());
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Household(
+                HouseholdApplicationEvent::MemberRemoved {
+                    household_id: fixture.household.id(),
+                    member_id: member.id(),
+                }
+            )]
+        );
     }
 
     #[tokio::test]
@@ -232,6 +223,7 @@ mod tests {
             create_shared_household_fixture(&user_repository, &household_repository).await;
 
         let requester = insert_user(&user_repository, "requester@email.com").await;
+
         let target = insert_user(&user_repository, "target@email.com").await;
 
         insert_member(
@@ -240,6 +232,7 @@ mod tests {
             requester.id(),
         )
         .await;
+
         insert_member(&household_repository, fixture.household.id(), target.id()).await;
 
         let result = service
@@ -250,19 +243,19 @@ mod tests {
             })
             .await;
 
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(RemoveHouseholdMemberError::HouseholdAccess(
                 HouseholdAccessError::Forbidden
             ))
-        );
+        ));
 
         let stored = household_repository
             .find_member(&fixture.household.id(), &target.id())
             .await
             .expect("Membership lookup should succeed");
 
-        assert!(stored.is_some())
+        assert!(stored.is_some());
     }
 
     #[tokio::test]
@@ -274,6 +267,7 @@ mod tests {
             create_shared_household_fixture(&user_repository, &household_repository).await;
 
         let requester = insert_user(&user_repository, "requester@email.com").await;
+
         let target = insert_user(&user_repository, "target@email.com").await;
 
         insert_member(&household_repository, fixture.household.id(), target.id()).await;
@@ -286,19 +280,19 @@ mod tests {
             })
             .await;
 
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(RemoveHouseholdMemberError::HouseholdAccess(
                 HouseholdAccessError::Forbidden
             ))
-        );
+        ));
 
         let stored = household_repository
             .find_member(&fixture.household.id(), &target.id())
             .await
             .expect("Membership lookup should succeed");
 
-        assert!(stored.is_some())
+        assert!(stored.is_some());
     }
 
     #[tokio::test]
@@ -313,12 +307,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(RemoveHouseholdMemberError::HouseholdAccess(
                 HouseholdAccessError::HouseholdNotFound
             ))
-        );
+        ));
     }
 
     #[tokio::test]
@@ -339,7 +333,10 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(RemoveHouseholdMemberError::MemberNotFound));
+        assert!(matches!(
+            result,
+            Err(RemoveHouseholdMemberError::MemberNotFound)
+        ));
     }
 
     #[tokio::test]
@@ -358,33 +355,26 @@ mod tests {
             })
             .await;
 
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(RemoveHouseholdMemberError::OwnerCannotBeRemoved)
-        );
+        ));
 
         let stored = household_repository
             .find_member(&fixture.household.id(), &fixture.owner.id())
             .await
             .expect("Membership lookup should succeed");
 
-        assert!(stored.is_some())
+        assert!(stored.is_some());
     }
 
     #[tokio::test]
     async fn household_repository_failure_returns_internal() {
         let repository = Arc::new(FailingHouseholdRepository);
+
         let policy = Arc::new(DefaultHouseholdAccessPolicy::new(repository.clone()));
-        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
-        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
-        let user_events = Arc::new(BroadcastUserEvents::new(64));
-        let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
-        let service = RemoveHouseholdMemberService::new(
-            repository,
-            policy,
-            household_events_publisher,
-            user_events_publisher,
-        );
+
+        let service = RemoveHouseholdMemberService::new(repository, policy);
 
         let result = service
             .execute(RemoveHouseholdMemberCommand {
@@ -394,12 +384,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(RemoveHouseholdMemberError::HouseholdAccess(
                 HouseholdAccessError::Internal(InternalError::Failed)
             ))
-        )
+        ));
     }
 
     #[tokio::test]
@@ -409,18 +399,10 @@ mod tests {
         let repository = Arc::new(MissingOnRemoveHouseholdRepository {
             inner: inner.clone(),
         });
-        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
-        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
-        let user_events = Arc::new(BroadcastUserEvents::new(64));
-        let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
         let policy = Arc::new(DefaultHouseholdAccessPolicy::new(repository.clone()));
-        let service = RemoveHouseholdMemberService::new(
-            repository,
-            policy,
-            household_events_publisher,
-            user_events_publisher,
-        );
+
+        let service = RemoveHouseholdMemberService::new(repository, policy);
 
         let owner_id = UserId::new();
         let member_id = UserId::new();
@@ -448,6 +430,9 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(RemoveHouseholdMemberError::MemberNotFound))
+        assert!(matches!(
+            result,
+            Err(RemoveHouseholdMemberError::MemberNotFound)
+        ));
     }
 }

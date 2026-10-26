@@ -6,11 +6,13 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::{HouseholdEvent, HouseholdId, HouseholdKind, HouseholdName, HouseholdRole},
-            ports::{HouseholdEventPublisher, HouseholdRepository, HouseholdRepositoryError},
+            domain::{
+                HouseholdApplicationEvent, HouseholdId, HouseholdKind, HouseholdName, HouseholdRole,
+            },
+            ports::{HouseholdRepository, HouseholdRepositoryError},
         },
     },
-    shared::application::InternalError,
+    shared::application::{InternalError, events::ApplicationResult},
 };
 
 pub struct RenameHouseholdCommand {
@@ -21,24 +23,19 @@ pub struct RenameHouseholdCommand {
 
 pub struct RenameHouseholdService {
     household_repository: Arc<dyn HouseholdRepository>,
-    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl RenameHouseholdService {
-    pub fn new(
-        household_repository: Arc<dyn HouseholdRepository>,
-        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
-    ) -> Self {
+    pub fn new(household_repository: Arc<dyn HouseholdRepository>) -> Self {
         Self {
             household_repository,
-            household_events_publisher,
         }
     }
 
     pub async fn execute(
         &self,
         command: RenameHouseholdCommand,
-    ) -> Result<(), RenameHouseholdError> {
+    ) -> Result<ApplicationResult<()>, RenameHouseholdError> {
         let name =
             HouseholdName::parse(&command.name).map_err(|_| RenameHouseholdError::InvalidName)?;
 
@@ -92,18 +89,11 @@ impl RenameHouseholdService {
                 }
             })?;
 
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::HouseholdChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    "Failed to publish household changed event"
-                );
-                RenameHouseholdError::Internal(InternalError::Failed)
-            })?;
-
-        Ok(())
+        Ok(
+            ApplicationResult::new(()).with_event(HouseholdApplicationEvent::NameUpdated {
+                household_id: command.household_id,
+            }),
+        )
     }
 }
 
@@ -121,9 +111,9 @@ pub enum RenameHouseholdError {
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
-        modules::households::adapters::{BroadcastHouseholdEvents, InMemoryHouseholdRepository},
+        modules::households::{adapters::InMemoryHouseholdRepository, domain::HouseholdKind},
+        shared::application::events::AppEvent,
         test_helpers::{
             FailingHouseholdRepository, MissingOnUpdateHouseholdRepository,
             build_rename_household_service, create_owned_household, insert_member,
@@ -159,7 +149,37 @@ mod tests {
             .expect("Household lookup should succeed")
             .expect("Household should exist");
 
-        assert_eq!(stored.name().as_str(), new_name)
+        assert_eq!(stored.name().as_str(), new_name);
+    }
+
+    #[tokio::test]
+    async fn renaming_household_emits_name_updated_event() {
+        let (service, household_repository) = build_rename_household_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let result = service
+            .execute(RenameHouseholdCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                name: "New household name".to_owned(),
+            })
+            .await
+            .expect("Household rename should succeed");
+
+        let (_, events) = result.into_parts();
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Household(
+                HouseholdApplicationEvent::NameUpdated {
+                    household_id: household.id(),
+                }
+            )]
+        );
     }
 
     #[tokio::test]
@@ -188,7 +208,7 @@ mod tests {
             .expect("Household lookup should succeed")
             .expect("Household should exist");
 
-        assert_eq!(stored.name().as_str(), new_name)
+        assert_eq!(stored.name().as_str(), new_name);
     }
 
     #[tokio::test]
@@ -200,34 +220,30 @@ mod tests {
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
 
-        let new_name = "                    ".to_string();
-
         let result = service
             .execute(RenameHouseholdCommand {
                 requester_id: owner_id,
                 household_id: household.id(),
-                name: new_name.clone(),
+                name: "                    ".to_owned(),
             })
             .await;
 
-        assert_eq!(result, Err(RenameHouseholdError::InvalidName))
+        assert!(matches!(result, Err(RenameHouseholdError::InvalidName)));
     }
 
     #[tokio::test]
     async fn unknown_household_returns_not_found() {
         let (service, _) = build_rename_household_service();
 
-        let new_name = "New household name".to_string();
-
         let result = service
             .execute(RenameHouseholdCommand {
                 requester_id: UserId::new(),
                 household_id: HouseholdId::new(),
-                name: new_name.clone(),
+                name: "New household name".to_owned(),
             })
             .await;
 
-        assert_eq!(result, Err(RenameHouseholdError::NotFound))
+        assert!(matches!(result, Err(RenameHouseholdError::NotFound)));
     }
 
     #[tokio::test]
@@ -235,22 +251,20 @@ mod tests {
         let (service, household_repository) = build_rename_household_service();
 
         let owner_id = UserId::new();
-        let member_id = UserId::new();
+        let non_member_id = UserId::new();
 
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
 
-        let new_name = "New household name".to_string();
-
         let result = service
             .execute(RenameHouseholdCommand {
-                requester_id: member_id,
+                requester_id: non_member_id,
                 household_id: household.id(),
-                name: new_name.clone(),
+                name: "New household name".to_owned(),
             })
             .await;
 
-        assert_eq!(result, Err(RenameHouseholdError::Forbidden))
+        assert!(matches!(result, Err(RenameHouseholdError::Forbidden)));
     }
 
     #[tokio::test]
@@ -265,25 +279,21 @@ mod tests {
 
         insert_member(&household_repository, household.id(), member_id).await;
 
-        let new_name = "New household name".to_string();
-
         let result = service
             .execute(RenameHouseholdCommand {
                 requester_id: member_id,
                 household_id: household.id(),
-                name: new_name.clone(),
+                name: "New household name".to_owned(),
             })
             .await;
 
-        assert_eq!(result, Err(RenameHouseholdError::Forbidden))
+        assert!(matches!(result, Err(RenameHouseholdError::Forbidden)));
     }
 
     #[tokio::test]
     async fn repository_failure_returns_internal() {
         let repository = Arc::new(FailingHouseholdRepository);
-        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
-        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
-        let service = RenameHouseholdService::new(repository, household_events_publisher);
+        let service = RenameHouseholdService::new(repository);
 
         let result = service
             .execute(RenameHouseholdCommand {
@@ -293,10 +303,10 @@ mod tests {
             })
             .await;
 
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(RenameHouseholdError::Internal(InternalError::Failed))
-        )
+        ));
     }
 
     #[tokio::test]
@@ -307,10 +317,7 @@ mod tests {
             inner: inner.clone(),
         });
 
-        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
-        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
-
-        let service = RenameHouseholdService::new(repository, household_events_publisher);
+        let service = RenameHouseholdService::new(repository);
 
         let owner_id = UserId::new();
 
@@ -329,6 +336,6 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(RenameHouseholdError::NotFound))
+        assert!(matches!(result, Err(RenameHouseholdError::NotFound)));
     }
 }

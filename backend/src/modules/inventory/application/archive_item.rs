@@ -6,15 +6,15 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::{HouseholdEvent, HouseholdId},
-            ports::{HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher},
+            domain::HouseholdId,
+            ports::{HouseholdAccessError, HouseholdAccessPolicy},
         },
         inventory::{
-            domain::{InventoryItemError, InventoryItemId},
+            domain::{InventoryEvent, InventoryItemError, InventoryItemId},
             ports::{InventoryItemRepository, InventoryItemRepositoryError},
         },
     },
-    shared::application::InternalError,
+    shared::application::{InternalError, events::ApplicationResult},
 };
 
 pub struct ArchiveInventoryItemCommand {
@@ -26,26 +26,23 @@ pub struct ArchiveInventoryItemCommand {
 pub struct ArchiveInventoryItemService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     inventory_item_repository: Arc<dyn InventoryItemRepository>,
-    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl ArchiveInventoryItemService {
     pub fn new(
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         inventory_item_repository: Arc<dyn InventoryItemRepository>,
-        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             household_access_policy,
             inventory_item_repository,
-            household_events_publisher,
         }
     }
 
     pub async fn execute(
         &self,
         command: ArchiveInventoryItemCommand,
-    ) -> Result<(), ArchiveInventoryItemError> {
+    ) -> Result<ApplicationResult<()>, ArchiveInventoryItemError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
             .await?;
@@ -94,31 +91,12 @@ impl ArchiveInventoryItemService {
                 }
             })?;
 
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::ShoppingListChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    item_id = %item.id(),
-                    "Failed to publish shopping list changed event"
-                );
-                ArchiveInventoryItemError::Internal(InternalError::Failed)
-            })?;
-
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::InventoryItemsChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    item_id = %item.id(),
-                    "Failed to publish inventory items changed event"
-                );
-                ArchiveInventoryItemError::Internal(InternalError::Failed)
-            })?;
-
-        Ok(())
+        Ok(
+            ApplicationResult::new(()).with_event(InventoryEvent::ItemArchived {
+                household_id: command.household_id,
+                item_id: command.item_id,
+            }),
+        )
     }
 }
 
@@ -137,7 +115,8 @@ pub enum ArchiveInventoryItemError {
 #[cfg(test)]
 mod tests {
     use crate::{
-        modules::households::domain::HouseholdKind,
+        modules::{households::domain::HouseholdKind, inventory::domain::InventoryEvent},
+        shared::application::events::AppEvent,
         test_helpers::{
             InventoryItemTestBuilder, build_archive_item_service, insert_owned_household,
         },
@@ -164,23 +143,61 @@ mod tests {
             .await
             .expect("Inventory item insertion should succeed");
 
-        let command = ArchiveInventoryItemCommand {
-            requester_id: owner_id,
-            household_id: household.id(),
-            item_id: item.id(),
-        };
-
-        let result = service.execute(command).await;
-
-        assert!(result.is_ok());
+        service
+            .execute(ArchiveInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+            })
+            .await
+            .expect("Inventory item archiving should succeed");
 
         let stored = inventory_item_repository
             .find_by_id(&item.id(), &household.id())
             .await
             .expect("Inventory item lookup should succeed")
-            .expect("Item should exists");
+            .expect("Inventory item should exist");
 
         assert!(stored.archived_at().is_some());
+    }
+
+    #[tokio::test]
+    async fn archiving_inventory_item_emits_item_archived_event() {
+        let (service, inventory_item_repository, household_repository) =
+            build_archive_item_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let item = InventoryItemTestBuilder::new(household.id())
+            .name("Tofu".to_owned())
+            .build();
+
+        inventory_item_repository
+            .insert(&item)
+            .await
+            .expect("Inventory item insertion should succeed");
+
+        let result = service
+            .execute(ArchiveInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+            })
+            .await
+            .expect("Inventory item archiving should succeed");
+
+        let (_, events) = result.into_parts();
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Inventory(InventoryEvent::ItemArchived {
+                household_id: household.id(),
+                item_id: item.id(),
+            })]
+        );
     }
 
     #[tokio::test]
@@ -192,19 +209,20 @@ mod tests {
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
 
-        let item = InventoryItemTestBuilder::new(household.id())
-            .name("Tofu".to_owned())
-            .build();
+        let item_id = InventoryItemId::new();
 
-        let command = ArchiveInventoryItemCommand {
-            requester_id: owner_id,
-            household_id: household.id(),
-            item_id: item.id(),
-        };
+        let result = service
+            .execute(ArchiveInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id,
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(ArchiveInventoryItemError::ItemNotFound))
+        assert!(matches!(
+            result,
+            Err(ArchiveInventoryItemError::ItemNotFound)
+        ));
     }
 
     #[tokio::test]
@@ -226,24 +244,27 @@ mod tests {
             .await
             .expect("Inventory item insertion should succeed");
 
-        let command = ArchiveInventoryItemCommand {
-            requester_id: owner_id,
-            household_id: household.id(),
-            item_id: item.id(),
-        };
         service
-            .execute(command)
+            .execute(ArchiveInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+            })
             .await
-            .expect("Item archiving should succeed");
+            .expect("Inventory item archiving should succeed");
 
-        let command = ArchiveInventoryItemCommand {
-            requester_id: owner_id,
-            household_id: household.id(),
-            item_id: item.id(),
-        };
-        let result = service.execute(command).await;
+        let result = service
+            .execute(ArchiveInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+            })
+            .await;
 
-        assert_eq!(result, Err(ArchiveInventoryItemError::AlreadyArchived))
+        assert!(matches!(
+            result,
+            Err(ArchiveInventoryItemError::AlreadyArchived)
+        ));
     }
 
     #[tokio::test]
@@ -265,19 +286,19 @@ mod tests {
             .await
             .expect("Inventory item insertion should succeed");
 
-        let command = ArchiveInventoryItemCommand {
-            requester_id: UserId::new(),
-            household_id: household.id(),
-            item_id: item.id(),
-        };
+        let result = service
+            .execute(ArchiveInventoryItemCommand {
+                requester_id: UserId::new(),
+                household_id: household.id(),
+                item_id: item.id(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(ArchiveInventoryItemError::HouseholdAccess(
                 HouseholdAccessError::Forbidden
             ))
-        )
+        ));
     }
 }

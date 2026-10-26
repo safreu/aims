@@ -10,7 +10,7 @@ use crate::{
             AuthenticateSessionService, CreateSessionService, GetUserService, LoginUserService,
             LogoutUserService, RegisterUserService, SubscribeUserEventsService,
         },
-        ports::{UserEventPublisher, UserEventSubscriber},
+        ports::UserEventSubscriber,
     },
     shared::{
         api::AccountsState,
@@ -21,7 +21,6 @@ use crate::{
 pub(super) fn build_accounts_state(
     pool: &PgPool,
     config: &SessionConfig,
-    _user_events_publisher: Arc<dyn UserEventPublisher>,
     user_events_subscriber: Arc<dyn UserEventSubscriber>,
 ) -> AccountsState {
     let user_repository = Arc::new(PostgresUserRepository::new(pool.clone()));

@@ -59,12 +59,14 @@ pub async fn create_inventory_item(
         priority,
     };
 
-    let item_id = state
+    let result = state
         .inventory
         .create_inventory_item
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    let item_id = state.application_result_dispatcher.dispatch(result);
 
     Ok((
         StatusCode::CREATED,
@@ -86,12 +88,14 @@ pub async fn create_category(
         name: request.name,
     };
 
-    let category_id = state
+    let result = state
         .inventory
         .create_category
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    let category_id = state.application_result_dispatcher.dispatch(result);
 
     Ok((
         StatusCode::CREATED,
@@ -114,12 +118,14 @@ pub async fn update_category(
         name: request.name,
     };
 
-    state
+    let result = state
         .inventory
         .update_category
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -163,12 +169,14 @@ pub async fn delete_category(
         category_id: CategoryId::from_uuid(category_id),
     };
 
-    state
+    let result = state
         .inventory
         .delete_category
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -239,12 +247,14 @@ pub async fn update_inventory_item(
         reorder_threshold: request.reorder_threshold,
     };
 
-    state
+    let result = state
         .inventory
         .update_inventory_item
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -260,12 +270,14 @@ pub async fn archive_inventory_item(
         item_id: InventoryItemId::from_uuid(item_id),
     };
 
-    state
+    let result = state
         .inventory
         .archive_inventory_item
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -281,12 +293,14 @@ pub async fn restore_inventory_item(
         item_id: InventoryItemId::from_uuid(item_id),
     };
 
-    state
+    let result = state
         .inventory
         .restore_inventory_item
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -304,12 +318,14 @@ pub async fn increase_inventory_stock(
         amount: request.amount,
     };
 
-    state
+    let result = state
         .inventory
         .increase_inventory_stock
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -327,12 +343,14 @@ pub async fn decrease_inventory_stock(
         amount: request.amount,
     };
 
-    state
+    let result = state
         .inventory
         .decrease_inventory_stock
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -350,12 +368,14 @@ pub async fn set_inventory_stock(
         stock: request.stock,
     };
 
-    state
+    let result = state
         .inventory
         .set_inventory_stock
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }

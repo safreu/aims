@@ -7,13 +7,13 @@ use crate::{
         accounts::domain::UserId,
         households::{
             domain::{
-                Household, HouseholdId, HouseholdKind, HouseholdMember, HouseholdName,
-                HouseholdRole,
+                Household, HouseholdApplicationEvent, HouseholdId, HouseholdKind, HouseholdMember,
+                HouseholdName, HouseholdRole,
             },
             ports::{HouseholdRepository, HouseholdRepositoryError},
         },
     },
-    shared::application::InternalError,
+    shared::application::{InternalError, events::ApplicationResult},
 };
 
 pub struct CreateHouseholdCommand {
@@ -36,7 +36,7 @@ impl CreateHouseholdService {
     pub async fn execute(
         &self,
         command: CreateHouseholdCommand,
-    ) -> Result<HouseholdId, CreateHouseholdError> {
+    ) -> Result<ApplicationResult<HouseholdId>, CreateHouseholdError> {
         let name =
             HouseholdName::parse(&command.name).map_err(|_| CreateHouseholdError::InvalidName)?;
 
@@ -77,7 +77,12 @@ impl CreateHouseholdService {
                 _ => CreateHouseholdError::Internal(InternalError::Failed),
             })?;
 
-        Ok(household_id)
+        Ok(ApplicationResult::new(household_id).with_event(
+            HouseholdApplicationEvent::MemberAdded {
+                household_id,
+                member_id: command.owner_id,
+            },
+        ))
     }
 }
 
@@ -93,8 +98,13 @@ pub enum CreateHouseholdError {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
 
-    use crate::test_helpers::{FailingHouseholdRepository, build_create_household_service};
+    use crate::{
+        modules::households::domain::HouseholdApplicationEvent,
+        shared::application::events::AppEvent,
+        test_helpers::{FailingHouseholdRepository, build_create_household_service},
+    };
 
     use super::*;
 
@@ -112,12 +122,12 @@ mod tests {
 
         let owner_id = UserId::new();
 
-        let command = create_command(owner_id, HouseholdKind::Personal);
-
         let result = service
-            .execute(command)
+            .execute(create_command(owner_id, HouseholdKind::Personal))
             .await
             .expect("Household creation should succeed");
+
+        let (household_id, events) = result.into_parts();
 
         let stored_household = repository
             .find_personal_by_owner(&owner_id)
@@ -125,7 +135,15 @@ mod tests {
             .expect("Household lookup should succeed")
             .expect("Household should exist");
 
-        assert_eq!(result, stored_household.id())
+        assert_eq!(household_id, stored_household.id());
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Household(HouseholdApplicationEvent::Created {
+                household_id,
+                owner_id,
+            })]
+        );
     }
 
     #[tokio::test]
@@ -134,12 +152,12 @@ mod tests {
 
         let owner_id = UserId::new();
 
-        let command = create_command(owner_id, HouseholdKind::Shared);
-
         let result = service
-            .execute(command)
+            .execute(create_command(owner_id, HouseholdKind::Shared))
             .await
             .expect("Household creation should succeed");
+
+        let (household_id, events) = result.into_parts();
 
         let households = repository
             .find_for_user(&owner_id)
@@ -147,7 +165,15 @@ mod tests {
             .expect("Household lookup should succeed");
 
         assert_eq!(households.len(), 1);
-        assert_eq!(result, households[0].id())
+        assert_eq!(household_id, households[0].id());
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Household(HouseholdApplicationEvent::Created {
+                household_id,
+                owner_id,
+            })]
+        );
     }
 
     #[tokio::test]
@@ -156,15 +182,15 @@ mod tests {
 
         let owner_id = UserId::new();
 
-        let command = CreateHouseholdCommand {
-            owner_id,
-            name: "       ".into(),
-            kind: HouseholdKind::Shared,
-        };
+        let result = service
+            .execute(CreateHouseholdCommand {
+                owner_id,
+                name: "       ".into(),
+                kind: HouseholdKind::Shared,
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(CreateHouseholdError::InvalidName))
+        assert!(matches!(result, Err(CreateHouseholdError::InvalidName)));
     }
 
     #[tokio::test]
@@ -173,38 +199,36 @@ mod tests {
 
         let owner_id = UserId::new();
 
-        let command = create_command(owner_id, HouseholdKind::Personal);
-
         service
-            .execute(command)
+            .execute(create_command(owner_id, HouseholdKind::Personal))
             .await
             .expect("Household creation should succeed");
 
-        let command = create_command(owner_id, HouseholdKind::Personal);
+        let result = service
+            .execute(create_command(owner_id, HouseholdKind::Personal))
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(CreateHouseholdError::PersonalHouseholdAlreadyExists)
-        )
+        ));
     }
 
     #[tokio::test]
-    async fn repository_failure_returns_repository_failed() {
+    async fn repository_failure_returns_internal() {
         let repository = Arc::new(FailingHouseholdRepository);
 
-        let service = CreateHouseholdService::new(repository.clone());
+        let service = CreateHouseholdService::new(repository);
 
         let owner_id = UserId::new();
 
-        let command = create_command(owner_id, HouseholdKind::Personal);
+        let result = service
+            .execute(create_command(owner_id, HouseholdKind::Personal))
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(CreateHouseholdError::Internal(InternalError::Failed))
-        )
+        ));
     }
 }

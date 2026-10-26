@@ -5,15 +5,18 @@ use chrono::Utc;
 use crate::{
     modules::{
         accounts::{
-            domain::{Email, UserEvent, UserId},
-            ports::{UserEventPublisher, UserRepository},
+            domain::{Email, UserId},
+            ports::UserRepository,
         },
         households::{
-            domain::{HouseholdEvent, HouseholdId, HouseholdKind, HouseholdMember, HouseholdRole},
-            ports::{HouseholdEventPublisher, HouseholdRepository, HouseholdRepositoryError},
+            domain::{
+                HouseholdApplicationEvent, HouseholdId, HouseholdKind, HouseholdMember,
+                HouseholdRole,
+            },
+            ports::{HouseholdRepository, HouseholdRepositoryError},
         },
     },
-    shared::application::InternalError,
+    shared::application::{InternalError, events::ApplicationResult},
 };
 
 pub struct AddHouseholdMemberCommand {
@@ -25,29 +28,23 @@ pub struct AddHouseholdMemberCommand {
 pub struct AddHouseholdMemberService {
     household_repository: Arc<dyn HouseholdRepository>,
     user_repository: Arc<dyn UserRepository>,
-    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
-    user_events_publisher: Arc<dyn UserEventPublisher>,
 }
 
 impl AddHouseholdMemberService {
     pub fn new(
         household_repository: Arc<dyn HouseholdRepository>,
         user_repository: Arc<dyn UserRepository>,
-        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
-        user_events_publisher: Arc<dyn UserEventPublisher>,
     ) -> Self {
         Self {
             household_repository,
             user_repository,
-            household_events_publisher,
-            user_events_publisher,
         }
     }
 
     pub async fn execute(
         &self,
         command: AddHouseholdMemberCommand,
-    ) -> Result<(), AddHouseholdMemberError> {
+    ) -> Result<ApplicationResult<()>, AddHouseholdMemberError> {
         let email = Email::parse(&command.member_email)
             .map_err(|_| AddHouseholdMemberError::InvalidEmail)?;
 
@@ -144,29 +141,12 @@ impl AddHouseholdMemberService {
                 }
             })?;
 
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::HouseholdChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    "Failed to publish household changed event"
-                );
-                AddHouseholdMemberError::Internal(InternalError::Failed)
-            })?;
-
-        self.user_events_publisher
-            .publish(user.id(), UserEvent::HouseholdMembershipChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    "Failed to publish user membership changed event"
-                );
-                AddHouseholdMemberError::Internal(InternalError::Failed)
-            })?;
-
-        Ok(())
+        Ok(
+            ApplicationResult::new(()).with_event(HouseholdApplicationEvent::MemberLeft {
+                household_id: command.household_id,
+                member_id: command.requester_id,
+            }),
+        )
     }
 }
 
@@ -190,11 +170,16 @@ pub enum AddHouseholdMemberError {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use crate::{
         modules::{
-            accounts::adapters::{BroadcastUserEvents, InMemoryUserRepository},
-            households::adapters::{BroadcastHouseholdEvents, InMemoryHouseholdRepository},
+            accounts::adapters::InMemoryUserRepository,
+            households::{
+                adapters::InMemoryHouseholdRepository, domain::HouseholdApplicationEvent,
+            },
         },
+        shared::application::events::AppEvent,
         test_helpers::{
             DuplicateOnAddHouseholdRepository, FailingHouseholdRepository, FailingUserRepository,
             build_add_member_service, create_owned_household, create_user,
@@ -228,16 +213,16 @@ mod tests {
             .await
             .expect("Household creation should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: owner.id(),
-            household_id: household.id(),
-            member_email: member.email().to_string(),
-        };
-
-        service
-            .execute(command)
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: owner.id(),
+                household_id: household.id(),
+                member_email: member.email().to_string(),
+            })
             .await
             .expect("Adding member should succeed");
+
+        let (_, events) = result.into_parts();
 
         let stored_member = household_repository
             .find_member(&household.id(), &member.id())
@@ -247,6 +232,16 @@ mod tests {
 
         assert_eq!(stored_member.user_id(), member.id());
         assert_eq!(stored_member.role(), HouseholdRole::Member);
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Household(
+                HouseholdApplicationEvent::MemberAdded {
+                    household_id: household.id(),
+                    member_id: member.id(),
+                }
+            )]
+        );
     }
 
     #[tokio::test]
@@ -268,15 +263,15 @@ mod tests {
             .await
             .expect("Household creation should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: owner.id(),
-            household_id: household.id(),
-            member_email: "member_email.com".to_owned(),
-        };
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: owner.id(),
+                household_id: household.id(),
+                member_email: "member_email.com".to_owned(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(AddHouseholdMemberError::InvalidEmail))
+        assert!(matches!(result, Err(AddHouseholdMemberError::InvalidEmail)));
     }
 
     #[tokio::test]
@@ -304,15 +299,18 @@ mod tests {
             .await
             .expect("Household creation should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: owner.id(),
-            household_id: HouseholdId::new(),
-            member_email: member.email().to_string(),
-        };
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: owner.id(),
+                household_id: HouseholdId::new(),
+                member_email: member.email().to_string(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(AddHouseholdMemberError::HouseholdNotFound))
+        assert!(matches!(
+            result,
+            Err(AddHouseholdMemberError::HouseholdNotFound)
+        ));
     }
 
     #[tokio::test]
@@ -340,15 +338,18 @@ mod tests {
             .await
             .expect("Household creation should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: owner.id(),
-            household_id: household.id(),
-            member_email: member.email().to_string(),
-        };
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: owner.id(),
+                household_id: household.id(),
+                member_email: member.email().to_string(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(AddHouseholdMemberError::PersonalHousehold))
+        assert!(matches!(
+            result,
+            Err(AddHouseholdMemberError::PersonalHousehold)
+        ));
     }
 
     #[tokio::test]
@@ -382,15 +383,15 @@ mod tests {
             .await
             .expect("Household creation should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: another_member.id(),
-            household_id: household.id(),
-            member_email: member.email().to_string(),
-        };
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: another_member.id(),
+                household_id: household.id(),
+                member_email: member.email().to_string(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(AddHouseholdMemberError::Forbidden))
+        assert!(matches!(result, Err(AddHouseholdMemberError::Forbidden)));
     }
 
     #[tokio::test]
@@ -424,26 +425,24 @@ mod tests {
             .await
             .expect("Household creation should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: owner.id(),
-            household_id: household.id(),
-            member_email: member.email().to_string(),
-        };
-
         service
-            .execute(command)
+            .execute(AddHouseholdMemberCommand {
+                requester_id: owner.id(),
+                household_id: household.id(),
+                member_email: member.email().to_string(),
+            })
             .await
             .expect("Adding member should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: member.id(),
-            household_id: household.id(),
-            member_email: another_member.email().to_string(),
-        };
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: member.id(),
+                household_id: household.id(),
+                member_email: another_member.email().to_string(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(AddHouseholdMemberError::Forbidden))
+        assert!(matches!(result, Err(AddHouseholdMemberError::Forbidden)));
     }
 
     #[tokio::test]
@@ -465,15 +464,15 @@ mod tests {
             .await
             .expect("Household creation should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: owner.id(),
-            household_id: household.id(),
-            member_email: "unknown@email.com".to_owned(),
-        };
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: owner.id(),
+                household_id: household.id(),
+                member_email: "unknown@email.com".to_owned(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(AddHouseholdMemberError::UserNotFound))
+        assert!(matches!(result, Err(AddHouseholdMemberError::UserNotFound)));
     }
 
     #[tokio::test]
@@ -501,73 +500,56 @@ mod tests {
             .await
             .expect("Household creation should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: owner.id(),
-            household_id: household.id(),
-            member_email: member.email().to_string(),
-        };
-
         service
-            .execute(command)
+            .execute(AddHouseholdMemberCommand {
+                requester_id: owner.id(),
+                household_id: household.id(),
+                member_email: member.email().to_string(),
+            })
             .await
             .expect("Adding member should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: owner.id(),
-            household_id: household.id(),
-            member_email: member.email().to_string(),
-        };
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: owner.id(),
+                household_id: household.id(),
+                member_email: member.email().to_string(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(AddHouseholdMemberError::MemberAlreadyExists))
+        assert!(matches!(
+            result,
+            Err(AddHouseholdMemberError::MemberAlreadyExists)
+        ));
     }
 
     #[tokio::test]
     async fn household_repository_failure_returns_internal() {
         let household_repository = Arc::new(FailingHouseholdRepository);
         let user_repository = Arc::new(InMemoryUserRepository::new());
-        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
-        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
-        let user_events = Arc::new(BroadcastUserEvents::new(64));
-        let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
-        let service = AddHouseholdMemberService::new(
-            household_repository,
-            user_repository,
-            household_events_publisher,
-            user_events_publisher,
-        );
+        let service = AddHouseholdMemberService::new(household_repository, user_repository);
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: UserId::new(),
-            household_id: HouseholdId::new(),
-            member_email: "valid@email.com".to_owned(),
-        };
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: UserId::new(),
+                household_id: HouseholdId::new(),
+                member_email: "valid@email.com".to_owned(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(AddHouseholdMemberError::Internal(InternalError::Failed))
-        )
+        ));
     }
 
     #[tokio::test]
     async fn user_repository_failure_returns_internal() {
         let household_repository = Arc::new(InMemoryHouseholdRepository::new());
         let user_repository = Arc::new(FailingUserRepository);
-        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
-        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
-        let user_events = Arc::new(BroadcastUserEvents::new(64));
-        let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
 
-        let service = AddHouseholdMemberService::new(
-            household_repository.clone(),
-            user_repository,
-            household_events_publisher,
-            user_events_publisher,
-        );
+        let service = AddHouseholdMemberService::new(household_repository.clone(), user_repository);
 
         let owner_id = UserId::new();
 
@@ -578,18 +560,18 @@ mod tests {
             .await
             .expect("Household creation should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: owner_id,
-            household_id: household.id(),
-            member_email: "valid@email.com".to_owned(),
-        };
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                member_email: "valid@email.com".to_owned(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(AddHouseholdMemberError::Internal(InternalError::Failed))
-        )
+        ));
     }
 
     #[tokio::test]
@@ -600,20 +582,10 @@ mod tests {
             inner: inner_household_repository.clone(),
         });
 
-        let household_events = Arc::new(BroadcastHouseholdEvents::new(64));
-        let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
-
-        let user_events = Arc::new(BroadcastUserEvents::new(64));
-        let user_events_publisher: Arc<dyn UserEventPublisher> = user_events.clone();
-
         let user_repository = Arc::new(InMemoryUserRepository::new());
 
-        let service = AddHouseholdMemberService::new(
-            household_repository.clone(),
-            user_repository.clone(),
-            household_events_publisher,
-            user_events_publisher,
-        );
+        let service =
+            AddHouseholdMemberService::new(household_repository.clone(), user_repository.clone());
 
         let owner = create_user("owner@email.com");
         let member = create_user("member@email.com");
@@ -636,14 +608,17 @@ mod tests {
             .await
             .expect("Household creation should succeed");
 
-        let command = AddHouseholdMemberCommand {
-            requester_id: owner.id(),
-            household_id: household.id(),
-            member_email: member.email().to_string(),
-        };
+        let result = service
+            .execute(AddHouseholdMemberCommand {
+                requester_id: owner.id(),
+                household_id: household.id(),
+                member_email: member.email().to_string(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(AddHouseholdMemberError::MemberAlreadyExists))
+        assert!(matches!(
+            result,
+            Err(AddHouseholdMemberError::MemberAlreadyExists)
+        ));
     }
 }

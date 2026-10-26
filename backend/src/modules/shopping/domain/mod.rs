@@ -9,3 +9,5 @@ pub use custom_shopping_entry_id::CustomShoppingEntryId;
 
 mod custom_shoppin_entry_title;
 pub use custom_shoppin_entry_title::{CustomShoppingEntryTitle, CustomShoppingEntryTitleError};
+
+mod shopping_application_event;

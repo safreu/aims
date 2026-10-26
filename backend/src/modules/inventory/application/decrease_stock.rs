@@ -6,17 +6,17 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::{HouseholdEvent, HouseholdId},
-            ports::{HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher},
+            domain::HouseholdId,
+            ports::{HouseholdAccessError, HouseholdAccessPolicy},
         },
         inventory::{
-            domain::{InventoryItemId, InventoryStockEventSource},
+            domain::{InventoryEvent, InventoryItemId, InventoryStockEventSource},
             ports::{
                 InventoryStockRepository, InventoryStockRepositoryError, StockMutationContext,
             },
         },
     },
-    shared::application::InternalError,
+    shared::application::{InternalError, events::ApplicationResult},
 };
 
 pub struct DecreaseInventoryStockCommand {
@@ -29,26 +29,23 @@ pub struct DecreaseInventoryStockCommand {
 pub struct DecreaseInventoryStockService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     inventory_stock_repository: Arc<dyn InventoryStockRepository>,
-    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl DecreaseInventoryStockService {
     pub fn new(
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         inventory_stock_repository: Arc<dyn InventoryStockRepository>,
-        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             household_access_policy,
             inventory_stock_repository,
-            household_events_publisher,
         }
     }
 
     pub async fn execute(
         &self,
         command: DecreaseInventoryStockCommand,
-    ) -> Result<(), DecreaseInventoryStockError> {
+    ) -> Result<ApplicationResult<()>, DecreaseInventoryStockError> {
         if command.amount == 0 {
             return Err(DecreaseInventoryStockError::InvalidAmount);
         }
@@ -95,31 +92,12 @@ impl DecreaseInventoryStockService {
                 }
             })?;
 
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::ShoppingListChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    item_id = %command.item_id,
-                    "Failed to publish shopping list changed event"
-                );
-                DecreaseInventoryStockError::Internal(InternalError::Failed)
-            })?;
-
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::InventoryItemsChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    item_id = %command.item_id,
-                    "Failed to publish inventory items changed event"
-                );
-                DecreaseInventoryStockError::Internal(InternalError::Failed)
-            })?;
-
-        Ok(())
+        Ok(
+            ApplicationResult::new(()).with_event(InventoryEvent::StockChanged {
+                household_id: command.household_id,
+                item_id: command.item_id,
+            }),
+        )
     }
 }
 
@@ -139,28 +117,262 @@ pub enum DecreaseInventoryStockError {
     Internal(#[from] InternalError),
 }
 
-//TODO: Implement the in memory representation of the inventory_stock_repository and write the following tests
-/*
 #[cfg(test)]
 mod tests {
+    use chrono::Utc;
+
+    use crate::{
+        modules::{
+            households::{domain::HouseholdKind, ports::HouseholdAccessError},
+            inventory::{domain::InventoryEvent, ports::InventoryItemRepository},
+        },
+        shared::application::events::AppEvent,
+        test_helpers::{
+            InventoryItemTestBuilder, build_decrease_inventory_stock_service,
+            insert_owned_household,
+        },
+    };
+
     use super::*;
 
     #[tokio::test]
-    async fn member_can_decrease_inventory_stock() {}
+    async fn member_can_decrease_inventory_stock() {
+        let (service, inventory_item_repository, household_repository) =
+            build_decrease_inventory_stock_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let item = InventoryItemTestBuilder::new(household.id())
+            .current_stock(5)
+            .build();
+
+        inventory_item_repository
+            .insert(&item)
+            .await
+            .expect("Inventory item insertion should succeed");
+
+        service
+            .execute(DecreaseInventoryStockCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+                amount: 2,
+            })
+            .await
+            .expect("Inventory stock decrease should succeed");
+
+        let stored = inventory_item_repository
+            .find_by_id(&item.id(), &household.id())
+            .await
+            .expect("Inventory item lookup should succeed")
+            .expect("Inventory item should exist");
+
+        assert_eq!(stored.current_stock(), 3);
+    }
 
     #[tokio::test]
-    async fn zero_amount_is_rejected() {}
+    async fn decreasing_inventory_stock_emits_stock_changed_event() {
+        let (service, inventory_item_repository, household_repository) =
+            build_decrease_inventory_stock_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let item = InventoryItemTestBuilder::new(household.id())
+            .current_stock(5)
+            .build();
+
+        inventory_item_repository
+            .insert(&item)
+            .await
+            .expect("Inventory item insertion should succeed");
+
+        let result = service
+            .execute(DecreaseInventoryStockCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+                amount: 2,
+            })
+            .await
+            .expect("Inventory stock decrease should succeed");
+
+        let (_, events) = result.into_parts();
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Inventory(InventoryEvent::StockChanged {
+                household_id: household.id(),
+                item_id: item.id(),
+            })]
+        );
+    }
 
     #[tokio::test]
-    async fn archived_item_cannot_be_decreased() {}
+    async fn zero_amount_is_rejected() {
+        let (service, _, household_repository) = build_decrease_inventory_stock_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let result = service
+            .execute(DecreaseInventoryStockCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: InventoryItemId::new(),
+                amount: 0,
+            })
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(DecreaseInventoryStockError::InvalidAmount)
+        ));
+    }
 
     #[tokio::test]
-    async fn insufficient_stock_is_rejected() {}
+    async fn archived_item_cannot_be_decreased() {
+        let (service, inventory_item_repository, household_repository) =
+            build_decrease_inventory_stock_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let mut item = InventoryItemTestBuilder::new(household.id())
+            .current_stock(5)
+            .build();
+
+        item.archive(Utc::now())
+            .expect("Inventory item archiving should succeed");
+
+        inventory_item_repository
+            .insert(&item)
+            .await
+            .expect("Inventory item insertion should succeed");
+
+        let result = service
+            .execute(DecreaseInventoryStockCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+                amount: 1,
+            })
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(DecreaseInventoryStockError::ItemArchived)
+        ));
+    }
 
     #[tokio::test]
-    async fn unknown_item_returns_not_found() {}
+    async fn insufficient_stock_is_rejected() {
+        let (service, inventory_item_repository, household_repository) =
+            build_decrease_inventory_stock_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let item = InventoryItemTestBuilder::new(household.id())
+            .current_stock(2)
+            .build();
+
+        inventory_item_repository
+            .insert(&item)
+            .await
+            .expect("Inventory item insertion should succeed");
+
+        let result = service
+            .execute(DecreaseInventoryStockCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+                amount: 3,
+            })
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(DecreaseInventoryStockError::InsufficientStock)
+        ));
+
+        let stored = inventory_item_repository
+            .find_by_id(&item.id(), &household.id())
+            .await
+            .expect("Inventory item lookup should succeed")
+            .expect("Inventory item should exist");
+
+        assert_eq!(stored.current_stock(), 2);
+    }
 
     #[tokio::test]
-    async fn non_member_is_forbidden() {}
+    async fn unknown_item_returns_not_found() {
+        let (service, _, household_repository) = build_decrease_inventory_stock_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let result = service
+            .execute(DecreaseInventoryStockCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: InventoryItemId::new(),
+                amount: 1,
+            })
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(DecreaseInventoryStockError::ItemNotFound)
+        ));
+    }
+
+    #[tokio::test]
+    async fn non_member_is_forbidden() {
+        let (service, inventory_item_repository, household_repository) =
+            build_decrease_inventory_stock_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let item = InventoryItemTestBuilder::new(household.id())
+            .current_stock(5)
+            .build();
+
+        inventory_item_repository
+            .insert(&item)
+            .await
+            .expect("Inventory item insertion should succeed");
+
+        let result = service
+            .execute(DecreaseInventoryStockCommand {
+                requester_id: UserId::new(),
+                household_id: household.id(),
+                item_id: item.id(),
+                amount: 1,
+            })
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(DecreaseInventoryStockError::HouseholdAccess(
+                HouseholdAccessError::Forbidden
+            ))
+        ));
+    }
 }
-*/

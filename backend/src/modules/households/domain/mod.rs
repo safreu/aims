@@ -18,3 +18,6 @@ pub use household_member::HouseholdMember;
 
 mod household_event;
 pub use household_event::HouseholdEvent;
+
+mod household_application_event;
+pub use household_application_event::HouseholdApplicationEvent;

@@ -42,6 +42,19 @@ env_files = ["${DEV_ENV_FILE}"]
 command = "./scripts/sqlx.sh"
 args = ["migrate", "run", "--source", "backend/migrations"]
 
+[tasks.backend-test]
+dependencies = ["db-migrate"]
+run_task = { name = "backend-test-inner", fork = true, cleanup_task = "db-down" }
+
+[tasks.backend-test-inner]
+private = true
+env_files = ["${DEV_ENV_FILE}"]
+script = '''
+export DATABASE_URL="postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}"
+
+cargo test --workspace --all-targets --all-features
+'''
+
 [tasks.sqlx-check]
 dependencies = ["db-migrate"]
 run_task = { name = "sqlx-check-inner", fork = true, cleanup_task = "db-down"}

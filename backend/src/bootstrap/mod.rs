@@ -19,7 +19,13 @@ use crate::{
             ports::{HouseholdEventPublisher, HouseholdEventSubscriber},
         },
     },
-    shared::{api::AppState, db::create_pool},
+    shared::{
+        api::AppState,
+        application::events::{
+            ApplicationResultDispatcher, DefaultEventDispatcher, EventDispatcher,
+        },
+        db::create_pool,
+    },
 };
 
 mod accounts;
@@ -42,19 +48,19 @@ pub async fn build_app_state(config: &AppConfig) -> Result<AppState, BootstrapEr
     let household_events_publisher: Arc<dyn HouseholdEventPublisher> = household_events.clone();
     let household_events_subscriber: Arc<dyn HouseholdEventSubscriber> = household_events.clone();
 
-    let accounts = build_accounts_state(
-        &pool,
-        &config.session,
-        user_events_publisher.clone(),
-        user_events_subscriber,
-    );
-    let households = build_households_state(
-        &pool,
+    let event_dispatcher: Arc<dyn EventDispatcher> = Arc::new(DefaultEventDispatcher::new(
         household_events_publisher.clone(),
-        household_events_subscriber.clone(),
         user_events_publisher.clone(),
-    );
-    let inventory = build_inventory_item_state(&pool, household_events_publisher.clone());
+    ));
+
+    let application_result_dispatcher =
+        Arc::new(ApplicationResultDispatcher::new(event_dispatcher));
+
+    let accounts = build_accounts_state(&pool, &config.session, user_events_subscriber);
+
+    let households = build_households_state(&pool, household_events_subscriber.clone());
+
+    let inventory = build_inventory_item_state(&pool);
     let device = build_device_state(&pool);
     let scanning = build_scanning_state(&pool, household_events_publisher.clone());
     let shopping = build_shopping_state(&pool, household_events_publisher.clone());
@@ -68,6 +74,9 @@ pub async fn build_app_state(config: &AppConfig) -> Result<AppState, BootstrapEr
         device,
         scanning,
         shopping,
+
+        application_result_dispatcher,
+
         shutdown,
     })
 }

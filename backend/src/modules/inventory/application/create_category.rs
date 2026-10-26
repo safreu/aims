@@ -6,15 +6,15 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::{HouseholdEvent, HouseholdId},
-            ports::{HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher},
+            domain::HouseholdId,
+            ports::{HouseholdAccessError, HouseholdAccessPolicy},
         },
         inventory::{
-            domain::{Category, CategoryId, CategoryName},
+            domain::{Category, CategoryId, CategoryName, InventoryEvent},
             ports::{CategoryRepository, CategoryRepositoryError},
         },
     },
-    shared::application::InternalError,
+    shared::application::{InternalError, events::ApplicationResult},
 };
 
 pub struct CreateCategoryCommand {
@@ -26,26 +26,23 @@ pub struct CreateCategoryCommand {
 pub struct CreateCategoryService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     category_repository: Arc<dyn CategoryRepository>,
-    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl CreateCategoryService {
     pub fn new(
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         category_repository: Arc<dyn CategoryRepository>,
-        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             household_access_policy,
             category_repository,
-            household_events_publisher,
         }
     }
 
     pub async fn execute(
         &self,
         command: CreateCategoryCommand,
-    ) -> Result<CategoryId, CreateCategoryError> {
+    ) -> Result<ApplicationResult<CategoryId>, CreateCategoryError> {
         let name =
             CategoryName::parse(&command.name).map_err(|_| CreateCategoryError::InvalidName)?;
 
@@ -94,22 +91,12 @@ impl CreateCategoryService {
                 }
             })?;
 
-        self.household_events_publisher
-            .publish(
-                command.household_id,
-                HouseholdEvent::InventoryCategoriesChanged,
-            )
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    category_id = %category_id,
-                    "Failed to publish category changed event"
-                );
-                CreateCategoryError::Internal(InternalError::Failed)
-            })?;
-
-        Ok(category_id)
+        Ok(
+            ApplicationResult::new(category_id).with_event(InventoryEvent::CategoryCreated {
+                household_id: command.household_id,
+                category_id,
+            }),
+        )
     }
 }
 
@@ -128,7 +115,11 @@ pub enum CreateCategoryError {
 #[cfg(test)]
 mod tests {
     use crate::{
-        modules::households::domain::HouseholdKind,
+        modules::{
+            households::{domain::HouseholdKind, ports::HouseholdAccessError},
+            inventory::{domain::InventoryEvent, ports::CategoryRepository},
+        },
+        shared::application::events::AppEvent,
         test_helpers::{build_create_category_service, insert_owned_household},
     };
 
@@ -143,7 +134,7 @@ mod tests {
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
 
-        let category_id = service
+        let result = service
             .execute(CreateCategoryCommand {
                 requester_id: owner_id,
                 household_id: household.id(),
@@ -151,6 +142,8 @@ mod tests {
             })
             .await
             .expect("Category insertion should succeed");
+
+        let (category_id, _) = result.into_parts();
 
         let stored = category_repository
             .find_by_id(&category_id, &household.id())
@@ -161,6 +154,35 @@ mod tests {
         assert_eq!(stored.id(), category_id);
         assert_eq!(stored.household_id(), household.id());
         assert_eq!(stored.name().normalized(), "fruit");
+    }
+
+    #[tokio::test]
+    async fn creating_category_emits_category_created_event() {
+        let (service, _, household_repository) = build_create_category_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let result = service
+            .execute(CreateCategoryCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                name: "Fruit".to_owned(),
+            })
+            .await
+            .expect("Category insertion should succeed");
+
+        let (category_id, events) = result.into_parts();
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Inventory(InventoryEvent::CategoryCreated {
+                household_id: household.id(),
+                category_id,
+            })]
+        );
     }
 
     #[tokio::test]
@@ -180,7 +202,7 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(CreateCategoryError::InvalidName))
+        assert!(matches!(result, Err(CreateCategoryError::InvalidName)));
     }
 
     #[tokio::test]
@@ -200,12 +222,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(CreateCategoryError::HouseholdAccess(
                 HouseholdAccessError::Forbidden
             ))
-        )
+        ));
     }
 
     #[tokio::test]
@@ -234,6 +256,9 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(CreateCategoryError::CategoryAlreadyExists))
+        assert!(matches!(
+            result,
+            Err(CreateCategoryError::CategoryAlreadyExists)
+        ));
     }
 }

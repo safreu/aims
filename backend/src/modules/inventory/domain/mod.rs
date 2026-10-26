@@ -31,3 +31,6 @@ pub use inventory_stock_event_source::{InventoryStockEventSource, InventoryStock
 
 mod inventory_stock_event;
 pub use inventory_stock_event::InventoryStockEvent;
+
+mod inventory_event;
+pub use inventory_event::InventoryEvent;

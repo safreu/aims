@@ -55,6 +55,10 @@ impl From<UpdateCategoryError> for ApiError {
             UpdateCategoryError::InvalidName => {
                 ApiError::bad_request("invalid_category_name", "The category name is invalid")
             }
+            UpdateCategoryError::CategoryAlreadyExists => ApiError::bad_request(
+                "category_already_exists",
+                "A category with this name already exists",
+            ),
             UpdateCategoryError::Internal(_) => ApiError::internal_error(),
         }
     }

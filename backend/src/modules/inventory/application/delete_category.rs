@@ -4,15 +4,15 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::{HouseholdEvent, HouseholdId},
-            ports::{HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher},
+            domain::HouseholdId,
+            ports::{HouseholdAccessError, HouseholdAccessPolicy},
         },
         inventory::{
-            domain::CategoryId,
+            domain::{CategoryId, InventoryEvent},
             ports::{CategoryRepository, CategoryRepositoryError},
         },
     },
-    shared::application::InternalError,
+    shared::application::{InternalError, events::ApplicationResult},
 };
 
 pub struct DeleteCategoryCommand {
@@ -24,23 +24,23 @@ pub struct DeleteCategoryCommand {
 pub struct DeleteCategoryService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     category_repository: Arc<dyn CategoryRepository>,
-    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl DeleteCategoryService {
     pub fn new(
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         category_repository: Arc<dyn CategoryRepository>,
-        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             household_access_policy,
             category_repository,
-            household_events_publisher,
         }
     }
 
-    pub async fn execute(&self, command: DeleteCategoryCommand) -> Result<(), DeleteCategoryError> {
+    pub async fn execute(
+        &self,
+        command: DeleteCategoryCommand,
+    ) -> Result<ApplicationResult<()>, DeleteCategoryError> {
         self.household_access_policy
             .require_member(&command.household_id, &command.requester_id)
             .await?;
@@ -61,46 +61,12 @@ impl DeleteCategoryService {
                 }
             })?;
 
-        self.household_events_publisher
-            .publish(
-                command.household_id,
-                HouseholdEvent::InventoryCategoriesChanged,
-            )
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    category_id = %command.category_id,
-                    "Failed to publish category changed event"
-                );
-                DeleteCategoryError::Internal(InternalError::Failed)
-            })?;
-
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::InventoryItemsChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    category_id = %command.category_id,
-                    "Failed to publish inventory items changed event"
-                );
-                DeleteCategoryError::Internal(InternalError::Failed)
-            })?;
-
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::ShoppingListChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    category_id = %command.category_id,
-                    "Failed to publish shopping list changed event"
-                );
-                DeleteCategoryError::Internal(InternalError::Failed)
-            })?;
-
-        Ok(())
+        Ok(
+            ApplicationResult::new(()).with_event(InventoryEvent::CategoryDeleted {
+                household_id: command.household_id,
+                category_id: command.category_id,
+            }),
+        )
     }
 }
 
@@ -117,7 +83,14 @@ pub enum DeleteCategoryError {
 #[cfg(test)]
 mod tests {
     use crate::{
-        modules::households::domain::HouseholdKind,
+        modules::{
+            households::{domain::HouseholdKind, ports::HouseholdAccessError},
+            inventory::{
+                domain::{CategoryId, InventoryEvent},
+                ports::CategoryRepository,
+            },
+        },
+        shared::application::events::AppEvent,
         test_helpers::{
             CategoryTestBuilder, build_delete_category_service, insert_owned_household,
         },
@@ -143,14 +116,12 @@ mod tests {
             .await
             .expect("Category insertion should succeed");
 
-        let command = DeleteCategoryCommand {
-            category_id: category.id(),
-            household_id: household.id(),
-            requester_id: owner_id,
-        };
-
         service
-            .execute(command)
+            .execute(DeleteCategoryCommand {
+                category_id: category.id(),
+                household_id: household.id(),
+                requester_id: owner_id,
+            })
             .await
             .expect("Category deletion should succeed");
 
@@ -159,7 +130,45 @@ mod tests {
             .await
             .expect("Category lookup should succeed");
 
-        assert!(stored.is_none())
+        assert!(stored.is_none());
+    }
+
+    #[tokio::test]
+    async fn deleting_category_emits_category_deleted_event() {
+        let (service, category_repository, household_repository) = build_delete_category_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let category = CategoryTestBuilder::new(household.id())
+            .name("Food".to_owned())
+            .build();
+
+        category_repository
+            .insert(&category)
+            .await
+            .expect("Category insertion should succeed");
+
+        let result = service
+            .execute(DeleteCategoryCommand {
+                category_id: category.id(),
+                household_id: household.id(),
+                requester_id: owner_id,
+            })
+            .await
+            .expect("Category deletion should succeed");
+
+        let (_, events) = result.into_parts();
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Inventory(InventoryEvent::CategoryDeleted {
+                household_id: household.id(),
+                category_id: category.id(),
+            })]
+        );
     }
 
     #[tokio::test]
@@ -180,48 +189,39 @@ mod tests {
             .await
             .expect("Category insertion should succeed");
 
-        let command = DeleteCategoryCommand {
-            category_id: category.id(),
-            household_id: household.id(),
-            requester_id: UserId::new(),
-        };
+        let result = service
+            .execute(DeleteCategoryCommand {
+                category_id: category.id(),
+                household_id: household.id(),
+                requester_id: UserId::new(),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(DeleteCategoryError::HouseholdAccess(
                 HouseholdAccessError::Forbidden
             ))
-        )
+        ));
     }
 
     #[tokio::test]
     async fn unknown_category_returns_category_not_found() {
-        let (service, category_repository, household_repository) = build_delete_category_service();
+        let (service, _, household_repository) = build_delete_category_service();
 
         let owner_id = UserId::new();
 
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
 
-        let category = CategoryTestBuilder::new(household.id())
-            .name("Food".to_owned())
-            .build();
+        let result = service
+            .execute(DeleteCategoryCommand {
+                category_id: CategoryId::new(),
+                household_id: household.id(),
+                requester_id: owner_id,
+            })
+            .await;
 
-        category_repository
-            .insert(&category)
-            .await
-            .expect("Category insertion should succeed");
-
-        let command = DeleteCategoryCommand {
-            category_id: CategoryId::new(),
-            household_id: household.id(),
-            requester_id: owner_id,
-        };
-
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(DeleteCategoryError::CategoryNotFound))
+        assert!(matches!(result, Err(DeleteCategoryError::CategoryNotFound)));
     }
 }

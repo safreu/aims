@@ -6,18 +6,18 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::{HouseholdEvent, HouseholdId},
-            ports::{HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher},
+            domain::HouseholdId,
+            ports::{HouseholdAccessError, HouseholdAccessPolicy},
         },
         inventory::{
             domain::{
-                CategoryId, InventoryItemError, InventoryItemId, InventoryItemName,
+                CategoryId, InventoryEvent, InventoryItemError, InventoryItemId, InventoryItemName,
                 InventoryPriority,
             },
             ports::{CategoryRepository, InventoryItemRepository, InventoryItemRepositoryError},
         },
     },
-    shared::application::InternalError,
+    shared::application::{InternalError, events::ApplicationResult},
 };
 
 pub struct UpdateInventoryItemCommand {
@@ -34,7 +34,6 @@ pub struct UpdateInventoryItemService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     category_repository: Arc<dyn CategoryRepository>,
     inventory_item_repository: Arc<dyn InventoryItemRepository>,
-    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
 }
 
 impl UpdateInventoryItemService {
@@ -42,20 +41,18 @@ impl UpdateInventoryItemService {
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         category_repository: Arc<dyn CategoryRepository>,
         inventory_item_repository: Arc<dyn InventoryItemRepository>,
-        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     ) -> Self {
         Self {
             household_access_policy,
             category_repository,
             inventory_item_repository,
-            household_events_publisher,
         }
     }
 
     pub async fn execute(
         &self,
         command: UpdateInventoryItemCommand,
-    ) -> Result<(), UpdateInventoryItemError> {
+    ) -> Result<ApplicationResult<()>, UpdateInventoryItemError> {
         if command.category_id.is_none()
             && command.name.is_none()
             && command.reorder_threshold.is_none()
@@ -159,31 +156,12 @@ impl UpdateInventoryItemService {
                 }
             })?;
 
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::ShoppingListChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    item_id = %command.item_id,
-                    "Failed to publish shopping list changed event"
-                );
-                UpdateInventoryItemError::Internal(InternalError::Failed)
-            })?;
-
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::InventoryItemsChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    item_id = %item.id(),
-                    "Failed to publish inventory items changed event"
-                );
-                UpdateInventoryItemError::Internal(InternalError::Failed)
-            })?;
-
-        Ok(())
+        Ok(
+            ApplicationResult::new(()).with_event(InventoryEvent::ItemUpdated {
+                household_id: command.household_id,
+                item_id: command.item_id,
+            }),
+        )
     }
 }
 
@@ -225,7 +203,8 @@ fn map_inventory_item_error(error: InventoryItemError) -> UpdateInventoryItemErr
 #[cfg(test)]
 mod tests {
     use crate::{
-        modules::households::domain::HouseholdKind,
+        modules::{households::domain::HouseholdKind, inventory::domain::InventoryEvent},
+        shared::application::events::AppEvent,
         test_helpers::{
             CategoryTestBuilder, InventoryItemTestBuilder, build_update_inventory_item_service,
             insert_owned_household,
@@ -342,23 +321,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn empty_update_is_rejected() {
-        let (service, category_repository, inventory_repository, household_repository) =
+    async fn updating_inventory_item_emits_item_updated_event() {
+        let (service, _, inventory_repository, household_repository) =
             build_update_inventory_item_service();
 
         let owner_id = UserId::new();
 
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
-
-        let category = CategoryTestBuilder::new(household.id())
-            .name("Food".to_owned())
-            .build();
-
-        category_repository
-            .insert(&category)
-            .await
-            .expect("Category insertion should succeed");
 
         let item = InventoryItemTestBuilder::new(household.id())
             .name("Tofu".to_owned())
@@ -369,158 +339,33 @@ mod tests {
             .await
             .expect("Inventory item insertion should succeed");
 
-        let command = UpdateInventoryItemCommand {
-            requester_id: owner_id,
-            household_id: household.id(),
-            item_id: item.id(),
-            name: None,
-            category_id: None,
-            reorder_threshold: None,
-            priority: None,
-        };
-
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(UpdateInventoryItemError::NoChanges));
-    }
-
-    #[tokio::test]
-    async fn invalid_name_is_rejected() {
-        let (service, category_repository, inventory_repository, household_repository) =
-            build_update_inventory_item_service();
-
-        let owner_id = UserId::new();
-
-        let (household, _) =
-            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
-
-        let category = CategoryTestBuilder::new(household.id())
-            .name("Food".to_owned())
-            .build();
-
-        category_repository
-            .insert(&category)
+        let result = service
+            .execute(UpdateInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+                name: Some("Apple".to_owned()),
+                category_id: None,
+                reorder_threshold: None,
+                priority: None,
+            })
             .await
-            .expect("Category insertion should succeed");
+            .expect("Inventory item update should succeed");
 
-        let item = InventoryItemTestBuilder::new(household.id())
-            .name("Tofu".to_owned())
-            .build();
-
-        inventory_repository
-            .insert(&item)
-            .await
-            .expect("Inventory item insertion should succeed");
-
-        let command = UpdateInventoryItemCommand {
-            requester_id: owner_id,
-            household_id: household.id(),
-            item_id: item.id(),
-            name: Some("    ".to_owned()),
-            category_id: None,
-            reorder_threshold: None,
-            priority: None,
-        };
-
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(UpdateInventoryItemError::InvalidName));
-    }
-
-    #[tokio::test]
-    async fn invalid_priority_is_rejected() {
-        let (service, category_repository, inventory_repository, household_repository) =
-            build_update_inventory_item_service();
-
-        let owner_id = UserId::new();
-
-        let (household, _) =
-            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
-
-        let category = CategoryTestBuilder::new(household.id())
-            .name("Food".to_owned())
-            .build();
-
-        category_repository
-            .insert(&category)
-            .await
-            .expect("Category insertion should succeed");
-
-        let item = InventoryItemTestBuilder::new(household.id())
-            .name("Tofu".to_owned())
-            .build();
-
-        inventory_repository
-            .insert(&item)
-            .await
-            .expect("Inventory item insertion should succeed");
-
-        let command = UpdateInventoryItemCommand {
-            requester_id: owner_id,
-            household_id: household.id(),
-            item_id: item.id(),
-            name: None,
-            category_id: None,
-            reorder_threshold: None,
-            priority: Some("invalid".to_owned()),
-        };
-
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(UpdateInventoryItemError::InvalidPriority));
-    }
-
-    #[tokio::test]
-    async fn category_from_different_household_is_rejected() {
-        let (service, category_repository, inventory_repository, household_repository) =
-            build_update_inventory_item_service();
-
-        let owner_id = UserId::new();
-
-        let (household, _) =
-            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
-
-        let category = CategoryTestBuilder::new(household.id())
-            .name("Food".to_owned())
-            .build();
-
-        category_repository
-            .insert(&category)
-            .await
-            .expect("Category insertion should succeed");
-
-        let item = InventoryItemTestBuilder::new(household.id())
-            .name("Tofu".to_owned())
-            .build();
-
-        inventory_repository
-            .insert(&item)
-            .await
-            .expect("Inventory item insertion should succeed");
-
-        let command = UpdateInventoryItemCommand {
-            requester_id: owner_id,
-            household_id: HouseholdId::new(),
-            item_id: item.id(),
-            name: None,
-            category_id: None,
-            reorder_threshold: None,
-            priority: Some("low".to_owned()),
-        };
-
-        let result = service.execute(command).await;
+        let (_, events) = result.into_parts();
 
         assert_eq!(
-            result,
-            Err(UpdateInventoryItemError::HouseholdAccess(
-                HouseholdAccessError::HouseholdNotFound
-            ))
+            events,
+            vec![AppEvent::Inventory(InventoryEvent::ItemUpdated {
+                household_id: household.id(),
+                item_id: item.id(),
+            })]
         );
     }
 
     #[tokio::test]
-    async fn archived_item_cannot_be_updated() {
-        let (service, category_repository, inventory_repository, household_repository) =
+    async fn empty_update_is_rejected() {
+        let (service, _, inventory_repository, household_repository) =
             build_update_inventory_item_service();
 
         let owner_id = UserId::new();
@@ -528,14 +373,149 @@ mod tests {
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
 
-        let category = CategoryTestBuilder::new(household.id())
-            .name("Food".to_owned())
+        let item = InventoryItemTestBuilder::new(household.id())
+            .name("Tofu".to_owned())
             .build();
 
-        category_repository
-            .insert(&category)
+        inventory_repository
+            .insert(&item)
             .await
-            .expect("Category insertion should succeed");
+            .expect("Inventory item insertion should succeed");
+
+        let result = service
+            .execute(UpdateInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+                name: None,
+                category_id: None,
+                reorder_threshold: None,
+                priority: None,
+            })
+            .await;
+
+        assert!(matches!(result, Err(UpdateInventoryItemError::NoChanges)));
+    }
+
+    #[tokio::test]
+    async fn invalid_name_is_rejected() {
+        let (service, _, inventory_repository, household_repository) =
+            build_update_inventory_item_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let item = InventoryItemTestBuilder::new(household.id())
+            .name("Tofu".to_owned())
+            .build();
+
+        inventory_repository
+            .insert(&item)
+            .await
+            .expect("Inventory item insertion should succeed");
+
+        let result = service
+            .execute(UpdateInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+                name: Some("    ".to_owned()),
+                category_id: None,
+                reorder_threshold: None,
+                priority: None,
+            })
+            .await;
+
+        assert!(matches!(result, Err(UpdateInventoryItemError::InvalidName)));
+    }
+
+    #[tokio::test]
+    async fn invalid_priority_is_rejected() {
+        let (service, _, inventory_repository, household_repository) =
+            build_update_inventory_item_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let item = InventoryItemTestBuilder::new(household.id())
+            .name("Tofu".to_owned())
+            .build();
+
+        inventory_repository
+            .insert(&item)
+            .await
+            .expect("Inventory item insertion should succeed");
+
+        let result = service
+            .execute(UpdateInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+                name: None,
+                category_id: None,
+                reorder_threshold: None,
+                priority: Some("invalid".to_owned()),
+            })
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(UpdateInventoryItemError::InvalidPriority)
+        ));
+    }
+
+    #[tokio::test]
+    async fn unknown_household_is_rejected() {
+        let (service, _, inventory_repository, household_repository) =
+            build_update_inventory_item_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let item = InventoryItemTestBuilder::new(household.id())
+            .name("Tofu".to_owned())
+            .build();
+
+        inventory_repository
+            .insert(&item)
+            .await
+            .expect("Inventory item insertion should succeed");
+
+        let result = service
+            .execute(UpdateInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: HouseholdId::new(),
+                item_id: item.id(),
+                name: None,
+                category_id: None,
+                reorder_threshold: None,
+                priority: Some("low".to_owned()),
+            })
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(UpdateInventoryItemError::HouseholdAccess(
+                HouseholdAccessError::HouseholdNotFound
+            ))
+        ));
+    }
+
+    #[tokio::test]
+    async fn archived_item_cannot_be_updated() {
+        let (service, _, inventory_repository, household_repository) =
+            build_update_inventory_item_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
 
         let mut item = InventoryItemTestBuilder::new(household.id())
             .name("Tofu".to_owned())
@@ -554,39 +534,33 @@ mod tests {
             .await
             .expect("Inventory item updating should succeed");
 
-        let command = UpdateInventoryItemCommand {
-            requester_id: owner_id,
-            household_id: household.id(),
-            item_id: item.id(),
-            name: None,
-            category_id: None,
-            reorder_threshold: None,
-            priority: Some("low".to_owned()),
-        };
+        let result = service
+            .execute(UpdateInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+                name: None,
+                category_id: None,
+                reorder_threshold: None,
+                priority: Some("low".to_owned()),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(UpdateInventoryItemError::ItemArchived));
+        assert!(matches!(
+            result,
+            Err(UpdateInventoryItemError::ItemArchived)
+        ));
     }
 
     #[tokio::test]
     async fn duplicate_active_name_is_rejected() {
-        let (service, category_repository, inventory_repository, household_repository) =
+        let (service, _, inventory_repository, household_repository) =
             build_update_inventory_item_service();
 
         let owner_id = UserId::new();
 
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
-
-        let category = CategoryTestBuilder::new(household.id())
-            .name("Food".to_owned())
-            .build();
-
-        category_repository
-            .insert(&category)
-            .await
-            .expect("Category insertion should succeed");
 
         let item = InventoryItemTestBuilder::new(household.id())
             .name("Tofu".to_owned())
@@ -606,39 +580,33 @@ mod tests {
             .await
             .expect("Inventory item insertion should succeed");
 
-        let command = UpdateInventoryItemCommand {
-            requester_id: owner_id,
-            household_id: household.id(),
-            item_id: item.id(),
-            name: Some("apple".to_owned()),
-            category_id: None,
-            reorder_threshold: None,
-            priority: Some("low".to_owned()),
-        };
+        let result = service
+            .execute(UpdateInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                item_id: item.id(),
+                name: Some("apple".to_owned()),
+                category_id: None,
+                reorder_threshold: None,
+                priority: Some("low".to_owned()),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(result, Err(UpdateInventoryItemError::ItemAlreadyExists));
+        assert!(matches!(
+            result,
+            Err(UpdateInventoryItemError::ItemAlreadyExists)
+        ));
     }
 
     #[tokio::test]
     async fn non_member_is_forbidden() {
-        let (service, category_repository, inventory_repository, household_repository) =
+        let (service, _, inventory_repository, household_repository) =
             build_update_inventory_item_service();
 
         let owner_id = UserId::new();
 
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
-
-        let category = CategoryTestBuilder::new(household.id())
-            .name("Food".to_owned())
-            .build();
-
-        category_repository
-            .insert(&category)
-            .await
-            .expect("Category insertion should succeed");
 
         let item = InventoryItemTestBuilder::new(household.id())
             .name("Tofu".to_owned())
@@ -649,23 +617,23 @@ mod tests {
             .await
             .expect("Inventory item insertion should succeed");
 
-        let command = UpdateInventoryItemCommand {
-            requester_id: UserId::new(),
-            household_id: household.id(),
-            item_id: item.id(),
-            name: Some("apple".to_owned()),
-            category_id: None,
-            reorder_threshold: None,
-            priority: Some("low".to_owned()),
-        };
+        let result = service
+            .execute(UpdateInventoryItemCommand {
+                requester_id: UserId::new(),
+                household_id: household.id(),
+                item_id: item.id(),
+                name: Some("apple".to_owned()),
+                category_id: None,
+                reorder_threshold: None,
+                priority: Some("low".to_owned()),
+            })
+            .await;
 
-        let result = service.execute(command).await;
-
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(UpdateInventoryItemError::HouseholdAccess(
                 HouseholdAccessError::Forbidden
             ))
-        );
+        ));
     }
 }

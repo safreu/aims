@@ -6,12 +6,13 @@ use crate::{
     modules::{
         accounts::domain::UserId,
         households::{
-            domain::{HouseholdEvent, HouseholdId},
-            ports::{HouseholdAccessError, HouseholdAccessPolicy, HouseholdEventPublisher},
+            domain::HouseholdId,
+            ports::{HouseholdAccessError, HouseholdAccessPolicy},
         },
         inventory::{
             domain::{
-                CategoryId, InventoryItem, InventoryItemId, InventoryItemName, InventoryPriority,
+                CategoryId, InventoryEvent, InventoryItem, InventoryItemId, InventoryItemName,
+                InventoryPriority,
             },
             ports::{CategoryRepository, InventoryItemRepository, InventoryItemRepositoryError},
         },
@@ -20,7 +21,7 @@ use crate::{
             ports::QrActionRepository,
         },
     },
-    shared::application::InternalError,
+    shared::application::{InternalError, events::ApplicationResult},
 };
 
 pub struct CreateInventoryItemCommand {
@@ -37,7 +38,6 @@ pub struct CreateInventoryItemService {
     household_access_policy: Arc<dyn HouseholdAccessPolicy>,
     category_repository: Arc<dyn CategoryRepository>,
     inventory_item_repository: Arc<dyn InventoryItemRepository>,
-    household_events_publisher: Arc<dyn HouseholdEventPublisher>,
     qr_actions_repository: Arc<dyn QrActionRepository>,
 }
 
@@ -46,14 +46,12 @@ impl CreateInventoryItemService {
         household_access_policy: Arc<dyn HouseholdAccessPolicy>,
         category_repository: Arc<dyn CategoryRepository>,
         inventory_item_repository: Arc<dyn InventoryItemRepository>,
-        household_events_publisher: Arc<dyn HouseholdEventPublisher>,
         qr_actions_repository: Arc<dyn QrActionRepository>,
     ) -> Self {
         Self {
             household_access_policy,
             category_repository,
             inventory_item_repository,
-            household_events_publisher,
             qr_actions_repository,
         }
     }
@@ -61,7 +59,7 @@ impl CreateInventoryItemService {
     pub async fn execute(
         &self,
         command: CreateInventoryItemCommand,
-    ) -> Result<InventoryItemId, CreateInventoryItemError> {
+    ) -> Result<ApplicationResult<InventoryItemId>, CreateInventoryItemError> {
         let name = InventoryItemName::parse(&command.name)
             .map_err(|_| CreateInventoryItemError::InvalidName)?;
 
@@ -139,30 +137,6 @@ impl CreateInventoryItemService {
                 }
             })?;
 
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::ShoppingListChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    item_id = %item.id(),
-                    "Failed to publish shopping list changed event"
-                );
-                CreateInventoryItemError::Internal(InternalError::Failed)
-            })?;
-
-        self.household_events_publisher
-            .publish(command.household_id, HouseholdEvent::InventoryItemsChanged)
-            .map_err(|error| {
-                tracing::error!(
-                    error = ?error,
-                    household_id = %command.household_id,
-                    item_id = %item.id(),
-                    "Failed to publish inventory items changed event"
-                );
-                CreateInventoryItemError::Internal(InternalError::Failed)
-            })?;
-
         let increase_action = QrAction::new(
             QrActionId::new(),
             command.household_id,
@@ -225,7 +199,12 @@ impl CreateInventoryItemService {
                 CreateInventoryItemError::Internal(InternalError::Failed)
             })?;
 
-        Ok(item_id)
+        Ok(
+            ApplicationResult::new(item_id).with_event(InventoryEvent::ItemCreated {
+                household_id: command.household_id,
+                item_id,
+            }),
+        )
     }
 }
 
@@ -246,7 +225,8 @@ pub enum CreateInventoryItemError {
 #[cfg(test)]
 mod tests {
     use crate::{
-        modules::households::domain::HouseholdKind,
+        modules::{households::domain::HouseholdKind, inventory::domain::InventoryEvent},
+        shared::application::events::AppEvent,
         test_helpers::{
             CategoryTestBuilder, build_create_inventory_item_service, insert_owned_household,
         },
@@ -264,7 +244,7 @@ mod tests {
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
 
-        let item_id = service
+        let result = service
             .execute(CreateInventoryItemCommand {
                 requester_id: owner_id,
                 household_id: household.id(),
@@ -276,6 +256,8 @@ mod tests {
             })
             .await
             .expect("Inventory item creation should succeed");
+
+        let (item_id, _) = result.into_parts();
 
         let stored = inventory_item_repository
             .find_by_id(&item_id, &household.id())
@@ -289,7 +271,7 @@ mod tests {
         assert_eq!(stored.current_stock(), 3);
         assert_eq!(stored.reorder_threshold(), 2);
         assert_eq!(stored.priority(), InventoryPriority::High);
-        assert!(stored.archived_at().is_none())
+        assert!(stored.archived_at().is_none());
     }
 
     #[tokio::test]
@@ -302,7 +284,7 @@ mod tests {
         let (household, _) =
             insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
 
-        let item_id = service
+        let result = service
             .execute(CreateInventoryItemCommand {
                 requester_id: owner_id,
                 household_id: household.id(),
@@ -314,6 +296,8 @@ mod tests {
             })
             .await
             .expect("Inventory item creation should succeed");
+
+        let (item_id, _) = result.into_parts();
 
         let stored = inventory_item_repository
             .find_by_id(&item_id, &household.id())
@@ -343,7 +327,7 @@ mod tests {
             .await
             .expect("Category insertion should succeed");
 
-        let item_id = service
+        let result = service
             .execute(CreateInventoryItemCommand {
                 requester_id: owner_id,
                 household_id: household.id(),
@@ -356,6 +340,8 @@ mod tests {
             .await
             .expect("Inventory item creation should succeed");
 
+        let (item_id, _) = result.into_parts();
+
         let stored = inventory_item_repository
             .find_by_id(&item_id, &household.id())
             .await
@@ -363,6 +349,39 @@ mod tests {
             .expect("Inventory item should exist");
 
         assert_eq!(stored.category_id(), Some(category.id()));
+    }
+
+    #[tokio::test]
+    async fn creating_inventory_item_emits_item_created_event() {
+        let (service, _, _, household_repository) = build_create_inventory_item_service();
+
+        let owner_id = UserId::new();
+
+        let (household, _) =
+            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+
+        let result = service
+            .execute(CreateInventoryItemCommand {
+                requester_id: owner_id,
+                household_id: household.id(),
+                category_id: None,
+                name: "Tofu".to_owned(),
+                current_stock: 3,
+                reorder_threshold: 2,
+                priority: None,
+            })
+            .await
+            .expect("Inventory item creation should succeed");
+
+        let (item_id, events) = result.into_parts();
+
+        assert_eq!(
+            events,
+            vec![AppEvent::Inventory(InventoryEvent::ItemCreated {
+                household_id: household.id(),
+                item_id,
+            })]
+        );
     }
 
     #[tokio::test]
@@ -386,7 +405,7 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(CreateInventoryItemError::InvalidName))
+        assert!(matches!(result, Err(CreateInventoryItemError::InvalidName)));
     }
 
     #[tokio::test]
@@ -395,8 +414,7 @@ mod tests {
 
         let owner_id = UserId::new();
 
-        let (_, _) =
-            insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
+        insert_owned_household(&household_repository, owner_id, HouseholdKind::Shared).await;
 
         let result = service
             .execute(CreateInventoryItemCommand {
@@ -410,12 +428,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(CreateInventoryItemError::HouseholdAccess(
                 HouseholdAccessError::HouseholdNotFound
             ))
-        )
+        ));
     }
 
     #[tokio::test]
@@ -439,12 +457,12 @@ mod tests {
             })
             .await;
 
-        assert_eq!(
+        assert!(matches!(
             result,
             Err(CreateInventoryItemError::HouseholdAccess(
                 HouseholdAccessError::Forbidden
             ))
-        )
+        ));
     }
 
     #[tokio::test]
@@ -481,7 +499,10 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(CreateInventoryItemError::CategoryNotFound))
+        assert!(matches!(
+            result,
+            Err(CreateInventoryItemError::CategoryNotFound)
+        ));
     }
 
     #[tokio::test]
@@ -518,6 +539,9 @@ mod tests {
             })
             .await;
 
-        assert_eq!(result, Err(CreateInventoryItemError::ItemAlreadyExists))
+        assert!(matches!(
+            result,
+            Err(CreateInventoryItemError::ItemAlreadyExists)
+        ));
     }
 }

@@ -39,12 +39,14 @@ pub async fn create_household(
         kind,
     };
 
-    let household_id = state
+    let result = state
         .households
         .create_household
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    let household_id = state.application_result_dispatcher.dispatch(result);
 
     Ok((
         StatusCode::CREATED,
@@ -117,12 +119,14 @@ pub async fn add_household_member(
         member_email: request.email,
     };
 
-    state
+    let result = state
         .households
         .add_household_member
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -167,12 +171,14 @@ pub async fn remove_household_member(
         member_id: UserId::from_uuid(member_id),
     };
 
-    state
+    let result = state
         .households
         .remove_household_member
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -188,12 +194,14 @@ pub async fn rename_household(
         household_id: HouseholdId::from_uuid(household_id),
         name: request.name,
     };
-    state
+    let result = state
         .households
         .rename_household
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -208,12 +216,14 @@ pub async fn leave_household(
         household_id: HouseholdId::from_uuid(household_id),
     };
 
-    state
+    let result = state
         .households
         .leave_household
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -228,12 +238,14 @@ pub async fn delete_household(
         household_id: HouseholdId::from_uuid(household_id),
     };
 
-    state
+    let result = state
         .households
         .delete_household
         .execute(command)
         .await
         .map_err(ApiError::from)?;
+
+    state.application_result_dispatcher.dispatch(result);
 
     Ok(StatusCode::NO_CONTENT)
 }
